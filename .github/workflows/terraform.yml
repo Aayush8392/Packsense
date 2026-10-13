@@ -90,4 +90,13 @@ jobs:
           -backend-config="bucket=${TF_STATE_BUCKET}"
           -backend-config='endpoints={s3="https://s3.eu-central-003.backblazeb2.com"}'
       - name: Apply
-        run: terraform apply -input=false -auto-approve
+        run: |
+          set +e
+          terraform apply -input=false -auto-approve 2>&1 | tee apply.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" != "0" ]; then
+            # Surface the first error lines as an annotation (Terraform already redacts sensitive values).
+            msg=$(grep -E -A4 "Error" apply.log | head -n 24 | tr -s '[:space:]' ' ' | cut -c1-900)
+            echo "::error title=terraform apply failed::$msg"
+          fi
+          exit "$rc"
