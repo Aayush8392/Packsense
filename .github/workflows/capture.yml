@@ -1,0 +1,59 @@
+name: Daily capture (Open Food Facts delta files)
+
+on:
+  schedule:
+    # 07:30 UTC. OFF publishes its daily delta around 06:18-06:36 UTC. GitHub's cron is best-effort and can run late.
+    - cron: "30 7 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "List what would be captured, change nothing"
+        type: boolean
+        default: false
+      max_files:
+        description: "Capture at most N files (0 = all)"
+        type: string
+        default: "0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      B2_S3_ENDPOINT: ${{ vars.B2_S3_ENDPOINT }}
+      B2_BUCKET: ${{ vars.B2_BUCKET }}
+      B2_UPLOAD_KEY_ID: ${{ secrets.B2_UPLOAD_KEY_ID }}
+      B2_UPLOAD_APPLICATION_KEY: ${{ secrets.B2_UPLOAD_APPLICATION_KEY }}
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_PIPELINE_TOKEN: ${{ secrets.DATABRICKS_PIPELINE_TOKEN }}
+      HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: pip install --no-cache-dir -r capture/requirements.txt
+      - name: Tell healthchecks.io the run started
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/start" || true'
+      - name: Capture
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          MAX_FILES: ${{ inputs.max_files }}
+        run: |
+          args=()
+          [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
+          if [[ "$MAX_FILES" =~ ^[0-9]+$ ]] && [ "$MAX_FILES" != "0" ]; then args+=(--max-files "$MAX_FILES"); fi
+          python capture/capture_deltas.py "${args[@]}"
+      - name: Ping healthchecks.io (success)
+        if: success() && inputs.dry_run != true
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL" || true'
+      - name: Ping healthchecks.io (failure)
+        if: failure()
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/fail" || true'
