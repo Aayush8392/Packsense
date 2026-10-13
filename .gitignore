@@ -1,0 +1,67 @@
+# --- private project context (never published) ---
+packsense_*.md
+
+# --- secrets and local environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+credentials*.json
+secrets*.json
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# --- logs and run output (IDs and reason codes only, never record contents) ---
+output/
+*.log
+
+# --- no data in git (constraint: no raw or bulk data on the laptop) ---
+data/
+*.parquet
+*.jsonl
+*.jsonl.gz
+*.json.gz
+*.csv.gz
+*.vhdx
+*.vmdk
+
+# --- Terraform ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+
+# --- dbt ---
+target/
+dbt_packages/
+logs/
+
+# --- Node / Evidence build ---
+node_modules/
+.evidence/
+evidence-site/build/
+evidence-site/.evidence/
+
+# --- Airflow local stack ---
+airflow/logs/
+airflow/.env
+
+# --- editors and OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
