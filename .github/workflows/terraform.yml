@@ -12,6 +12,10 @@ on:
         type: choice
         options: [plan, apply]
         default: plan
+      target:
+        description: "Optional single resource address (e.g. github_repository_ruleset.protect_main). Leave blank for a full run. Needed when the B2 admin key is not present, because the b2 provider cannot start without it."
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -62,7 +66,9 @@ jobs:
       - run: terraform fmt -check -recursive
       - run: terraform validate
       - name: Plan
-        run: terraform plan -input=false -lock=false
+        env:
+          TARGET: ${{ inputs.target }}
+        run: terraform plan -input=false -lock=false ${TARGET:+-target="$TARGET"}
 
   apply:
     needs: plan
@@ -90,9 +96,11 @@ jobs:
           -backend-config="bucket=${TF_STATE_BUCKET}"
           -backend-config='endpoints={s3="https://s3.eu-central-003.backblazeb2.com"}'
       - name: Apply
+        env:
+          TARGET: ${{ inputs.target }}
         run: |
           set +e
-          terraform apply -input=false -auto-approve 2>&1 | tee apply.log
+          terraform apply -input=false -auto-approve ${TARGET:+-target="$TARGET"} 2>&1 | tee apply.log
           rc=${PIPESTATUS[0]}
           if [ "$rc" != "0" ]; then
             # Surface the first error lines as an annotation (Terraform already redacts sensitive values).
