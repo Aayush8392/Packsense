@@ -4,6 +4,12 @@ For every delta file OFF still lists (it keeps about 14 days) that is not yet in
 download -> checksum and line count -> upload to B2 (upload-only key) -> upload to the landing volume
 (pipeline-user token) -> record it in a manifest. Re-runs are harmless: a file already in landing is skipped.
 
+Orphans: a run that dies after a file reached landing but before the manifest was written leaves a landed file no
+manifest records. Every run looks for these. An orphan OFF still lists goes through the full path again (a repeat B2
+upload makes a second version of the key; the bucket lifecycle removes it after the hidden-file window). An orphan OFF
+no longer lists is recorded from the landed file itself (checked to decompress, lines counted), marked as not
+re-verified against B2.
+
 Configuration comes from environment variables; values are never printed.
   B2_S3_ENDPOINT, B2_BUCKET, B2_UPLOAD_KEY_ID, B2_UPLOAD_APPLICATION_KEY
   DATABRICKS_HOST, DATABRICKS_PIPELINE_TOKEN
@@ -75,6 +81,29 @@ class Landing:
         r.raise_for_status()
         return int(r.headers["Content-Length"])
 
+    def get(self, path: str) -> bytes:
+        r = requests.get(f"{self.base}/api/2.0/fs/files{LANDING}/{path}", headers=self.headers, timeout=600)
+        r.raise_for_status()
+        return r.content
+
+    def recorded_names(self) -> set[str]:
+        """Every file name that any capture manifest in landing records."""
+        recorded: set[str] = set()
+        for manifest in sorted(self.names("manifests")):
+            recorded |= {f["name"] for f in json.loads(self.get(f"manifests/{manifest}")).get("files", [])}
+        return recorded
+
+
+def find_orphans(landed: set[str], recorded: set[str]) -> list[str]:
+    """Delta files that are in landing but not in any manifest."""
+    return sorted(n for n in landed - recorded if NAME_RE.match(n))
+
+
+def split_orphans(orphans: list[str], listed_by_off: list[str]) -> tuple[list[str], list[str]]:
+    """(orphans OFF still lists, so they can be captured again; orphans OFF no longer lists)."""
+    listed = set(listed_by_off)
+    return [n for n in orphans if n in listed], [n for n in orphans if n not in listed]
+
 
 def b2_client():
     endpoint = need("B2_S3_ENDPOINT")
@@ -85,23 +114,30 @@ def b2_client():
     )
 
 
-def download(name: str, directory: str) -> dict:
-    path = os.path.join(directory, name)
+def inspect_local(path: str, name: str) -> dict:
+    """Checksums, size and line count of a local delta file; the whole file must decompress."""
     sha, md5, size = hashlib.sha256(), hashlib.md5(), 0
-    with requests.get(OFF_DELTA + name, headers=USER_AGENT, stream=True, timeout=120) as r, open(path, "wb") as out:
-        r.raise_for_status()
-        for chunk in r.iter_content(1 << 20):
-            out.write(chunk)
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
             sha.update(chunk)
             md5.update(chunk)
             size += len(chunk)
     if size == 0:
-        raise RuntimeError(f"{name}: empty download")
+        raise RuntimeError(f"{name}: empty file")
     lines = 0
-    with gzip.open(path, "rb") as g:  # integrity check: the whole file must decompress
+    with gzip.open(path, "rb") as g:
         for _ in g:
             lines += 1
     return {"name": name, "path": path, "bytes": size, "sha256": sha.hexdigest(), "md5": md5.hexdigest(), "lines": lines}
+
+
+def download(name: str, directory: str) -> dict:
+    path = os.path.join(directory, name)
+    with requests.get(OFF_DELTA + name, headers=USER_AGENT, stream=True, timeout=120) as r, open(path, "wb") as out:
+        r.raise_for_status()
+        for chunk in r.iter_content(1 << 20):
+            out.write(chunk)
+    return inspect_local(path, name)
 
 
 def main() -> int:
@@ -116,12 +152,17 @@ def main() -> int:
         return 1
     landing = Landing()
     have = landing.names("deltas")
-    todo = [n for n in names if n not in have]
+    orphans = find_orphans(have, landing.recorded_names())
+    refetch, from_landing = split_orphans(orphans, names)
+    todo = [n for n in names if n not in have or n in refetch]
     if args.max_files:
         todo = todo[: args.max_files]
     print(f"OFF lists {len(names)} delta files; {len(have)} already in landing; {len(todo)} to capture")
+    print(f"orphans (in landing, in no manifest): {len(orphans)} ({len(refetch)} still listed by OFF, {len(from_landing)} to record from landing)")
     for n in todo:
-        print("  would capture" if args.dry_run else "  capturing", n)
+        print("  would capture" if args.dry_run else "  capturing", n, "(orphan, capturing again)" if n in refetch else "")
+    for n in from_landing:
+        print("  would record from landing" if args.dry_run else "  will record from landing", n)
     if args.dry_run:
         return 0
 
@@ -135,16 +176,34 @@ def main() -> int:
                 key = f"raw/deltas/{name}"
                 with open(info["path"], "rb") as fh:
                     etag = s3.put_object(Bucket=bucket, Key=key, Body=fh)["ETag"].strip('"')
-                if re.fullmatch(r"[0-9a-f]{32}", etag) and etag != info["md5"]:
+                etag_is_md5 = bool(re.fullmatch(r"[0-9a-f]{32}", etag))
+                if etag_is_md5 and etag != info["md5"]:
                     raise RuntimeError(f"{name}: B2 checksum differs from the local checksum")
                 with open(info["path"], "rb") as fh:
                     landing.put(f"deltas/{name}", fh)
                 if landing.size(f"deltas/{name}") != info["bytes"]:
                     raise RuntimeError(f"{name}: landing size differs from the local size")
                 os.remove(info["path"])
-                entries.append({k: info[k] for k in ("name", "bytes", "sha256", "lines")} | {"b2_key": key, "landing": f"deltas/{name}"})
+                entry = {k: info[k] for k in ("name", "bytes", "sha256", "lines")} | {"b2_key": key, "landing": f"deltas/{name}", "b2_etag_matched": etag_is_md5}
+                if name in refetch:
+                    entry["recovered"] = True
+                entries.append(entry)
                 print(f"  ok {name}: {info['bytes'] / 1e6:.1f} MB, {info['lines']:,} records, sha256 {info['sha256'][:12]}.. ({time.time() - t0:.0f}s)")
             except Exception as exc:  # keep going so one bad file does not block the others
+                failed = True
+                print(f"  FAILED {name}: {type(exc).__name__}: {str(exc)[:200]}")
+
+        for name in from_landing:  # OFF no longer lists these: the landed file is all that is left, so record it as it is
+            try:
+                path = os.path.join(tmp, name)
+                with open(path, "wb") as fh:
+                    fh.write(landing.get(f"deltas/{name}"))
+                info = inspect_local(path, name)
+                os.remove(path)
+                entries.append({k: info[k] for k in ("name", "bytes", "sha256", "lines")} | {
+                    "b2_key": f"raw/deltas/{name}", "landing": f"deltas/{name}", "b2_etag_matched": False, "recovered": True})
+                print(f"  recorded from landing {name}: {info['bytes'] / 1e6:.1f} MB, {info['lines']:,} records (not re-verified against B2)")
+            except Exception as exc:
                 failed = True
                 print(f"  FAILED {name}: {type(exc).__name__}: {str(exc)[:200]}")
 
