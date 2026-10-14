@@ -31,6 +31,8 @@ output/
 data/
 *.parquet
 *.jsonl
+# the one exception: small real slices used as test fixtures, with personal data removed (see the README beside them)
+!p2_lakehouse/tests/fixtures/*.jsonl
 *.jsonl.gz
 *.json.gz
 *.csv.gz

@@ -56,13 +56,19 @@ personal_data_check:
   # Match after normalisation, whole value or whole word. A hit quarantines the row (Q_PII_FOUND) and fails the job.
   min_username_length: 5              # shorter usernames are counted and reported, never quarantined
   stoplist: p2_lakehouse/contracts/pii_stoplist.txt   # ordinary words that are also usernames (starts empty)
-  columns: all_text                   # every string and array<string> column except the *_hmac columns
+  columns: all_text                   # every string and array<string> column except key, derived, lineage and *_hmac columns
+  # Phone numbers found in these DROPPED fields are collected as hashes (digits only, 8 to 15 digits) and searched for in
+  # the kept text, so a phone number copied from a customer-service line into a product name is caught.
+  known_phones_from: [customer_service, producer]      # field-name prefixes
+  # The known-identity table stores only HMACs (never plain names), with the length of each name:
+  #   workspace.packsense_silver.silver_identity_hmacs (hmac, kind: username|phone, length, first_seen_at)
+  identity_table: workspace.packsense_silver.silver_identity_hmacs
 
 scrub:
   # Applied to the free-text columns listed under "scrub" below. Field-aware on purpose: a pattern run over every
   # field gave 828 false Aadhaar hits on packaging codes.
   email: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
-  aadhaar: '(?<!\d)[2-9]\d{3}[ -]\d{4}[ -]\d{3,4}(?!\d)'
+  aadhaar: '(?<!\d)[2-9]\d{3}[ -]\d{4}[ -]\d{4}(?!\d)'
   pan: '(?<![A-Z0-9])[A-Z]{5}\d{4}[A-Z](?![A-Z0-9])'
   replacement: '[removed]'
   # Phone numbers are NOT scrubbed: the fields that carry them (emb_codes*, customer_service*, producer*) are dropped.
@@ -77,6 +83,7 @@ quarantine_codes:
   Q_BAD_CODE: code missing, empty or not all digits (2 real cases in bronze today)
   Q_BAD_LAST_MODIFIED: last_modified_t missing or not an integer
   Q_PII_FOUND: a known username, email or phone was found in a kept text column
+  Q_TRANSFORM_ERROR: unexpected failure while building the row (our bug or a shape nobody foresaw); counted, and the job goes red
 # A value that cannot be converted to its column type (e.g. product_quantity "approx 5") becomes NULL, is counted per
 # column in silver_run_stats, and does not quarantine the row.
 
@@ -150,7 +157,7 @@ columns:
   - {name: salt, from: $.nutrition.aggregated_set.nutrients.salt.value, type: double, nullable: true, class: public}
   - {name: sodium, from: $.nutrition.aggregated_set.nutrients.sodium.value, type: double, nullable: true, class: public}
   # Everything in aggregated_set, nothing lost (about 45 nutrient keys are common; vitamins and minerals are in g).
-  - {name: nutrients, from: $.nutrition.aggregated_set.nutrients, type: "map<string,struct<value:double,unit:string,modifier:string>>", nullable: true, class: public, note: "modifier '~' (about), '<', '>' or null; '~' appears on over half of entries (inferred: estimated values)"}
+  - {name: nutrients, from: $.nutrition.aggregated_set.nutrients, type: "map<string,struct<value:double,unit:string,modifier:string>>", nullable: true, class: public, note: "modifier '~' (approximate), '<', '>' or null. Checked on 55,088 real records: every estimate-sourced value carries '~' (396,436) and so do about 17% of packaging-sourced values (81,592 of ~488,000), so '~' means approximate, not strictly estimated"}
   # Per-source breakdown for the source-disagreement detector. source_description (free text) and value_string are
   # not kept. 0 to 7 sets per product; sources seen: packaging, estimate, manufacturer. value is null on ~6% of entries.
   - {name: input_sets, from: $.nutrition.input_sets, type: "array<struct<source:string,per:string,per_quantity:double,per_unit:string,preparation:string,nutrients:map<string,struct<value:double,unit:string,modifier:string>>>>", nullable: true, class: public}

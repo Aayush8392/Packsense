@@ -15,15 +15,20 @@ is deleted afterwards. The key-check value is not secret and cannot be used to r
   python p2_lakehouse/bootstrap/create_hmac_key.py create  [--env-file PATH]   generate, store, verify
   python p2_lakehouse/bootstrap/create_hmac_key.py check   [--env-file PATH]   read the stored key in a job, print length + key-check value
   python p2_lakehouse/bootstrap/create_hmac_key.py dry-run                     generate a key in memory, show the key-check value, touch nothing
+  python p2_lakehouse/bootstrap/create_hmac_key.py put-secret --name NAME [--replace] [--env-file PATH]
+                                                                               store another secret (e.g. a healthchecks ping URL) in the
+                                                                               same scope; the value is typed at a hidden prompt, never echoed
 
 Environment: DATABRICKS_HOST, DATABRICKS_TOKEN (admin). Values are never printed.
 """
 import argparse
 import base64
+import getpass
 import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import sys
 from datetime import timedelta
@@ -108,6 +113,31 @@ def cmd_create() -> int:
     return 0 if ok else 1
 
 
+def check_secret_name(name: str) -> str:
+    """A name this command may write: plain characters only, and never the HMAC key itself."""
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", name or ""):
+        sys.exit("secret name must be 1-128 characters of letters, digits, underscore, dot or hyphen")
+    if name.startswith("hmac_key"):
+        sys.exit("refusing to touch an HMAC key with put-secret (rotation is a separate runbook)")
+    return name
+
+
+def cmd_put_secret(name: str, replace: bool) -> int:
+    check_secret_name(name)
+    w = client()
+    exists = any(s.key == name for s in w.secrets.list_secrets(scope=SCOPE))
+    if exists and not replace:
+        sys.exit(f"'{name}' already exists in scope '{SCOPE}': nothing changed (use --replace to overwrite it)")
+    value = getpass.getpass(f"value for '{name}' (hidden, not echoed): ").strip()
+    if not value:
+        sys.exit("empty value: nothing stored")
+    w.secrets.put_secret(scope=SCOPE, key=name, string_value=value)
+    del value
+    print(f"stored '{name}' in scope '{SCOPE}' ({'replaced' if exists else 'new'}); the value was not printed")
+    print("secrets in the scope:", sorted(s.key for s in w.secrets.list_secrets(scope=SCOPE)))
+    return 0
+
+
 def cmd_check() -> int:
     got = read_back(client())
     print(f"stored key: length {got.get('length')}, key-check {got.get('check')}")
@@ -116,11 +146,17 @@ def cmd_check() -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["create", "check", "dry-run"])
+    ap.add_argument("command", choices=["create", "check", "dry-run", "put-secret"])
     ap.add_argument("--env-file")
+    ap.add_argument("--name", help="put-secret: the secret's name in the scope")
+    ap.add_argument("--replace", action="store_true", help="put-secret: overwrite an existing secret")
     args = ap.parse_args()
     if args.env_file:
         load_env_file(args.env_file)
+    if args.command == "put-secret":
+        if not args.name:
+            sys.exit("put-secret needs --name")
+        return cmd_put_secret(args.name, args.replace)
     return {"create": cmd_create, "check": cmd_check, "dry-run": cmd_dry_run}[args.command]()
 
 
