@@ -77,3 +77,30 @@ resource "github_actions_variable" "b2_s3_endpoint" {
   variable_name = "B2_S3_ENDPOINT"
   value         = var.b2_s3_endpoint
 }
+
+# Branch protection for main: no deletion, no force-push, linear history. Created by hand on
+# 2026-10-13 and brought under Terraform by the import block below.
+resource "github_repository_ruleset" "protect_main" {
+  name        = "protect-main"
+  repository  = var.github_repository
+  target      = "branch"
+  enforcement = "active"
+
+  conditions {
+    ref_name {
+      include = ["~DEFAULT_BRANCH"]
+      exclude = []
+    }
+  }
+
+  rules {
+    deletion                = true
+    non_fast_forward        = true
+    required_linear_history = true
+  }
+}
+
+import {
+  to = github_repository_ruleset.protect_main
+  id = "${var.github_repository}:25028655"
+}
