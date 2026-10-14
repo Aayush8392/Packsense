@@ -1,0 +1,190 @@
+# Silver data contract: the guest list for workspace.packsense_silver.silver_product_versions
+#
+# Silver keeps only what is listed here. Every other field in a bronze record is dropped (allowlist, not blocklist),
+# so a field OFF adds tomorrow cannot reach silver until someone adds it to this file.
+# Adding a field: see the drift monitor alert -> look at real values -> classify (public / hashed / unknown) ->
+# edit this file in a pull request -> run the personal-data check on a scratch copy -> merge -> backfill from bronze.
+#
+# Everything below was written from what the real bronze records hold (a 25,000-row sample of 91,917 rows,
+# 2026-10-14), not from what OFF's documentation says.
+
+contract: silver_product_versions
+version: 1
+table: workspace.packsense_silver.silver_product_versions
+quarantine_table: workspace.packsense_silver.silver_quarantine
+manifest_table: workspace.packsense_silver.silver_manifest
+stats_table: workspace.packsense_silver.silver_run_stats
+source_table: workspace.packsense_bronze.bronze_delta_raw
+grain: [code, last_modified_t]        # one row per product version; history is kept for the gold SCD2 table
+
+# ---------------------------------------------------------------------------------------------------------------
+# Personal data
+# ---------------------------------------------------------------------------------------------------------------
+hmac:
+  secret_scope: packsense
+  secret_key: hmac_key_v1
+  key_version: 1                      # stored on every row, so a future re-key is visible
+  algorithm: HMAC-SHA256              # output: 64 hex characters
+  normalise: [nfkc, lowercase, strip] # applied before hashing AND before the personal-data check, so they cannot disagree
+
+# Raw fields whose values are contributor identities. All of them feed the set of known usernames used by the
+# personal-data check, including the ones silver does not keep. Verified on real data: last_modified_by equals
+# last_editor on every row where it is set (24,547 of 24,547), so it has no column of its own; owner values all start
+# with "org-" (organisation accounts, hashed anyway to be safe).
+personal_source_fields:
+  - creator
+  - last_editor
+  - last_modified_by
+  - last_checker
+  - editors_tags
+  - informers_tags
+  - checkers_tags
+  - correctors_tags
+  - photographers_tags
+  - weighers_tags
+  - editors            # legacy list fields, present in ~3% of rows; not kept, but known usernames
+  - informers
+  - checkers
+  - correctors
+  - photographers
+  - owner
+  - owner_imported
+  - owners_tags
+
+personal_data_check:
+  # Search every text column silver keeps for any known username, email or phone from the raw fields above.
+  # Match after normalisation, whole value or whole word. A hit quarantines the row (Q_PII_FOUND) and fails the job.
+  min_username_length: 5              # shorter usernames are counted and reported, never quarantined
+  stoplist: p2_lakehouse/contracts/pii_stoplist.txt   # ordinary words that are also usernames (starts empty)
+  columns: all_text                   # every string and array<string> column except the *_hmac columns
+
+scrub:
+  # Applied to the free-text columns listed under "scrub" below. Field-aware on purpose: a pattern run over every
+  # field gave 828 false Aadhaar hits on packaging codes.
+  email: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+  aadhaar: '(?<!\d)[2-9]\d{3}[ -]\d{4}[ -]\d{3,4}(?!\d)'
+  pan: '(?<![A-Z0-9])[A-Z]{5}\d{4}[A-Z](?![A-Z0-9])'
+  replacement: '[removed]'
+  # Phone numbers are NOT scrubbed: the fields that carry them (emb_codes*, customer_service*, producer*) are dropped.
+
+# ---------------------------------------------------------------------------------------------------------------
+# Quarantine: only records that cannot be loaded safely. Implausible VALUES (62 g sugar in a biscuit) are not
+# quarantined: they are the signal the triage work looks for.
+# ---------------------------------------------------------------------------------------------------------------
+quarantine_codes:
+  Q_BAD_JSON: raw_json is not valid JSON
+  Q_NOT_OBJECT: raw_json is valid JSON but not an object
+  Q_BAD_CODE: code missing, empty or not all digits (2 real cases in bronze today)
+  Q_BAD_LAST_MODIFIED: last_modified_t missing or not an integer
+  Q_PII_FOUND: a known username, email or phone was found in a kept text column
+# A value that cannot be converted to its column type (e.g. product_quantity "approx 5") becomes NULL, is counted per
+# column in silver_run_stats, and does not quarantine the row.
+
+# ---------------------------------------------------------------------------------------------------------------
+# Columns
+#   from:   path in the raw JSON ($.name); "derived" / "lineage" columns are computed
+#   class:  key | public | hashed | derived | lineage
+#   nullable: whether NULL is allowed (checked on real data: share of rows that lack the field is in the note)
+# ---------------------------------------------------------------------------------------------------------------
+columns:
+  # --- identity -----------------------------------------------------------------------------------------------
+  - {name: code, from: $.code, type: string, nullable: false, class: key, note: "barcode as text, never a number (leading zeros)"}
+  - {name: code_kind, from: derived, type: string, nullable: false, class: derived, note: "gtin8 | gtin12 | gtin13 | gtin14 | other, from the length of code; other = lengths 15-39, ~0.2% of rows, kept"}
+  - {name: last_modified_t, from: $.last_modified_t, type: bigint, nullable: false, class: key, note: "unix seconds"}
+  - {name: created_t, from: $.created_t, type: bigint, nullable: true, class: public}
+  - {name: schema_version, from: $.schema_version, type: int, nullable: true, class: public, note: "1004 on every sampled row; any other value is reported by the drift monitor"}
+  - {name: rev, from: $.rev, type: int, nullable: true, class: public}
+  - {name: product_type, from: $.product_type, type: string, nullable: true, class: public, note: "'food' on every sampled row"}
+  - {name: lc, from: $.lc, type: string, nullable: true, class: public, note: "main language code; $.lang is identical and not kept"}
+
+  # --- descriptive text (scrubbed) ------------------------------------------------------------------------------
+  - {name: product_name, from: $.product_name, type: string, nullable: true, class: public, scrub: true, note: "absent on 6% of rows; 197 empty strings; p99 length 66"}
+  - {name: brands, from: $.brands, type: string, nullable: true, class: public, scrub: true, note: "absent on 18% of rows"}
+  - {name: quantity, from: $.quantity, type: string, nullable: true, class: public, scrub: true, note: "free text such as '250 g'; absent on 50% of rows"}
+  - {name: serving_size, from: $.serving_size, type: string, nullable: true, class: public, scrub: true}
+  - {name: ingredients_text, from: $.ingredients_text, type: string, nullable: true, class: public, scrub: true, note: "absent on 56% of rows; p99 1,461 characters, max 5,212; emails were found here in the personal-data scan"}
+  - {name: product_quantity, from: $.product_quantity, type: double, nullable: true, class: public, coerce: number, note: "int, float or (9 of 25,000) string in the raw data"}
+  - {name: serving_quantity, from: $.serving_quantity, type: double, nullable: true, class: public, coerce: number, note: "int, float, null or string in the raw data"}
+
+  # --- tags and classification -----------------------------------------------------------------------------------
+  - {name: categories_tags, from: $.categories_tags, type: "array<string>", nullable: true, class: public, note: "absent on 51% of rows"}
+  - {name: countries_tags, from: $.countries_tags, type: "array<string>", nullable: true, class: public, note: "absent on 0.25% of rows"}
+  - {name: labels_tags, from: $.labels_tags, type: "array<string>", nullable: true, class: public}
+  - {name: allergens_tags, from: $.allergens_tags, type: "array<string>", nullable: true, class: public, note: "feeds the allergen change log; empty list on 73% of rows is a real value (no allergens declared)"}
+  - {name: traces_tags, from: $.traces_tags, type: "array<string>", nullable: true, class: public}
+  - {name: states_tags, from: $.states_tags, type: "array<string>", nullable: true, class: public, note: "OFF's completeness state tags"}
+  - {name: data_quality_errors_tags, from: $.data_quality_errors_tags, type: "array<string>", nullable: true, class: public, note: "OFF's own error-level flags; the split by severity is kept (the union data_quality_tags is not: gold can rebuild it)"}
+  - {name: data_quality_warnings_tags, from: $.data_quality_warnings_tags, type: "array<string>", nullable: true, class: public}
+  - {name: data_quality_info_tags, from: $.data_quality_info_tags, type: "array<string>", nullable: true, class: public}
+  - {name: data_quality_bugs_tags, from: $.data_quality_bugs_tags, type: "array<string>", nullable: true, class: public}
+  - {name: pnns_groups_1, from: $.pnns_groups_1, type: string, nullable: true, class: public, note: "'unknown' is a real value on 60% of rows"}
+  - {name: pnns_groups_2, from: $.pnns_groups_2, type: string, nullable: true, class: public}
+
+  # --- scores and popularity --------------------------------------------------------------------------------------
+  - {name: nutriscore_grade, from: $.nutriscore_grade, type: string, nullable: true, class: public, note: "a-e, 'unknown' (61%), 'not-applicable'"}
+  - {name: nutriscore_score, from: $.nutriscore_score, type: int, nullable: true, class: public, note: "present on 36% of rows"}
+  - {name: nova_group, from: $.nova_group, type: int, nullable: true, class: public, note: "1-4, present on 35% of rows"}
+  - {name: completeness, from: $.completeness, type: double, nullable: true, class: public, note: "0 to 1"}
+  - {name: popularity_key, from: $.popularity_key, type: bigint, nullable: true, class: public, note: "up to 2.5e10, needs bigint; used only when ranking (design 7.2)"}
+  - {name: unique_scans_n, from: $.unique_scans_n, type: bigint, nullable: true, class: public}
+
+  # --- nutrition: OFF's new format ($.nutrition) -------------------------------------------------------------------
+  # Verified on 25,000 real rows: 81% carry $.nutrition.aggregated_set; 19% carry no nutrition at all; the legacy
+  # $.nutriments exists on 29% of rows but is an EMPTY object on all but 2 of them, so it is not mapped here
+  # (the India seed from the Parquet does have populated nutriments and gets its own mapping in stage S2).
+  - {name: nutrition_format, from: derived, type: string, nullable: false, class: derived, note: "'new' (aggregated_set present) | 'none'"}
+  - {name: nutrition_per, from: $.nutrition.aggregated_set.per, type: string, nullable: true, class: public, note: "'100g' (93%) | '100ml' (7%) | null; every per-100 value below is on this basis"}
+  - {name: nutrition_preparation, from: $.nutrition.aggregated_set.preparation, type: string, nullable: true, class: public, note: "'as_sold' (99%) | 'prepared'"}
+  # Core nutrients as typed columns (value only; unit is fixed by OFF: energy kJ/kcal, everything else g). These are
+  # the columns the arithmetic rules in P7 need. Everything else is in the nutrients map below.
+  - {name: energy_kj, from: "$.nutrition.aggregated_set.nutrients.energy-kj.value, else .energy.value", type: double, nullable: true, class: public, note: "OFF carries both keys (kJ); energy-kj first, energy as fallback"}
+  - {name: energy_kcal, from: $.nutrition.aggregated_set.nutrients.energy-kcal.value, type: double, nullable: true, class: public}
+  - {name: fat, from: $.nutrition.aggregated_set.nutrients.fat.value, type: double, nullable: true, class: public}
+  - {name: saturated_fat, from: $.nutrition.aggregated_set.nutrients.saturated-fat.value, type: double, nullable: true, class: public}
+  - {name: carbohydrates, from: $.nutrition.aggregated_set.nutrients.carbohydrates.value, type: double, nullable: true, class: public}
+  - {name: sugars, from: $.nutrition.aggregated_set.nutrients.sugars.value, type: double, nullable: true, class: public}
+  - {name: added_sugars, from: $.nutrition.aggregated_set.nutrients.added-sugars.value, type: double, nullable: true, class: public}
+  - {name: starch, from: $.nutrition.aggregated_set.nutrients.starch.value, type: double, nullable: true, class: public, note: "OFF's sugars-greater-than-carbohydrates check has starch handling"}
+  - {name: fiber, from: $.nutrition.aggregated_set.nutrients.fiber.value, type: double, nullable: true, class: public}
+  - {name: proteins, from: $.nutrition.aggregated_set.nutrients.proteins.value, type: double, nullable: true, class: public}
+  - {name: salt, from: $.nutrition.aggregated_set.nutrients.salt.value, type: double, nullable: true, class: public}
+  - {name: sodium, from: $.nutrition.aggregated_set.nutrients.sodium.value, type: double, nullable: true, class: public}
+  # Everything in aggregated_set, nothing lost (about 45 nutrient keys are common; vitamins and minerals are in g).
+  - {name: nutrients, from: $.nutrition.aggregated_set.nutrients, type: "map<string,struct<value:double,unit:string,modifier:string>>", nullable: true, class: public, note: "modifier '~' (about), '<', '>' or null; '~' appears on over half of entries (inferred: estimated values)"}
+  # Per-source breakdown for the source-disagreement detector. source_description (free text) and value_string are
+  # not kept. 0 to 7 sets per product; sources seen: packaging, estimate, manufacturer. value is null on ~6% of entries.
+  - {name: input_sets, from: $.nutrition.input_sets, type: "array<struct<source:string,per:string,per_quantity:double,per_unit:string,preparation:string,nutrients:map<string,struct<value:double,unit:string,modifier:string>>>>", nullable: true, class: public}
+
+  # --- contributor identities, hashed ------------------------------------------------------------------------------
+  - {name: creator_hmac, from: $.creator, type: string, nullable: true, class: hashed}
+  - {name: last_editor_hmac, from: $.last_editor, type: string, nullable: true, class: hashed, note: "null on 2% of rows"}
+  - {name: editors_hmac, from: $.editors_tags, type: "array<string>", nullable: true, class: hashed, note: "median 3 per product, one product has 238"}
+  - {name: informers_hmac, from: $.informers_tags, type: "array<string>", nullable: true, class: hashed}
+  - {name: correctors_hmac, from: $.correctors_tags, type: "array<string>", nullable: true, class: hashed}
+  - {name: checkers_hmac, from: $.checkers_tags, type: "array<string>", nullable: true, class: hashed, note: "empty on 99% of rows"}
+  - {name: photographers_hmac, from: $.photographers_tags, type: "array<string>", nullable: true, class: hashed}
+  - {name: weighers_hmac, from: $.weighers_tags, type: "array<string>", nullable: true, class: hashed, note: "empty on 98% of rows"}
+  - {name: last_checker_hmac, from: $.last_checker, type: string, nullable: true, class: hashed}
+  - {name: owner_hmac, from: $.owner, type: string, nullable: true, class: hashed, note: "organisation account (all values start 'org-'); present on ~9% of rows"}
+  - {name: producer_owned, from: derived, type: boolean, nullable: false, class: derived, note: "owner is present"}
+  - {name: hmac_key_version, from: derived, type: int, nullable: false, class: derived}
+
+  # --- lineage and run metadata ------------------------------------------------------------------------------------
+  - {name: source_file, from: lineage, type: string, nullable: false, class: lineage, note: "bronze source_file"}
+  - {name: file_sha256, from: lineage, type: string, nullable: false, class: lineage, note: "bronze file_sha256; a test joins every silver row back to exactly one bronze row and compares"}
+  - {name: bronze_ingested_at, from: lineage, type: timestamp, nullable: false, class: lineage}
+  - {name: silver_contract_version, from: derived, type: int, nullable: false, class: lineage}
+  - {name: silver_processed_at, from: derived, type: timestamp, nullable: false, class: lineage}
+  - {name: job_run_id, from: derived, type: string, nullable: false, class: lineage}
+
+# ---------------------------------------------------------------------------------------------------------------
+# Deliberately dropped (examples; anything not listed under columns is dropped)
+# ---------------------------------------------------------------------------------------------------------------
+dropped_by_design:
+  images: "no product images in any output (per-image licences); also carries uploader names"
+  owner_fields: "dictionary of field name -> timestamp; not personal, not needed"
+  nutriments: "legacy nutrition: empty object on 24,998 of 25,000 sampled rows"
+  data_quality_tags: "union of the four severity lists kept above"
+  last_modified_by: "identical to last_editor wherever it is set"
+  generic_name: "empty on 62% of rows that have it, low value"
+  packaging, origins, manufacturing_places, stores, countries, additives_tags, ingredients_analysis_tags, emb_codes*, customer_service*, producer*: "not needed; the phone-prone ones are the reason no phone scrub is required"
