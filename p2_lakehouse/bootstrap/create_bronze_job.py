@@ -92,8 +92,12 @@ def main() -> int:
         if job is None:
             print("job created:", w.jobs.create(**settings(False)).job_id)
         else:
-            w.jobs.reset(job_id=job.job_id, new_settings=jobs.JobSettings(**settings(False)))
-            print("job updated:", job.job_id)
+            new = settings(False)
+            current = w.jobs.get(job_id=job.job_id).settings
+            if current.schedule is not None:  # a reset replaces every setting, so carry the schedule over (and its pause state)
+                new["schedule"] = current.schedule
+            w.jobs.reset(job_id=job.job_id, new_settings=jobs.JobSettings(**new))
+            print("job updated:", job.job_id, "(schedule kept)" if current.schedule is not None else "(no schedule)")
     elif job is None:
         sys.exit("job does not exist yet: run the create command first")
     elif args.command == "run":
