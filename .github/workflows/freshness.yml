@@ -1,0 +1,39 @@
+name: Freshness tripwire (newest OFF delta is in landing)
+
+on:
+  schedule:
+    # 11:00 UTC, 3.5 h after the capture, to allow for GitHub's best-effort cron lateness.
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: freshness
+  cancel-in-progress: false
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_PIPELINE_TOKEN: ${{ secrets.DATABRICKS_PIPELINE_TOKEN }}
+      HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_FRESHNESS_PING_URL }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: pip install --no-cache-dir -r capture/requirements.txt
+      - name: Tell healthchecks.io the run started
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/start" || true'
+      - name: Check freshness
+        run: python capture/check_freshness.py
+      - name: Ping healthchecks.io (success)
+        if: success()
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL" || true'
+      - name: Ping healthchecks.io (failure)
+        if: failure()
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/fail" || true'
