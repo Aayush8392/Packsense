@@ -19,10 +19,13 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType, TimestampType
 
 dbutils.widgets.text("run_id", "manual")
+# the two paths default to production; tests point them at a scratch area
+dbutils.widgets.text("landing", "/Volumes/workspace/packsense/landing")
+dbutils.widgets.text("bronze_schema", "workspace.packsense_bronze")
 RUN_ID = dbutils.widgets.get("run_id")
 
-LANDING = "/Volumes/workspace/packsense/landing"
-BRONZE = "workspace.packsense_bronze"
+LANDING = dbutils.widgets.get("landing")
+BRONZE = dbutils.widgets.get("bronze_schema")
 RAW = f"{BRONZE}.bronze_delta_raw"
 MANIFEST = f"{BRONZE}.bronze_manifest"
 
