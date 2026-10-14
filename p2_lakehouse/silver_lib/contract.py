@@ -60,6 +60,27 @@ def stoplist_path(c: dict) -> Path:
     return Path(__file__).resolve().parents[2] / c["personal_data_check"]["stoplist"]
 
 
+SILVER_PREFIX = "workspace.packsense_silver"
+BRONZE_PREFIX = "workspace.packsense_bronze"
+
+
+def relocate(c: dict, silver_schema: str = None, bronze_schema: str = None) -> dict:
+    """A copy of the contract with the table names moved to other schemas (tests use a scratch schema)."""
+    import copy
+    out = copy.deepcopy(c)
+
+    def sw(name: str) -> str:
+        if silver_schema and name.startswith(SILVER_PREFIX + "."):
+            return silver_schema + name[len(SILVER_PREFIX):]
+        if bronze_schema and name.startswith(BRONZE_PREFIX + "."):
+            return bronze_schema + name[len(BRONZE_PREFIX):]
+        return name
+    for k in ("table", "quarantine_table", "manifest_table", "stats_table", "field_log_table", "source_table"):
+        out[k] = sw(out[k])
+    out["personal_data_check"]["identity_table"] = sw(out["personal_data_check"]["identity_table"])
+    return out
+
+
 def columns(c: dict) -> list[dict]:
     return c["columns"]
 

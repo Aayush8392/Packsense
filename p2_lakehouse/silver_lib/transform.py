@@ -8,6 +8,7 @@ import json
 import re
 from collections import Counter
 from dataclasses import dataclass, field
+from collections import Counter as _Counter
 
 from . import personal
 
@@ -36,6 +37,7 @@ class Context:
     key_version: int = field(init=False)
     cols: list = field(init=False)
     text_cols: list = field(init=False)
+    field_counts: _Counter = field(default_factory=_Counter)   # top-level fields seen, for the drift monitor
 
     def __post_init__(self):
         c = self.contract
@@ -212,6 +214,17 @@ def _flatten(v):
     return []
 
 
+def identities_of(raw_json: str, ctx: Context):
+    """(usernames, phones) HMACs found in one raw record's personal and phone-bearing fields; empty if it does not parse."""
+    try:
+        d = json.loads(raw_json)
+    except Exception:
+        return {}, {}
+    if not isinstance(d, dict):
+        return {}, {}
+    return personal.known_identities(d, ctx.key, ctx.personal_fields, ctx.phone_prefixes)
+
+
 def process(raw_json: str, ctx: Context, lineage: dict) -> Result:
     """lineage: source_file, file_sha256, bronze_ingested_at, silver_processed_at, job_run_id."""
     try:
@@ -221,6 +234,7 @@ def process(raw_json: str, ctx: Context, lineage: dict) -> Result:
     if not isinstance(d, dict):
         return Result("quarantine", reason="Q_NOT_OBJECT")
 
+    ctx.field_counts.update(d.keys())
     users, phones = personal.known_identities(d, ctx.key, ctx.personal_fields, ctx.phone_prefixes)
     code = d.get("code")
     lmt = d.get("last_modified_t")

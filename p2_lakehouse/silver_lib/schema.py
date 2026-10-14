@@ -28,6 +28,7 @@ def quarantine_table_sql(contract: dict) -> str:
   payload STRING,
   source_file STRING NOT NULL,
   file_sha256 STRING NOT NULL,
+  record_sha256 STRING NOT NULL,
   bronze_ingested_at TIMESTAMP,
   quarantined_at TIMESTAMP NOT NULL,
   job_run_id STRING NOT NULL,
@@ -77,6 +78,20 @@ def identity_table_sql(contract: dict) -> str:
 ) USING DELTA"""
 
 
+def field_log_table_sql(contract: dict) -> str:
+    return f"""CREATE TABLE IF NOT EXISTS {contract['field_log_table']} (
+  job_run_id STRING NOT NULL,
+  processed_at TIMESTAMP NOT NULL,
+  field STRING NOT NULL,
+  products BIGINT NOT NULL
+) USING DELTA"""
+
+
+def struct_ddl(contract: dict) -> str:
+    """Column list for spark.createDataFrame(rows, schema=...): the table's columns without NOT NULL."""
+    return ", ".join(f"{c['name']} {spark_type(c['type'])}" for c in contract["columns"])
+
+
 def all_table_sql(contract: dict) -> list[str]:
     return [silver_table_sql(contract), quarantine_table_sql(contract), manifest_table_sql(contract),
-            stats_table_sql(contract), identity_table_sql(contract)]
+            stats_table_sql(contract), identity_table_sql(contract), field_log_table_sql(contract)]

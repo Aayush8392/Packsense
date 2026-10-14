@@ -61,15 +61,15 @@ def test_ddl_matches_what_the_transform_produces():
 
 def test_table_names_come_from_the_contract():
     sql = schema.all_table_sql(C)
-    assert len(sql) == 5
+    assert len(sql) == 6
     for name, s in zip((C["table"], C["quarantine_table"], C["manifest_table"], C["stats_table"],
-                        C["personal_data_check"]["identity_table"]), sql):
+                        C["personal_data_check"]["identity_table"], C["field_log_table"]), sql):
         assert f"CREATE TABLE IF NOT EXISTS {name} (" in s and s.endswith("USING DELTA")
 
 
 def test_quarantine_table_holds_what_the_transform_returns_for_a_quarantined_record():
     q = ddl_columns(schema.quarantine_table_sql(C))
-    for needed in ("code", "last_modified_t", "reason", "pii_columns", "payload", "source_file", "file_sha256", "job_run_id", "resolved_by_run"):
+    for needed in ("code", "last_modified_t", "reason", "pii_columns", "payload", "source_file", "file_sha256", "record_sha256", "job_run_id", "resolved_by_run"):
         assert needed in q
     assert q["reason"].endswith("NOT NULL") and "NOT NULL" not in q["code"]      # a bad record may have no code
 
@@ -90,3 +90,19 @@ def test_run_stats_table_records_the_gate_counters():
     for needed in ("rows_in", "rows_silver", "rows_quarantine", "quarantine_by_reason", "coerce_failures",
                    "nutrition_format", "patterns_scrubbed", "short_name_hits", "exempt_name_hits", "identities_added"):
         assert needed in cols, needed
+
+
+def test_struct_ddl_is_the_column_list_without_not_null():
+    ddl = schema.struct_ddl(C)
+    assert "NOT NULL" not in ddl and ddl.startswith("code STRING, code_kind STRING") and ddl.count(", ") >= 67
+
+
+def test_relocate_moves_every_table_to_the_scratch_schemas_and_leaves_the_original_alone():
+    moved = contract.relocate(C, silver_schema="workspace.scratch_s", bronze_schema="workspace.scratch_b")
+    assert moved["table"] == "workspace.scratch_s.silver_product_versions"
+    assert moved["source_table"] == "workspace.scratch_b.bronze_delta_raw"
+    assert moved["personal_data_check"]["identity_table"] == "workspace.scratch_s.silver_identity_hmacs"
+    for sql in schema.all_table_sql(moved):
+        assert "packsense_silver" not in sql
+    assert C["table"] == "workspace.packsense_silver.silver_product_versions"     # the original is untouched
+    assert contract.relocate(C)["table"] == C["table"]

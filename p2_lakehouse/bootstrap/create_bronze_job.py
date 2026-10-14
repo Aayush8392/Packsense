@@ -1,7 +1,9 @@
 """Creates the bronze schema and the Databricks job that loads landed delta files into bronze.
 
-The job runs p2_lakehouse/notebooks/bronze_load.py, sourced from this public repo's main branch, on serverless compute,
-one run at a time. It runs as the admin user (a job cannot be bound to a service principal on Free Edition).
+The job has two tasks, both sourced from this public repo's main branch on serverless compute, one run at a time:
+  bronze  p2_lakehouse/notebooks/bronze_load.py
+  silver  p2_lakehouse/notebooks/silver_load.py, after bronze, with run_if ALL_DONE: it processes whatever bronze finished
+          even when bronze ended red, and is told how bronze ended so the healthchecks ping stays honest. It runs as the admin user (a job cannot be bound to a service principal on Free Edition).
 This is later brought under Terraform / Asset Bundles; until then it documents exactly what exists.
 
 Needs an admin token in the environment (or in an --env-file). Values are never printed.
@@ -19,6 +21,7 @@ from datetime import timedelta
 JOB = "packsense-bronze-load"
 REPO = "https://github.com/Aayush8392/Packsense"
 NOTEBOOK = "p2_lakehouse/notebooks/bronze_load"
+SILVER_NOTEBOOK = "p2_lakehouse/notebooks/silver_load"
 SCHEMA = "workspace.packsense_bronze"
 CRON = "0 0 9 * * ?"  # 09:00 UTC = 14:30 IST, before the 15:00 IST data-ready target
 
@@ -36,8 +39,14 @@ def settings(with_schedule: bool) -> dict:
     s = dict(
         name=JOB,
         git_source=jobs.GitSource(git_url=REPO, git_provider=jobs.GitProvider.GIT_HUB, git_branch="main"),
-        tasks=[jobs.Task(task_key="bronze", notebook_task=jobs.NotebookTask(
-            notebook_path=NOTEBOOK, source=jobs.Source.GIT, base_parameters={"run_id": "{{job.run_id}}"}))],
+        tasks=[
+            jobs.Task(task_key="bronze", notebook_task=jobs.NotebookTask(
+                notebook_path=NOTEBOOK, source=jobs.Source.GIT, base_parameters={"run_id": "{{job.run_id}}"})),
+            jobs.Task(task_key="silver", depends_on=[jobs.TaskDependency(task_key="bronze")], run_if=jobs.RunIf.ALL_DONE,
+                      notebook_task=jobs.NotebookTask(
+                          notebook_path=SILVER_NOTEBOOK, source=jobs.Source.GIT,
+                          base_parameters={"run_id": "{{job.run_id}}", "bronze_result": "{{tasks.bronze.result_state}}"})),
+        ],
         max_concurrent_runs=1,
         timeout_seconds=3600,
     )

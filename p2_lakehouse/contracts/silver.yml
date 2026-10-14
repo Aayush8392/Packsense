@@ -14,6 +14,7 @@ table: workspace.packsense_silver.silver_product_versions
 quarantine_table: workspace.packsense_silver.silver_quarantine
 manifest_table: workspace.packsense_silver.silver_manifest
 stats_table: workspace.packsense_silver.silver_run_stats
+field_log_table: workspace.packsense_silver.silver_field_log   # per run: every top-level field OFF sent and in how many products (feeds the drift monitor)
 source_table: workspace.packsense_bronze.bronze_delta_raw
 grain: [code, last_modified_t]        # one row per product version; history is kept for the gold SCD2 table
 
