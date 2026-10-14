@@ -227,11 +227,63 @@ def test_a_username_planted_in_a_product_name_is_caught_and_withheld():
     assert creator not in r.payload
 
 
+def own_contributors(case):
+    d = json.loads(CASES[case][0])
+    return {x for f in CONTRACT["personal_source_fields"] for x in
+            (d.get(f) if isinstance(d.get(f), list) else [d.get(f)]) if isinstance(x, str)}
+
+
+def a_name_that_is_not_a_contributor_of(case):
+    """A 9-character placeholder identity taken from another fixture record, not a contributor of `case`."""
+    mine = own_contributors(case)
+    for name in json.loads(CASES["many_editors"][0])["editors_tags"]:
+        if name not in mine:
+            return name
+    raise AssertionError("no suitable placeholder")
+
+
 def test_a_username_known_from_another_product_is_caught_through_the_identity_set():
-    other = json.loads(CASES["many_editors"][0])["editors_tags"][0]
+    other = a_name_that_is_not_a_contributor_of("normal_new")
+    ctx = transform.Context(CONTRACT, KEY, known_users=frozenset({personal.hmac_hex(KEY, other)}))
+    r = transform.process(mutated("normal_new", lambda d: d.update(product_name=f"{other} foods")), ctx, LINEAGE)
+    assert r.reason == "Q_PII_FOUND" and r.pii_columns == ["product_name"]
+
+
+def test_a_brand_equal_to_the_products_own_contributor_is_exempt_and_counted():
+    creator = json.loads(CASES["normal_new"][0])["creator"]
+    r = transform.process(mutated("normal_new", lambda d: d.update(brands=f"{creator} foods")), CTX, LINEAGE)
+    assert r.kind == "silver" and r.exempt_hits == 1 and r.row["brands"] == f"{creator} foods"
+
+
+def test_a_brand_equal_to_an_unrelated_contributor_is_still_quarantined():
+    other = a_name_that_is_not_a_contributor_of("normal_new")
     ctx = transform.Context(CONTRACT, KEY, known_users=frozenset({personal.hmac_hex(KEY, other)}))
     r = transform.process(mutated("normal_new", lambda d: d.update(brands=f"{other} foods")), ctx, LINEAGE)
-    assert r.reason == "Q_PII_FOUND" and r.pii_columns == ["brands"]
+    assert r.reason == "Q_PII_FOUND" and r.pii_columns == ["brands"] and r.exempt_hits == 0
+
+
+def test_the_own_contributor_exemption_does_not_apply_to_other_columns():
+    # "photo by <own username>" typed into the product's own text is exactly the leak the gate exists for
+    creator = json.loads(CASES["normal_new"][0])["creator"]
+    for col in ("product_name", "ingredients_text", "quantity"):
+        r = transform.process(mutated("normal_new", lambda d: d.update({col: f"x {creator} y"})), CTX, LINEAGE)
+        assert r.reason == "Q_PII_FOUND" and col in r.pii_columns, col
+
+
+def test_the_gate_is_eight_characters_end_to_end():
+    for name, expected in (("abcdefg", "silver"), ("abcdefgh", "Q_PII_FOUND")):
+        ctx = transform.Context(CONTRACT, KEY, known_users=frozenset({personal.hmac_hex(KEY, name)}))
+        r = transform.process(mutated("normal_new", lambda d: d.update(product_name=f"Biscuits {name}")), ctx, LINEAGE)
+        assert (r.reason or r.kind) == expected, name
+        if expected == "silver":
+            assert r.short_hits == 1
+
+
+def test_a_stoplisted_word_is_never_a_hit():
+    ctx = transform.Context(CONTRACT, KEY, known_users=frozenset({personal.hmac_hex(KEY, "honeycomb")}),
+                            stoplist=frozenset({"honeycomb"}))
+    r = transform.process(mutated("normal_new", lambda d: d.update(product_name="Wild honeycomb")), ctx, LINEAGE)
+    assert r.kind == "silver"
 
 
 def test_a_phone_planted_in_text_is_caught():

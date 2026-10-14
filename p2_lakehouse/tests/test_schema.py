@@ -83,3 +83,10 @@ def test_no_tabs_or_unbalanced_brackets_in_any_ddl():
     for s in schema.all_table_sql(C):
         assert "\t" not in s and s.count("(") == s.count(")") and s.count("<") == s.count(">")
         assert re.search(r"^CREATE TABLE IF NOT EXISTS workspace\.packsense_silver\.\w+ \(", s)
+
+
+def test_run_stats_table_records_the_gate_counters():
+    cols = ddl_columns(schema.stats_table_sql(C))
+    for needed in ("rows_in", "rows_silver", "rows_quarantine", "quarantine_by_reason", "coerce_failures",
+                   "nutrition_format", "patterns_scrubbed", "short_name_hits", "exempt_name_hits", "identities_added"):
+        assert needed in cols, needed

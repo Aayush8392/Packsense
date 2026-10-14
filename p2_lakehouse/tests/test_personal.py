@@ -59,34 +59,56 @@ def known(*names):
     return {personal.hmac_hex(KEY, n): len(personal.normalise(n)) for n in names}
 
 
+GATE = 8      # the contract's min_username_length
+
+
 def test_whole_word_username_is_found_even_with_punctuation_and_case():
-    k = known("user_0001")
+    k = known("user_0001")                     # 9 characters, so above the gate
     for text in ("photo by user_0001.", "Added by USER_0001, thanks", "user_0001"):
-        hits, short = personal.find_known([text], KEY, k, {}, min_len=5)
-        assert (hits, short) == (1, 0), text
+        assert personal.find_known([text], KEY, k, {}, min_len=GATE) == (1, 0, 0), text
 
 
 def test_username_glued_into_a_longer_word_is_not_a_whole_word_hit():
     # the documented limit of the daily gate; the one-off substring audit measures this case
     k = known("user_0001")
     for text in ("byuser_0001", "user_0001x", "xuser_0001y"):
-        assert personal.find_known([text], KEY, k, {}, min_len=5) == (0, 0), text
+        assert personal.find_known([text], KEY, k, {}, min_len=GATE) == (0, 0, 0), text
 
 
-def test_short_names_are_counted_not_gated():
-    k = known("bob", "bob12")
-    assert personal.find_known(["by bob"], KEY, k, {}, min_len=5) == (0, 1)
-    assert personal.find_known(["by bob12"], KEY, k, {}, min_len=5) == (1, 0)
+def test_the_gate_starts_at_eight_characters():
+    seven, eight = "abcdefg", "abcdefgh"
+    assert personal.find_known([f"by {seven}"], KEY, known(seven), {}, min_len=GATE) == (0, 1, 0)
+    assert personal.find_known([f"by {eight}"], KEY, known(eight), {}, min_len=GATE) == (1, 0, 0)
+
+
+def test_short_names_are_counted_not_gated_and_very_short_ones_are_ignored():
+    k = known("bob", "bob12", "ab")
+    assert personal.find_known(["by bob"], KEY, k, {}, min_len=GATE) == (0, 1, 0)
+    assert personal.find_known(["by bob12"], KEY, k, {}, min_len=GATE) == (0, 1, 0)
+    assert personal.find_known(["by ab"], KEY, k, {}, min_len=GATE, report_min=3) == (0, 0, 0)
 
 
 def test_stoplist_word_is_ignored():
-    k = known("honey")
-    assert personal.find_known(["wild honey"], KEY, k, {}, min_len=5) == (1, 0)
-    assert personal.find_known(["wild honey"], KEY, k, {}, min_len=5, stoplist=frozenset({"honey"})) == (0, 0)
+    k = known("honeycomb")
+    assert personal.find_known(["wild honeycomb"], KEY, k, {}, min_len=GATE) == (1, 0, 0)
+    assert personal.find_known(["wild honeycomb"], KEY, k, {}, min_len=GATE, stoplist=frozenset({"honeycomb"})) == (0, 0, 0)
+
+
+def test_exempt_names_are_counted_separately_and_never_hit():
+    k = known("user_0001", "user_0002")
+    own = frozenset(k) - {personal.hmac_hex(KEY, "user_0002")}      # only user_0001 is "own"
+    assert personal.find_known(["user_0001 foods"], KEY, k, {}, min_len=GATE, exempt=own) == (0, 0, 1)
+    assert personal.find_known(["user_0002 foods"], KEY, k, {}, min_len=GATE, exempt=own) == (1, 0, 0)
 
 
 def test_a_text_without_a_known_name_has_no_hit():
-    assert personal.find_known(["Choco Crunch biscuits", "", None], KEY, known("user_0001"), {}, min_len=5) == (0, 0)
+    assert personal.find_known(["Choco Crunch biscuits", "", None], KEY, known("user_0001"), {}, min_len=GATE) == (0, 0, 0)
+
+
+def test_load_stoplist_ignores_comments_and_blanks_and_normalises(tmp_path):
+    f = tmp_path / "stop.txt"
+    f.write_text("# comment\n\n  Kakao \nHONEY\n", encoding="utf-8")
+    assert personal.load_stoplist(f) == frozenset({"kakao", "honey"})
 
 
 def test_known_identities_collects_names_and_phones_from_the_right_fields():
@@ -99,8 +121,8 @@ def test_known_identities_collects_names_and_phones_from_the_right_fields():
 
 def test_phone_copied_into_kept_text_is_found():
     _, phones = personal.known_identities({"customer_service": "+91 98765 43210"}, KEY, [], ["customer_service"])
-    assert personal.find_known(["order on 98765 43210 or +91 98765 43210"], KEY, {}, phones, min_len=5)[0] >= 1
-    assert personal.find_known(["call 12345 67890"], KEY, {}, phones, min_len=5) == (0, 0)
+    assert personal.find_known(["order on 98765 43210 or +91 98765 43210"], KEY, {}, phones, min_len=GATE)[0] >= 1
+    assert personal.find_known(["call 12345 67890"], KEY, {}, phones, min_len=GATE) == (0, 0, 0)
 
 
 def test_candidates_include_the_word_without_edge_punctuation():

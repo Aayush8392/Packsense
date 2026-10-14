@@ -71,3 +71,30 @@ def test_validate_rejects_an_unknown_class_and_type():
     c["columns"][0]["type"] = "varchar"
     with pytest.raises(ValueError, match="type"):
         contract.validate(c)
+
+
+def test_gate_settings_are_the_measured_ones():
+    pdc = contract.load()["personal_data_check"]
+    assert pdc["min_username_length"] == 8 and pdc["report_min_username_length"] == 3
+    assert pdc["own_contributor_exempt_columns"] == ["brands"]
+
+
+def test_the_exemption_is_only_for_brands_and_only_for_text_columns():
+    c = copy.deepcopy(contract.load())
+    c["personal_data_check"]["own_contributor_exempt_columns"] = ["product_name_typo"]
+    with pytest.raises(ValueError, match="own_contributor_exempt_columns"):
+        contract.validate(c)
+
+
+def test_report_length_cannot_exceed_the_gate_length():
+    c = copy.deepcopy(contract.load())
+    c["personal_data_check"]["report_min_username_length"] = 9
+    with pytest.raises(ValueError, match="report_min_username_length"):
+        contract.validate(c)
+
+
+def test_the_stoplist_file_exists_and_starts_empty():
+    from silver_lib import personal
+    c = contract.load()
+    assert contract.stoplist_path(c).exists()
+    assert personal.load_stoplist(contract.stoplist_path(c)) == frozenset()

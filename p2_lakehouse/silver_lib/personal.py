@@ -15,7 +15,7 @@ TOKEN_RE = re.compile(r"[\w.\-]+", re.UNICODE)
 # set holds only numbers found in the phone-bearing dropped fields. The narrower pattern used in the first privacy scan
 # missed Indian-style numbers such as "+91 98765 43210" (found by a test).
 PHONE_RE = re.compile(r"(?<![\w.])\+?\(?\d[\d ().\-]{5,17}\d(?!\w)")
-SHORT_MIN = 3   # names of 3 or 4 characters are counted, never quarantined (the gate starts at min_username_length)
+SHORT_MIN = 3   # default for report_min; the contract sets it (report_min_username_length)
 
 
 def normalise(value: str) -> str:
@@ -82,32 +82,47 @@ def candidates(text: str):
             yield s
 
 
-def find_known(texts: list[str], key: str, known_users, known_phones, min_len: int, stoplist=frozenset()):
+def load_stoplist(path) -> frozenset:
+    """Ordinary words that are also usernames: one per line, # comments and blank lines ignored, normalised."""
+    words = set()
+    for line in open(path, encoding="utf-8").read().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            words.add(normalise(line))
+    return frozenset(words)
+
+
+def find_known(texts: list[str], key: str, known_users, known_phones, min_len: int, stoplist=frozenset(),
+               exempt=frozenset(), report_min: int = SHORT_MIN):
     """Search texts for known usernames (whole words) and phone numbers.
 
-    Returns (hits, short_hits): hits are usernames of min_len or more, or phones, that appear; short_hits counts
-    usernames of 3 or 4 characters that appear (reported, never a reason to quarantine).
+    Returns (hits, short_hits, exempt_hits):
+      hits         usernames of min_len or more, and phone numbers: a reason to quarantine the row
+      short_hits   usernames of report_min to min_len-1 characters: counted, never a reason to quarantine
+      exempt_hits  usernames whose HMAC is in `exempt` (the product's own contributors, for columns the contract exempts)
     """
-    hits, short_hits = 0, 0
+    hits, short_hits, exempt_hits = 0, 0, 0
     for text in texts:
         if not text:
             continue
         seen = set()
         for c in candidates(text):
             n = normalise(c)
-            if n in seen or len(n) < SHORT_MIN or n in stoplist:
+            if n in seen or len(n) < report_min or n in stoplist:
                 continue
             seen.add(n)
             h = hmac_hex(key, n)
             if h in known_users:
-                if len(n) >= min_len:
+                if h in exempt:
+                    exempt_hits += 1
+                elif len(n) >= min_len:
                     hits += 1
                 else:
                     short_hits += 1
         for d in phone_digits(text):
             if hmac_hex(key, d, prefix="phone:") in known_phones:
                 hits += 1
-    return hits, short_hits
+    return hits, short_hits, exempt_hits
 
 
 def scrub(text: str, patterns: dict) -> tuple[str, int]:

@@ -53,8 +53,19 @@ personal_source_fields:
 
 personal_data_check:
   # Search every text column silver keeps for any known username, email or phone from the raw fields above.
-  # Match after normalisation, whole value or whole word. A hit quarantines the row (Q_PII_FOUND) and fails the job.
-  min_username_length: 5              # shorter usernames are counted and reported, never quarantined
+  # Match after normalisation, whole word. A hit quarantines the row (Q_PII_FOUND) and the job goes red.
+  #
+  # Why 8: measured on 55,088 real records (2026-10-14). At 5 characters the gate would quarantine ~220 rows, 197 of
+  # them brand names equal to a producer's own account (carrefour, barilla, ferrero) and the rest ordinary words; at 8 it
+  # quarantines ~2. Every one of the 16 hits from rare names was an ordinary word, a brand line or junk that equals the
+  # product's own editor's handle; none was one person's name inside another person's product.
+  min_username_length: 8              # names of this length or more quarantine the row
+  report_min_username_length: 3       # names of 3 to 7 characters are counted in the run stats, never quarantined
+  # A match in these columns is ignored when the name is one of THAT PRODUCT'S OWN contributors (producer and brand
+  # accounts edit their own brand). Measured: all 197 brand hits were an editor (186) or the creator (11) of the same
+  # product, none unrelated. Not applied to any other column: "photo by <own username>" typed into a product name by its
+  # own contributor is exactly the leak the gate exists for.
+  own_contributor_exempt_columns: [brands]
   stoplist: p2_lakehouse/contracts/pii_stoplist.txt   # ordinary words that are also usernames (starts empty)
   columns: all_text                   # every string and array<string> column except key, derived, lineage and *_hmac columns
   # Phone numbers found in these DROPPED fields are collected as hashes (digits only, 8 to 15 digits) and searched for in

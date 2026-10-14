@@ -1,0 +1,3 @@
+# Ordinary words that are also contributor names, one per line, lowercase. A word listed here never counts as a
+# personal-data hit. Starts empty on purpose: add a word only after a quarantined row (Q_PII_FOUND) shows it is a false
+# alarm, then replay the quarantined rows. Lines starting with # and blank lines are ignored.

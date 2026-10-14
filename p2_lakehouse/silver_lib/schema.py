@@ -61,6 +61,7 @@ def stats_table_sql(contract: dict) -> str:
   nutrition_format MAP<STRING,BIGINT>,
   patterns_scrubbed BIGINT,
   short_name_hits BIGINT,
+  exempt_name_hits BIGINT,
   identities_added BIGINT,
   top_level_fields_seen BIGINT
 ) USING DELTA"""

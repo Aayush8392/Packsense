@@ -37,12 +37,27 @@ def validate(c: dict) -> None:
             raise ValueError(f"grain column {g} is not a column")
     for k in ("email", "aadhaar", "pan"):
         re.compile(c["scrub"][k])
+    pdc = c["personal_data_check"]
+    if not (isinstance(pdc["min_username_length"], int) and isinstance(pdc["report_min_username_length"], int)
+            and 1 <= pdc["report_min_username_length"] <= pdc["min_username_length"]):
+        raise ValueError("report_min_username_length must be between 1 and min_username_length")
+    text = {x["name"] for x in cols if x["class"] == "public" and x["type"] in ("string", "array<string>")}
+    for col in pdc["own_contributor_exempt_columns"]:
+        if col not in text:
+            raise ValueError(f"own_contributor_exempt_columns: {col} is not a kept text column")
+    if not stoplist_path(c).exists():
+        raise ValueError(f"stoplist file not found: {pdc['stoplist']}")
     personal = set(c["personal_source_fields"])
     for x in cols:
         if x["class"] == "hashed":
             src = x["from"].replace("$.", "")
             if src not in personal:
                 raise ValueError(f"hashed column {x['name']} reads {src}, which is not in personal_source_fields")
+
+
+def stoplist_path(c: dict) -> Path:
+    """The stoplist path in the contract is relative to the repository root."""
+    return Path(__file__).resolve().parents[2] / c["personal_data_check"]["stoplist"]
 
 
 def columns(c: dict) -> list[dict]:

@@ -31,6 +31,8 @@ class Context:
     personal_fields: list = field(init=False)
     phone_prefixes: list = field(init=False)
     min_len: int = field(init=False)
+    report_min: int = field(init=False)
+    own_exempt_cols: frozenset = field(init=False)
     key_version: int = field(init=False)
     cols: list = field(init=False)
     text_cols: list = field(init=False)
@@ -41,6 +43,8 @@ class Context:
         self.personal_fields = c["personal_source_fields"]
         self.phone_prefixes = c["personal_data_check"]["known_phones_from"]
         self.min_len = c["personal_data_check"]["min_username_length"]
+        self.report_min = c["personal_data_check"]["report_min_username_length"]
+        self.own_exempt_cols = frozenset(c["personal_data_check"]["own_contributor_exempt_columns"])
         self.key_version = c["hmac"]["key_version"]
         self.cols = c["columns"]
         self.text_cols = [x["name"] for x in self.cols
@@ -58,6 +62,7 @@ class Result:
     coerce_failures: Counter = field(default_factory=Counter)
     scrubbed: int = 0
     short_hits: int = 0
+    exempt_hits: int = 0
     pii_columns: list = field(default_factory=list)
     identities: dict = field(default_factory=dict)   # hmac -> name length, to add to the identity table
     phones: dict = field(default_factory=dict)
@@ -281,11 +286,14 @@ def _build(d: dict, code: str, lmt: int, ctx: Context, lineage: dict, users: dic
     # personal-data check on every kept text column: known identities and phones, then patterns that survived
     all_users = ctx.known_users | users.keys()
     all_phones = ctx.known_phones | phones.keys()
-    pii_cols, short_total = [], 0
+    pii_cols, short_total, exempt_total = [], 0, 0
     for name in ctx.text_cols:
         texts = _flatten(row.get(name))
-        hits, short = personal.find_known(texts, ctx.key, all_users, all_phones, ctx.min_len, ctx.stoplist)
+        own = frozenset(users) if name in ctx.own_exempt_cols else frozenset()
+        hits, short, exempt = personal.find_known(texts, ctx.key, all_users, all_phones, ctx.min_len, ctx.stoplist,
+                                                  exempt=own, report_min=ctx.report_min)
         short_total += short
+        exempt_total += exempt
         if hits or any(personal.has_pattern(t, ctx.patterns) for t in texts):
             pii_cols.append(name)
     if pii_cols:
@@ -293,6 +301,6 @@ def _build(d: dict, code: str, lmt: int, ctx: Context, lineage: dict, users: dic
         withheld = {root_field(cols_by_name[n]) for n in pii_cols}
         return Result("quarantine", reason="Q_PII_FOUND", code=code, last_modified_t=lmt, pii_columns=pii_cols,
                       payload=quarantine_payload(d, ctx, {w for w in withheld if w}), scrubbed=scrubbed,
-                      short_hits=short_total, coerce_failures=failures, identities=users, phones=phones)
+                      short_hits=short_total, exempt_hits=exempt_total, coerce_failures=failures, identities=users, phones=phones)
     return Result("silver", code=code, last_modified_t=lmt, row=row, coerce_failures=failures, scrubbed=scrubbed,
-                  short_hits=short_total, identities=users, phones=phones)
+                  short_hits=short_total, exempt_hits=exempt_total, identities=users, phones=phones)
