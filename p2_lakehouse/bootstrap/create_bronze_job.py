@@ -1,14 +1,14 @@
 """Creates the bronze schema and the Databricks job that loads landed delta files into bronze.
 
-The job runs databricks/notebooks/bronze_load.py, sourced from this public repo's main branch, on serverless compute,
+The job runs p2_lakehouse/notebooks/bronze_load.py, sourced from this public repo's main branch, on serverless compute,
 one run at a time. It runs as the admin user (a job cannot be bound to a service principal on Free Edition).
 This is later brought under Terraform / Asset Bundles; until then it documents exactly what exists.
 
 Needs an admin token in the environment (or in an --env-file). Values are never printed.
-  python infra/bootstrap/create_bronze_job.py create    [--env-file PATH]   schema + job (no schedule yet)
-  python infra/bootstrap/create_bronze_job.py run       [--env-file PATH]   run it once and print the result
-  python infra/bootstrap/create_bronze_job.py schedule  [--env-file PATH]   attach the daily schedule
-  python infra/bootstrap/create_bronze_job.py status    [--env-file PATH]   recent runs
+  python p2_lakehouse/bootstrap/create_bronze_job.py create    [--env-file PATH]   schema + job (no schedule yet)
+  python p2_lakehouse/bootstrap/create_bronze_job.py run       [--env-file PATH]   run it once and print the result
+  python p2_lakehouse/bootstrap/create_bronze_job.py schedule  [--env-file PATH]   attach the daily schedule
+  python p2_lakehouse/bootstrap/create_bronze_job.py status    [--env-file PATH]   recent runs
 Environment: DATABRICKS_HOST, DATABRICKS_TOKEN (admin)
 """
 import argparse
@@ -18,7 +18,7 @@ from datetime import timedelta
 
 JOB = "packsense-bronze-load"
 REPO = "https://github.com/Aayush8392/Packsense"
-NOTEBOOK = "databricks/notebooks/bronze_load"
+NOTEBOOK = "p2_lakehouse/notebooks/bronze_load"
 SCHEMA = "workspace.packsense_bronze"
 CRON = "0 0 9 * * ?"  # 09:00 UTC = 14:30 IST, before the 15:00 IST data-ready target
 

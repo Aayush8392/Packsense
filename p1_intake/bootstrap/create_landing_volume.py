@@ -6,7 +6,7 @@ This is later brought under Terraform; until then it documents exactly what exis
 
 Needs an admin token and the pipeline user's token in the environment (or in an --env-file). Values are never printed.
   pip install databricks-sdk
-  python infra/bootstrap/create_landing_volume.py [--env-file PATH]
+  python p1_intake/bootstrap/create_landing_volume.py [--env-file PATH]
 Environment: DATABRICKS_HOST, DATABRICKS_TOKEN (admin), DATABRICKS_PIPELINE_TOKEN
 """
 import argparse

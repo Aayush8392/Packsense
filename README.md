@@ -25,6 +25,10 @@ Code is Apache-2.0 (see [`LICENSE`](LICENSE)). Data comes from Open Food Facts u
 
 ## Layout (grows as the build progresses)
 ```
+p1_intake/       P1: daily capture, landing, taxonomy snapshots, tripwires
+p2_lakehouse/    P2: bronze and silver on Databricks
+infra/terraform/ shared infrastructure as code (B2 bucket, repository secrets)
 docs/            design and evidence
-.github/         CI, capture workflow, Dependabot, CODEOWNERS
+.github/         workflows (they must live here), Dependabot, CODEOWNERS
 ```
+Later modules get their own `pN_name/` folder when they start.

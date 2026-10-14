@@ -6,7 +6,7 @@ import datetime as dt
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "capture"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from capture_taxonomies import TAXONOMIES, last_known, snapshot_key  # noqa: E402
 

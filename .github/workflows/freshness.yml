@@ -26,11 +26,11 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
-      - run: pip install --no-cache-dir -r capture/requirements.txt
+      - run: pip install --no-cache-dir -r p1_intake/requirements.txt
       - name: Tell healthchecks.io the run started
         run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/start" || true'
       - name: Check freshness
-        run: python capture/check_freshness.py
+        run: python p1_intake/check_freshness.py
       - name: Ping healthchecks.io (success)
         if: success()
         run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL" || true'

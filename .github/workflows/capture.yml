@@ -39,7 +39,7 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
-      - run: pip install --no-cache-dir -r capture/requirements.txt
+      - run: pip install --no-cache-dir -r p1_intake/requirements.txt
       - name: Tell healthchecks.io the run started
         run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/start" || true'
       - name: Capture
@@ -50,7 +50,7 @@ jobs:
           args=()
           [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
           if [[ "$MAX_FILES" =~ ^[0-9]+$ ]] && [ "$MAX_FILES" != "0" ]; then args+=(--max-files "$MAX_FILES"); fi
-          python capture/capture_deltas.py "${args[@]}"
+          python p1_intake/capture_deltas.py "${args[@]}"
       - name: Capture taxonomies
         if: ${{ !cancelled() }}  # runs even if the delta capture failed; either failure turns the run red
         env:
@@ -58,7 +58,7 @@ jobs:
         run: |
           args=()
           [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
-          python capture/capture_taxonomies.py "${args[@]}"
+          python p1_intake/capture_taxonomies.py "${args[@]}"
       - name: Ping healthchecks.io (success)
         if: success() && inputs.dry_run != true
         run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL" || true'

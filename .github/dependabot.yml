@@ -6,6 +6,6 @@ updates:
       interval: "weekly"
   # Add further ecosystems only when their manifests exist (npm for the Evidence site, more pip folders).
   - package-ecosystem: "pip"
-    directory: "/capture"
+    directory: "/p1_intake"
     schedule:
       interval: "weekly"

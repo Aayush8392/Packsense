@@ -5,7 +5,7 @@ The names below are real OFF delta file names (the 13-day window the project cap
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "capture"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from capture_deltas import find_orphans, split_orphans  # noqa: E402
 
