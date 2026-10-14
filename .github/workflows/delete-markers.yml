@@ -1,0 +1,53 @@
+name: Delete-marker tripwire (has anything hidden an object in B2?)
+
+on:
+  schedule:
+    - cron: "30 11 * * *"
+  workflow_dispatch:
+    inputs:
+      self_test:
+        description: "Deliberate-failure self-test: create a real delete marker under tmp/ and run the check with the tmp/ allowance off. The run is EXPECTED to fail and raise the alert."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delete-markers
+  cancel-in-progress: false
+
+jobs:
+  delete-markers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      B2_S3_ENDPOINT: ${{ vars.B2_S3_ENDPOINT }}
+      B2_BUCKET: ${{ vars.B2_BUCKET }}
+      B2_READ_KEY_ID: ${{ secrets.B2_READ_KEY_ID }}
+      B2_READ_APPLICATION_KEY: ${{ secrets.B2_READ_APPLICATION_KEY }}
+      HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_MARKERS_PING_URL }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: pip install --no-cache-dir -r p1_intake/requirements.txt
+      - name: Tell healthchecks.io the run started
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/start" || true'
+      - name: Check for delete markers
+        if: ${{ !inputs.self_test }}
+        run: python p1_intake/check_delete_markers.py
+      - name: Self-test (expected to fail)
+        if: ${{ inputs.self_test }}
+        env:
+          B2_UPLOAD_KEY_ID: ${{ secrets.B2_UPLOAD_KEY_ID }}
+          B2_UPLOAD_APPLICATION_KEY: ${{ secrets.B2_UPLOAD_APPLICATION_KEY }}
+          ALLOW_TMP_MARKERS: "false"
+        run: python p1_intake/check_delete_markers.py --make-test-marker
+      - name: Ping healthchecks.io (success)
+        if: success()
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL" || true'
+      - name: Ping healthchecks.io (failure)
+        if: failure()
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/fail" || true'
