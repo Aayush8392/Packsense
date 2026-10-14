@@ -31,6 +31,15 @@ resource "b2_application_key" "capture_upload" {
   bucket_ids   = [b2_bucket.raw.bucket_id]
 }
 
+# Read-only key for the tripwires and B2 reconciliation, scoped to this one bucket.
+# listFiles also covers listing object versions, which is how delete markers are seen.
+# It cannot write, hide or delete anything.
+resource "b2_application_key" "tripwire_read" {
+  key_name     = "packsense-tripwire-read"
+  capabilities = ["listFiles", "readFiles"]
+  bucket_ids   = [b2_bucket.raw.bucket_id]
+}
+
 # The key is written straight into the repository's Actions secrets: nobody copies it by hand.
 resource "github_actions_secret" "b2_upload_key_id" {
   repository      = var.github_repository
@@ -42,6 +51,18 @@ resource "github_actions_secret" "b2_upload_application_key" {
   repository      = var.github_repository
   secret_name     = "B2_UPLOAD_APPLICATION_KEY"
   plaintext_value = b2_application_key.capture_upload.application_key
+}
+
+resource "github_actions_secret" "b2_read_key_id" {
+  repository      = var.github_repository
+  secret_name     = "B2_READ_KEY_ID"
+  plaintext_value = b2_application_key.tripwire_read.application_key_id
+}
+
+resource "github_actions_secret" "b2_read_application_key" {
+  repository      = var.github_repository
+  secret_name     = "B2_READ_APPLICATION_KEY"
+  plaintext_value = b2_application_key.tripwire_read.application_key
 }
 
 # Not secrets: the bucket name and endpoint are plain Actions variables.
