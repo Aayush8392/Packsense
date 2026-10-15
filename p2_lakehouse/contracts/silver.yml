@@ -113,8 +113,8 @@ shape:
 
 # ---------------------------------------------------------------------------------------------------------------
 # Parsing: free text that is really a number and a unit becomes two columns; anything that does not parse becomes NULL.
-# Measured on 41,329 real quantity values: 93.2% parse with number+unit, multipacks and a trailing e/bracket or one word;
-# the leftovers were mostly Cyrillic and Greek units, trailing punctuation and "g / ml" pairs (all handled below).
+# Measured on all of bronze (scratch run of contract v2, 2026-10-15): 36,811 of 41,329 non-empty quantity values (89.1%) and
+# 41,105 of 43,313 non-empty serving_size values (94.9%) parse; the rest become NULL (bare numbers, a bare 'kg', free words).
 # ---------------------------------------------------------------------------------------------------------------
 parsing:
   units:
@@ -202,7 +202,7 @@ columns:
   - {name: brands, from: $.brands, type: string, nullable: true, class: public, scrub: true, note: "absent on 18% of rows; own-handle redaction does NOT apply here (producer accounts write their own brand)"}
 
   # --- quantities parsed to numbers and units (no free text) ---------------------------------------------------------
-  - {name: quantity_amount, from: $.quantity, type: double, nullable: true, class: public, parse: quantity, note: "amount per pack; NULL when the value does not parse (about 7% of the 41,329 non-empty values before the Cyrillic/Greek units were added)"}
+  - {name: quantity_amount, from: $.quantity, type: double, nullable: true, class: public, parse: quantity, note: "amount per pack; NULL when the value does not parse (10.9% of the 41,329 non-empty values on all of bronze)"}
   - {name: quantity_unit, from: $.quantity, type: string, nullable: true, class: public, parse: quantity, note: "canonical unit from the parsing.units map"}
   - {name: quantity_multiplier, from: $.quantity, type: int, nullable: true, class: public, parse: quantity, note: "packs in a multipack, e.g. 6 for '6 x 33 cl'; NULL for a single pack"}
   - {name: serving_amount, from: $.serving_size, type: double, nullable: true, class: public, parse: serving, note: "first amount in g or ml found in serving_size; NULL when there is none"}
