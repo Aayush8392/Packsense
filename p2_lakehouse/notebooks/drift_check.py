@@ -62,7 +62,8 @@ EVAL_PREFIX = dbutils.widgets.get("evaluate_prefix")
 BASE_PREFIX = dbutils.widgets.get("baseline_prefix").strip()
 
 C = contract.relocate(contract.load(), silver_schema=SILVER_SCHEMA)
-REPORT = schema.drift_report_table(contract.relocate(contract.load(), silver_schema=REPORT_SCHEMA))
+CR = contract.relocate(contract.load(), silver_schema=REPORT_SCHEMA)     # the report may live elsewhere than the silver tables (tests)
+REPORT = schema.drift_report_table(CR)
 COLS = drift.coverage_columns(C)
 
 # COMMAND ----------
@@ -80,7 +81,7 @@ def ping(suffix="", body=None):
 
 
 ping("/start")
-spark.sql(schema.drift_report_table_sql(C))
+spark.sql(schema.drift_report_table_sql(CR))
 
 
 def day_metrics(prefix):
