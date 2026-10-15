@@ -9,7 +9,11 @@ updates:
     directory: "/p1_intake"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "boto3"   # held at 1.35.99: later versions changed upload checksums and may break B2 (see buildlog)
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "boto3"   # held at 1.35.99: later versions changed upload checksums and may break B2 (see buildlog)
