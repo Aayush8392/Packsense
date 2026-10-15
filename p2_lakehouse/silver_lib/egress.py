@@ -15,7 +15,6 @@ The list of names is passed in by the caller (derived from bronze at export time
 Names of 5 to 7 characters are not replaced: they are counted by the caller's audit, because most of them are brand words.
 """
 import collections
-import re
 
 from . import contract as contract_lib
 from . import personal

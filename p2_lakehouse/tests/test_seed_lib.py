@@ -10,7 +10,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -89,8 +88,6 @@ def test_the_stream_gives_the_same_records_wherever_the_parts_are_cut():
 
 def test_a_line_that_straddles_two_parts_belongs_to_the_part_where_it_ends():
     data = dump_of(INDIA[:1] + NON_INDIA[:2])
-    plain = gzip.decompress(data)
-    first_line_end = plain.index(b"\n")
     # cut the compressed bytes into small pieces and find the piece in which the first line completes
     pieces = cut(data, list(range(10, len(data), 10)))
     stream, owner = s.DumpStream(), None

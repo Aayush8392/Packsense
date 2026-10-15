@@ -1,0 +1,5 @@
+# Lint settings (ruff's default rule set: pyflakes errors and the E4/E7/E9 checks; formatting is not enforced yet).
+target-version = "py312"
+
+# Databricks notebooks run with these globals already defined; without this ruff reports every use as an undefined name.
+builtins = ["spark", "dbutils", "display", "sc"]

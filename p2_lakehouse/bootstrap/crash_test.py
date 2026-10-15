@@ -23,7 +23,6 @@ import os
 import sys
 import tempfile
 import time
-from datetime import timedelta
 from pathlib import Path
 
 REPO = "https://github.com/Aayush8392/Packsense"

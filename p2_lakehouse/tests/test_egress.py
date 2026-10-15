@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from silver_lib import contract, egress, personal, run, transform  # noqa: E402
+from silver_lib import contract, egress, run, transform  # noqa: E402
 
 KEY = "test-key-not-a-secret-0000000000000000000000000000000000"
 C = contract.load()

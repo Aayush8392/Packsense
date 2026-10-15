@@ -1,5 +1,4 @@
 """The silver table definitions are generated from the contract; these tests keep the two in step with the transform."""
-import datetime as dt
 import json
 import re
 import sys
