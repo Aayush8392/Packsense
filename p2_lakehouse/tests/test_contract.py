@@ -1,4 +1,4 @@
-"""The silver contract (version 2): structure and the guarantees the rest of the code relies on."""
+"""The silver contract (version 3): structure and the guarantees the rest of the code relies on."""
 import copy
 import sys
 from pathlib import Path
@@ -16,14 +16,14 @@ def cols():
     return {x["name"]: x for x in C["columns"]}
 
 
-def test_loads_and_validates_as_version_2():
-    assert C["version"] == 2 and len(C["columns"]) == 71 and C["grain"] == ["code", "last_modified_t"]
+def test_loads_and_validates_as_version_3():
+    assert C["version"] == 3 and len(C["columns"]) == 71 and C["grain"] == ["code", "last_modified_t"]
 
 
-def test_version_1_is_refused():
+def test_version_2_is_refused():
     c = copy.deepcopy(C)
-    c["version"] = 1
-    with pytest.raises(ValueError, match="version 2"):
+    c["version"] = 2
+    with pytest.raises(ValueError, match="version 3"):
         contract.validate(c)
 
 
@@ -123,3 +123,38 @@ def test_relocate_moves_the_tables_and_leaves_the_original():
     moved = contract.relocate(C, silver_schema="workspace.scratch_s", bronze_schema="workspace.scratch_b")
     assert moved["table"] == "workspace.scratch_s.silver_product_versions" and moved["source_table"] == "workspace.scratch_b.bronze_delta_raw"
     assert C["table"] == "workspace.packsense_silver.silver_product_versions"
+
+
+# ---- legacy nutriments (version 3) -----------------------------------------------------------------------------------
+
+def test_legacy_section_is_complete_and_consistent():
+    leg = C["legacy_nutriments"]
+    assert leg["suffix"] == "_100g" and leg["default_unit"] == "g"
+    assert len(leg["allowed_keys"]) == len(set(leg["allowed_keys"])) > 100
+    assert set(leg["units"]) <= set(leg["allowed_keys"])
+    assert leg["units"]["energy"] == "kJ" and leg["units"]["energy-kcal"] == "kcal" and leg["units"]["alcohol"] == "% vol"
+
+
+def test_computed_keys_are_not_allowed_as_legacy_nutrients():
+    allowed = set(C["legacy_nutriments"]["allowed_keys"])
+    for computed in ("nova-group", "nutrition-score-fr", "fruits-vegetables-nuts", "fruits-vegetables-legumes", "ph",
+                     "glycemic-index", "water-hardness", "carbon-footprint", "fruits-vegetables-nuts-estimate-from-ingredients"):
+        assert computed not in allowed
+
+
+def test_a_legacy_key_that_breaks_the_nutrient_shape_is_refused():
+    c = copy.deepcopy(C)
+    c["legacy_nutriments"]["allowed_keys"].append("Free Text")
+    with pytest.raises(ValueError, match="nutrient_key"):
+        contract.validate(c)
+
+
+def test_a_duplicate_legacy_key_and_a_unit_for_an_unlisted_key_are_refused():
+    c = copy.deepcopy(C)
+    c["legacy_nutriments"]["allowed_keys"].append("fat")
+    with pytest.raises(ValueError, match="duplicates"):
+        contract.validate(c)
+    c = copy.deepcopy(C)
+    c["legacy_nutriments"]["units"]["not-a-listed-key"] = "g"
+    with pytest.raises(ValueError, match="not allowed"):
+        contract.validate(c)

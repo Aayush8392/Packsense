@@ -1,4 +1,4 @@
-"""Loads and validates the silver data contract (contracts/silver.yml, version 2)."""
+"""Loads and validates the silver data contract (contracts/silver.yml, version 3)."""
 import copy
 import re
 from pathlib import Path
@@ -10,7 +10,7 @@ CLASSES = {"key", "public", "hashed", "derived", "lineage"}
 BASE_TYPES = {"string", "int", "bigint", "double", "boolean", "timestamp", "array", "map"}
 REQUIRED = {"name", "from", "type", "nullable", "class"}
 SECTIONS = ("hmac", "personal_source_fields", "own_handle_redaction", "scrub", "shape", "parsing", "fingerprint",
-            "quarantine_codes", "egress", "columns", "grain")
+            "quarantine_codes", "egress", "legacy_nutriments", "columns", "grain")
 SCRUB_PATTERNS = ("email", "obfuscated_email", "social_link", "url", "at_handle", "aadhaar", "gstin", "pan")
 SHAPES = ("tag", "nutrient_key", "enum", "unit", "modifier")
 SILVER_PREFIX = "workspace.packsense_silver"
@@ -36,8 +36,8 @@ def validate(c: dict) -> None:
     missing = [s for s in SECTIONS if s not in c]
     if missing:
         raise ValueError(f"contract sections missing: {missing}")
-    if c.get("version") != 2:
-        raise ValueError(f"this code reads contract version 2, found {c.get('version')}")
+    if c.get("version") != 3:
+        raise ValueError(f"this code reads contract version 3, found {c.get('version')}")
     cols = c["columns"]
     names = [x["name"] for x in cols]
     dupes = sorted({n for n in names if names.count(n) > 1})
@@ -91,6 +91,24 @@ def validate(c: dict) -> None:
     eg = c["egress"]
     if not (isinstance(eg["handle_min_length"], int) and isinstance(eg["ordinary_word_min_products"], int)):
         raise ValueError("egress needs integer handle_min_length and ordinary_word_min_products")
+    leg = c["legacy_nutriments"]
+    key_re, unit_re = (re.compile(c["shape"][k]) for k in ("nutrient_key", "unit"))
+    allowed = leg["allowed_keys"]
+    if not allowed or len(set(allowed)) != len(allowed):
+        raise ValueError("legacy_nutriments.allowed_keys must be a non-empty list without duplicates")
+    bad = [k for k in allowed if not key_re.match(k)]
+    if bad:
+        raise ValueError(f"legacy_nutriments.allowed_keys fail the nutrient_key shape: {bad}")
+    if not leg["suffix"] or not leg["modifier_suffix"]:
+        raise ValueError("legacy_nutriments needs suffix and modifier_suffix")
+    stray = sorted(set(leg["units"]) - set(allowed))
+    if stray:
+        raise ValueError(f"legacy_nutriments.units names keys that are not allowed: {stray}")
+    for unit in [leg["default_unit"], *leg["units"].values()]:
+        if not unit_re.match(unit):
+            raise ValueError(f"legacy_nutriments: unit {unit!r} fails the unit shape")
+    if "" in [leg["default_unit"], *leg["units"].values()]:
+        raise ValueError("legacy_nutriments: a unit must not be empty")
 
 
 def relocate(c: dict, silver_schema: str = None, bronze_schema: str = None) -> dict:

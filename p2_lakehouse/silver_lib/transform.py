@@ -34,6 +34,8 @@ class Context:
     sentinel: str = field(init=False)
     key_version: int = field(init=False)
     cols: list = field(init=False)
+    legacy: dict = field(init=False)
+    legacy_allowed: frozenset = field(init=False)
     field_counts: Counter = field(default_factory=Counter)   # top-level fields seen, for the drift monitor
 
     def __post_init__(self):
@@ -48,6 +50,8 @@ class Context:
         self.sentinel = own["sentinel"]
         self.key_version = c["hmac"]["key_version"]
         self.cols = c["columns"]
+        self.legacy = c["legacy_nutriments"]
+        self.legacy_allowed = frozenset(self.legacy["allowed_keys"])
 
 
 @dataclass
@@ -160,6 +164,32 @@ def nutrient_map(nutrients, failures: Counter, ctx: Context, counts: Counts):
     return out
 
 
+def legacy_nutrients(nutriments, failures: Counter, ctx: Context, counts: Counts) -> dict:
+    """OFF's old nutrition object -> the same map as the new format's nutrients (contract section legacy_nutriments).
+
+    Reads only `<allowed nutrient>_100g` keys. A value that is not a finite number is skipped and counted. Empty dict if
+    nothing allowed is present, which also means the product is not 'legacy' (computed keys such as nova-group do not count).
+    """
+    spec, out = ctx.legacy, {}
+    if not isinstance(nutriments, dict):
+        return out
+    suffix = spec["suffix"]
+    for key, raw in nutriments.items():
+        if not (isinstance(key, str) and key.endswith(suffix)):
+            continue
+        base = key[: -len(suffix)]
+        if base not in ctx.legacy_allowed:
+            continue
+        value, ok = coerce(raw, "double")
+        if not ok or value is None or value != value or value in (float("inf"), float("-inf")):
+            failures["legacy_nutriments.value"] += 1
+            continue
+        modifier = nutriments.get(base + spec["modifier_suffix"])
+        out[base] = nutrient_entry({"value": value, "unit": spec["units"].get(base, spec["default_unit"]),
+                                    "modifier": modifier if isinstance(modifier, str) else None}, failures, ctx, counts)
+    return out
+
+
 def input_sets(sets, failures: Counter, ctx: Context, counts: Counts):
     if not isinstance(sets, list):
         return None
@@ -223,6 +253,13 @@ def quarantine_payload(d: dict, ctx: Context) -> str:
             out[root] = scrub_leaves(v, ctx)
             if root in redact_roots and isinstance(out[root], str):
                 out[root] = personal.redact_handles(out[root], own, ctx.sentinel)[0]     # same treatment as silver
+    nm = d.get("nutriments")
+    if isinstance(nm, dict):          # the old-format object, restricted to the keys silver maps (numbers only)
+        suffix = ctx.legacy["suffix"]
+        kept = {k: v for k, v in nm.items() if isinstance(k, str) and k.endswith(suffix) and k[: -len(suffix)] in ctx.legacy_allowed
+                and isinstance(v, (int, float)) and not isinstance(v, bool)}
+        if kept:
+            out["nutriments"] = kept
     return json.dumps(out, ensure_ascii=False, separators=(",", ":"))
 
 
@@ -254,7 +291,10 @@ def _build(d: dict, code: str, lmt: int, ctx: Context, lineage: dict) -> Result:
     failures, counts = res.coerce_failures, Counts()
     agg = get_path(d, "$.nutrition.aggregated_set")
     agg = agg if isinstance(agg, dict) else {}
-    nutrients = agg.get("nutrients") if isinstance(agg.get("nutrients"), dict) else {}
+    # the new format wins; the old `nutriments` object is read only when there is no aggregated set
+    legacy = {} if agg else legacy_nutrients(d.get("nutriments"), failures, ctx, counts)
+    nutrition_format = "new" if agg else "legacy" if legacy else "none"
+    nutrients = legacy if legacy else (agg.get("nutrients") if isinstance(agg.get("nutrients"), dict) else {})
     own = personal.own_handles(d, ctx.personal_fields, ctx.redact_min)
     units = ctx.units
     row = {}
@@ -289,7 +329,7 @@ def _build(d: dict, code: str, lmt: int, ctx: Context, lineage: dict) -> Result:
         elif name in CORE_NUTRIENTS:
             row[name], ok = coerce(nval(CORE_NUTRIENTS[name]), "double")
         elif name == "nutrients":
-            row[name] = nutrient_map(agg.get("nutrients"), failures, ctx, counts)
+            row[name] = legacy if nutrition_format == "legacy" else nutrient_map(agg.get("nutrients"), failures, ctx, counts)
         elif name == "input_sets":
             row[name] = input_sets(get_path(d, "$.nutrition.input_sets"), failures, ctx, counts)
         else:
@@ -316,7 +356,9 @@ def _build(d: dict, code: str, lmt: int, ctx: Context, lineage: dict) -> Result:
             res.own_handles_redacted += n
 
     row["code_kind"] = code_kind(code)
-    row["nutrition_format"] = "new" if agg else "none"
+    row["nutrition_format"] = nutrition_format
+    if nutrition_format == "legacy":
+        row["nutrition_preparation"] = "as_sold"      # the old format's prepared values are a different set of keys, not read
     owner = d.get("owner")
     row["producer_owned"] = isinstance(owner, str) and owner.strip() != ""
     row["hmac_key_version"] = ctx.key_version

@@ -1,4 +1,10 @@
-# Silver data contract v2: the guest list for workspace.packsense_silver.silver_product_versions
+# Silver data contract v3: the guest list for workspace.packsense_silver.silver_product_versions
+#
+# v3 (2026-10-15) adds ONE thing: the legacy-nutriments mapper (section legacy_nutriments below), needed for the India seed from the
+# full dump. Measured on the dump's 24,795 India products: 6,099 carry the new `nutrition` object, 5,862 carry only the old
+# `nutriments` object (4,959 of them with at least one core nutrient, the rest only OFF's computed keys), 12,834 carry neither.
+# No column was added or removed (still 71), so no table migration; `nutrition_format` gains the value 'legacy'. Rows silver wrote
+# under v2 keep silver_contract_version 2 (about 2 in 25,000 delta rows are old-format and stay 'none'; not reprocessed, by decision).
 #
 # WHAT CHANGED FROM v1 AND WHY (2026-10-15, after the full-data run and two external reviews, reviews/01_*):
 # v1 tried to guarantee "no contributor name appears in silver text" with a global name-matching gate that quarantined rows.
@@ -22,7 +28,7 @@
 # Any threshold or rule derived from a sample must be re-measured on the full bronze before it is switched on.
 
 contract: silver_product_versions
-version: 2
+version: 3
 table: workspace.packsense_silver.silver_product_versions
 quarantine_table: workspace.packsense_silver.silver_quarantine
 manifest_table: workspace.packsense_silver.silver_manifest
@@ -180,6 +186,146 @@ egress:
   refuse_on_residue: true
 
 # ---------------------------------------------------------------------------------------------------------------
+# Legacy nutriments (OFF's old nutrition format, `$.nutriments`), mapped into the same columns as the new format.
+# Only when a record has NO `nutrition.aggregated_set` (the new format wins if both exist; both never occurred among India products).
+#   * Only the keys `<nutrient>_100g` are read. OFF has already normalised them to per 100 g (or 100 ml), also when the user entered
+#     the values per serving (1,486 India products), so `nutrition_data_per` is not needed. `_unit`, `_value`, `_serving`, `_label`,
+#     `_computed` and `_prepared_100g` keys are ignored: `_unit` is the unit the user typed (energy_unit can say kcal while
+#     energy_100g is in kJ), and the prepared values are a different basis.
+#   * The unit is fixed per key and equals the unit the new format records for that key in all of silver today (checked on 91,915
+#     rows: every nutrient is in g except energy kJ/kcal, alcohol '% vol', and crude-ash, cocoa and collagen-meat-protein-ratio '%').
+#   * allowed_keys = every nutrient key seen in the new-format `nutrients` maps in silver, minus OFF's computed non-nutrients
+#     (nova-group, fruits-vegetables-*, ph, glycemic-index, water-hardness, whole-grain, acidity, carbon-footprint and four
+#     language-prefixed junk keys). A product whose only `_100g` keys are computed ones is NOT 'legacy': it stays 'none'.
+#   * Value that is not a finite number: the entry is skipped and counted (coerce_failures['legacy_nutriments.value']).
+#   * nutrition_per is NULL for legacy (the old format does not record g versus ml), nutrition_preparation is 'as_sold',
+#     input_sets is NULL (no per-source information; the source-disagreement detector excludes legacy rows via nutrition_format).
+# ---------------------------------------------------------------------------------------------------------------
+legacy_nutriments:
+  suffix: _100g
+  modifier_suffix: _modifier           # an old-format modifier, if a record has one (none seen in 5,862 India products)
+  default_unit: g
+  units:
+    energy: kJ
+    energy-kj: kJ
+    energy-kcal: kcal
+    alcohol: "% vol"
+    crude-ash: "%"
+    cocoa: "%"
+    collagen-meat-protein-ratio: "%"
+  allowed_keys:
+    - energy
+    - energy-kcal
+    - energy-kj
+    - proteins
+    - fat
+    - carbohydrates
+    - carbohydrates-total
+    - salt
+    - sodium
+    - sugars
+    - saturated-fat
+    - trans-fat
+    - monounsaturated-fat
+    - polyunsaturated-fat
+    - unsaturated-fat
+    - omega-3-fat
+    - omega-6-fat
+    - omega-9-fat
+    - fiber
+    - soluble-fiber
+    - insoluble-fiber
+    - added-sugars
+    - starch
+    - polyols
+    - lactose
+    - glucose
+    - fructose
+    - sucrose
+    - maltose
+    - galactose
+    - maltodextrins
+    - erythritol
+    - psicose
+    - cholesterol
+    - calcium
+    - iron
+    - potassium
+    - magnesium
+    - zinc
+    - phosphorus
+    - manganese
+    - copper
+    - selenium
+    - iodine
+    - chloride
+    - fluoride
+    - chromium
+    - molybdenum
+    - silica
+    - bicarbonate
+    - sulphate
+    - sulfates
+    - nitrate
+    - nitrates
+    - nitrite
+    - vitamin-a
+    - vitamin-d
+    - vitamin-c
+    - vitamin-e
+    - vitamin-k
+    - vitamin-b1
+    - vitamin-b2
+    - vitamin-b6
+    - vitamin-b9
+    - vitamin-b12
+    - vitamin-pp
+    - pantothenic-acid
+    - biotin
+    - folates
+    - phylloquinone
+    - beta-carotene
+    - choline
+    - taurine
+    - caffeine
+    - carnitine
+    - creatine
+    - inositol
+    - alcohol
+    - cocoa
+    - water
+    - crude-ash
+    - dry-residue
+    - casein
+    - serum-proteins
+    - collagen-meat-protein-ratio
+    - beta-glucan
+    - gamma-oryzanol
+    - added-salt
+    - energy-from-fat
+    - butyric-acid
+    - caproic-acid
+    - caprylic-acid
+    - capric-acid
+    - lauric-acid
+    - myristic-acid
+    - palmitic-acid
+    - stearic-acid
+    - arachidic-acid
+    - behenic-acid
+    - montanic-acid
+    - oleic-acid
+    - gondoic-acid
+    - nervonic-acid
+    - linoleic-acid
+    - alpha-linolenic-acid
+    - gamma-linolenic-acid
+    - dihomo-gamma-linolenic-acid
+    - arachidonic-acid
+    - eicosapentaenoic-acid
+    - docosahexaenoic-acid
+
+# ---------------------------------------------------------------------------------------------------------------
 # Columns
 #   from:   path in the raw JSON ($.name); "derived" / "lineage" columns are computed
 #   class:  key | public | hashed | derived | lineage
@@ -235,12 +381,12 @@ columns:
   - {name: unique_scans_n, from: $.unique_scans_n, type: bigint, nullable: true, class: public}
 
   # --- nutrition: OFF's new format ($.nutrition) -------------------------------------------------------------------
-  # Verified on 25,000 real rows: 81% carry $.nutrition.aggregated_set; 19% carry no nutrition at all; the legacy
-  # $.nutriments exists on 29% of rows but is an EMPTY object on all but 2 of them, so it is not mapped here
-  # (an India baseline seed would need its own mapping for old-format products).
-  - {name: nutrition_format, from: derived, type: string, nullable: false, class: derived, note: "'new' (aggregated_set present) | 'none'"}
-  - {name: nutrition_per, from: $.nutrition.aggregated_set.per, type: string, nullable: true, class: public, shape_check: enum, note: "'100g' (93%) | '100ml' (7%) | null; every per-100 value below is on this basis"}
-  - {name: nutrition_preparation, from: $.nutrition.aggregated_set.preparation, type: string, nullable: true, class: public, shape_check: enum, note: "'as_sold' (99%) | 'prepared'"}
+  # Verified on 25,000 real delta rows: 81% carry $.nutrition.aggregated_set; 19% carry no nutrition at all; the legacy
+  # $.nutriments is an EMPTY object on all but 2 of them. In the full dump (India, 24,795 products) old-format products are common:
+  # 23.6% have only $.nutriments, so v3 maps it (section legacy_nutriments above) into the same columns.
+  - {name: nutrition_format, from: derived, type: string, nullable: false, class: derived, note: "'new' (aggregated_set present) | 'legacy' (old $.nutriments with at least one allowed nutrient) | 'none'"}
+  - {name: nutrition_per, from: $.nutrition.aggregated_set.per, type: string, nullable: true, class: public, shape_check: enum, note: "'100g' (93%) | '100ml' (7%) | null; every per-100 value below is on this basis. NULL for legacy: the old format does not record g versus ml"}
+  - {name: nutrition_preparation, from: $.nutrition.aggregated_set.preparation, type: string, nullable: true, class: public, shape_check: enum, note: "'as_sold' (99%) | 'prepared'; always 'as_sold' for legacy"}
   # Core nutrients as typed columns (value only; unit is fixed by OFF: energy kJ/kcal, everything else g). These are
   # the columns the arithmetic rules in P7 need. Everything else is in the nutrients map below.
   - {name: energy_kj, from: "$.nutrition.aggregated_set.nutrients.energy-kj.value, else .energy.value", type: double, nullable: true, class: public, note: "OFF carries both keys (kJ); equal in all 42,121 products that have both; energy-kj first, energy as fallback (753 products have only energy)"}
@@ -291,7 +437,7 @@ dropped_by_design:
   images: "no product images in any output (per-image licences); also carries uploader names"
   ingredients_text: "no consumer today (allergen alerts use allergens_tags, triage uses nutrition); 99.6% of the contact-shaped hits are in it; replaced by ingredients_sha256"
   owner_fields: "dictionary of field name -> timestamp; not personal, not needed"
-  nutriments: "legacy nutrition: empty object on 24,998 of 25,000 sampled rows"
+  nutriments: "legacy nutrition: only the allowed `<nutrient>_100g` keys are mapped (section legacy_nutriments); the raw object is not kept"
   data_quality_tags: "union of the four severity lists kept above"
   last_modified_by: "identical to last_editor wherever it is set"
   generic_name: "empty on 62% of rows that have it, low value"

@@ -1,4 +1,4 @@
-"""The silver transform (contract v2), run against real bronze records (p2_lakehouse/tests/fixtures/bronze_records.jsonl).
+"""The silver transform (contract v3), run against real bronze records (p2_lakehouse/tests/fixtures/bronze_records.jsonl).
 
 The fixtures are real OFF records picked to cover each case, with contributor names replaced by placeholders (user_0001 ...),
 images removed and emails/phones replaced; see bootstrap/extract_fixtures.py. Several tests change one field of a real record
@@ -127,7 +127,7 @@ def test_owner_is_hashed_and_flagged():
 def test_lineage_and_contract_version_are_carried():
     row = silver("normal_new").row
     assert row["source_file"] == LINEAGE["source_file"] and row["file_sha256"] == LINEAGE["file_sha256"]
-    assert row["job_run_id"] == "test-run" and row["silver_contract_version"] == 2
+    assert row["job_run_id"] == "test-run" and row["silver_contract_version"] == 3
 
 
 def test_code_kinds():
@@ -249,9 +249,11 @@ def test_no_nutrition_per_100ml_prepared_and_modifiers():
     assert any(v["value"] is None for s in silver("input_value_null").row["input_sets"] for v in (s["nutrients"] or {}).values())
 
 
-def test_legacy_nutriments_are_not_mapped():
-    for i in range(len(CASES["legacy_nutriments_filled"])):
-        assert silver("legacy_nutriments_filled", i).row["nutrition_format"] in ("new", "none")
+def test_old_format_records_in_the_delta_fixtures_follow_the_rule_new_wins_else_legacy():
+    for i, raw in enumerate(CASES["legacy_nutriments_filled"]):
+        d = json.loads(raw)
+        has_agg = bool(((d.get("nutrition") or {}).get("aggregated_set")))
+        assert silver("legacy_nutriments_filled", i).row["nutrition_format"] == ("new" if has_agg else "legacy")
 
 
 def test_product_quantity_that_is_text_becomes_null_and_is_counted():
