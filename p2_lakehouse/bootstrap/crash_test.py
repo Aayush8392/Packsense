@@ -274,8 +274,12 @@ def cmd_cleanup(w, q: Sql, args):
 # ---- bronze trials -----------------------------------------------------------------------------------------------------
 
 def bronze_snapshot(q: Sql):
+    # the notebook creates its tables after it starts, so either table may not exist yet
     raw = int(q.try_one(f"SELECT count(*) FROM {SCR_BRONZE}.bronze_delta_raw", 0) or 0)
-    rows = q.run(f"SELECT file_name, rows_inserted FROM {SCR_BRONZE}.bronze_manifest") if raw >= 0 else []
+    try:
+        rows = q.run(f"SELECT file_name, rows_inserted FROM {SCR_BRONZE}.bronze_manifest")
+    except Exception:
+        rows = []
     return raw, rows
 
 
@@ -309,20 +313,28 @@ def verify_bronze(q: Sql, files: list) -> list:
 def trial_loop(w, q, run_id, mode, total, snapshot):
     """Poll a running notebook and cancel it when the kill rule fires. Returns (killed, state_after)."""
     t0 = time.time()
-    while True:
-        life, res, r = run_state(w, run_id)
-        if life in TERMINAL:
-            return False, None
-        written, recorded = snapshot()
-        if should_kill(mode, written, recorded, total):
+    try:
+        while True:
+            life, res, r = run_state(w, run_id)
+            if life in TERMINAL:
+                return False, None
+            written, recorded = snapshot()
+            if should_kill(mode, written, recorded, total):
+                w.jobs.cancel_run(run_id)
+                wait_terminal(w, run_id, 10)
+                time.sleep(8)  # let any in-flight write settle before looking at what is left behind
+                return True, snapshot()
+            if time.time() - t0 > 20 * 60:
+                w.jobs.cancel_run(run_id)
+                return False, None
+            time.sleep(1)
+    except Exception:
+        # never leave a run going if the driver itself fails
+        try:
             w.jobs.cancel_run(run_id)
-            wait_terminal(w, run_id, 10)
-            time.sleep(8)  # let any in-flight write settle before looking at what is left behind
-            return True, snapshot()
-        if time.time() - t0 > 20 * 60:
-            w.jobs.cancel_run(run_id)
-            return False, None
-        time.sleep(1)
+        except Exception:
+            pass
+        raise
 
 
 def cmd_bronze(w, q: Sql, args):
