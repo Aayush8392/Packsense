@@ -2,7 +2,7 @@
 
 A daily-updated, cleaned and versioned copy of the [Open Food Facts](https://world.openfoodfacts.org) product catalogue, India first, built the way a company data team would build it.
 
-> **Status: design frozen (v4.2), build starting.** This README is a stub. The architecture is in [`docs/design-v4.2.md`](docs/design-v4.2.md).
+> **Status: build in progress.** The design is frozen (v4.2, [`docs/design-v4.2.md`](docs/design-v4.2.md)); intake and the lakehouse's first two layers are running. Nothing is published yet: no dashboard, no data release.
 
 ## What it does
 - Picks up what changed on Open Food Facts every day, without any laptop being on, and keeps the full history.
@@ -20,13 +20,33 @@ A daily-updated, cleaned and versioned copy of the [Open Food Facts](https://wor
 - Every tool has a real job; nothing is here only to show a keyword.
 - Everything claimed was tested on real accounts and real data first (41 verification items before the first commit of the build).
 
+## Where it stands (2026-10-15)
+| Built and running | Not started |
+|---|---|
+| Daily capture (GitHub Actions), landing volume, 34 taxonomy snapshots, freshness and delete-marker tripwires, healthchecks.io monitoring | Gold layer (dbt, star schema, history) |
+| Verified second copy of the raw files in a private Hugging Face dataset (daily job) | Dashboard, static score lookup, India data release |
+| Bronze (raw, append-only) and silver (typed, checked, scrubbed; data contract v3, 71 columns) as a scheduled Databricks job | Triage model, steward agent, review queue |
+| India seed from the full dump: 24,875 distinct India barcodes in silver | Access control policies and CI checks, Asset Bundles, Terraform for Databricks |
+| Schema-drift monitor with its own alert | Airflow batch workloads, deletion reconciliation |
+
+## Known limitations (measured, not hoped)
+Each of these is a number from this project's own data, or marked as inferred.
+- **Personal data: a measured bound, not a guarantee.** OFF contributor names are public and cannot be reliably told apart from ordinary words (a name-matching gate wrongly quarantined 3.15% of real products, so it was dropped). Silver keeps only two free-text columns (`product_name`, `brands`), scrubs patterns with a clear shape (emails, URLs, handles, Indian ID formats), and replaces the record's own contributor names of 8+ characters. Measured over 91,917 rows: contact-shaped text in those two columns in 5 rows; known contributor names (8+ characters, not ordinary words) in 161 rows (0.175%), which the export step replaces; shorter handles of 5-7 characters in 530 rows are counted, not replaced. There is no name-recognition model, the attribution-phrase list covers five languages, and there is no process for data-subject requests. Hashed contributor codes protect against this project's own readers only: OFF publishes the usernames, so anyone can match a code to a name.
+- **Not everything parses.** Of the non-empty values, 89.1% of `quantity` and 94.9% of `serving_size` become a number and a unit; the rest become NULL. About 2.2% of the tags in the four user-entered tag columns (10,046 of 453,932) fail the shape check and are dropped from silver; bronze keeps them.
+- **India nutrition data is thin and mixed.** Of 24,795 India products in the dump (2026-10-13): 24.2% have the new nutrition format, 18.7% only the old format (mapped into the same columns, but without a per-100 g/ml basis or per-source breakdown), and 57.2% have no nutrition data at all, against roughly 77% across all of OFF (inferred from file statistics, not re-measured).
+- **The seed is a snapshot.** It is one read of the 2026-10-13 dump; later changes arrive only through the daily files. Deletions are not tracked yet: about 1.8% of recently changed products disappear within days (measured earlier), and nothing here removes them yet.
+- **Timing is not met yet.** GitHub's scheduler is best-effort: the one scheduled capture observed so far ran 5.5 hours late (seven runs are being counted; the verdict is not in). The processing job runs at 09:00 UTC and, on the days observed so far (14-15 Oct), the capture had not landed by then, so each day's data is processed a day late until the schedules are aligned. A missed capture costs nothing inside OFF's 14-day window (the next run back-fills).
+- **Free-tier dependencies.** Databricks Free Edition (non-commercial, unpublished storage and compute quotas), Backblaze B2 (the daily download cap was reached once during testing), Hugging Face. The 13 GB dump has no second copy. A restore from the archive has not been drilled yet.
+- **The drift monitor sees presence and shape, not meaning.** Its baseline is 14 days; it cannot notice a field that keeps its name but changes unit.
+- **Tests run locally, not in CI yet.** The unit tests use real, sanitised records; CI is planned in P3.
+
 ## Data and licence
 Code is Apache-2.0 (see [`LICENSE`](LICENSE)). Data comes from Open Food Facts under the [ODbL](https://opendatacommons.org/licenses/odbl/1-0/); published data releases carry the required attribution and share-alike terms. Product images are not redistributed.
 
 ## Layout (grows as the build progresses)
 ```
 p1_intake/       P1: daily capture, landing, taxonomy snapshots, tripwires
-p2_lakehouse/    P2: bronze and silver on Databricks
+p2_lakehouse/    P2: bronze, silver, India seed, drift monitor on Databricks
 infra/terraform/ shared infrastructure as code (B2 bucket, repository secrets)
 docs/            design and evidence
 .github/         workflows (they must live here), Dependabot, CODEOWNERS
