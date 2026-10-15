@@ -15,7 +15,7 @@ SIZES = {"openfoodfacts_products_delta_20261001.json.gz": 30, "openfoodfacts_pro
 
 
 def test_pick_files_takes_the_middle_by_size_and_ignores_non_deltas():
-    got = c.pick_files(SIZES)
+    got = c.pick_files(SIZES, 3)
     assert got == sorted(["openfoodfacts_products_delta_20261005.json.gz", "openfoodfacts_products_delta_20261003.json.gz",
                           "openfoodfacts_products_delta_20261001.json.gz"])
 
@@ -31,6 +31,9 @@ def test_kill_rules():
     assert not c.should_kill("first_write", 3, 3, 3)       # everything recorded: nothing left to kill
     assert not c.should_kill("later_file", 5, 0, 3)
     assert c.should_kill("later_file", 5, 1, 3)
+    assert not c.should_kill("midway", 5, 2, 6)
+    assert c.should_kill("midway", 5, 3, 6)
+    assert not c.should_kill("midway", 5, 6, 6)
     with pytest.raises(ValueError):
         c.should_kill("nope", 0, 0, 3)
 

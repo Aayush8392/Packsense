@@ -9,7 +9,7 @@ Everything happens in scratch areas; production tables are only read (counts are
   silver    workspace.ps_kill_silver
 The notebooks themselves run unchanged from the git branch (their widgets already point them at scratch areas).
 
-  python p2_lakehouse/bootstrap/crash_test.py setup   --env-file PATH           pick 3 mid-sized files, copy, seed, fingerprint production
+  python p2_lakehouse/bootstrap/crash_test.py setup   --env-file PATH           pick the mid-sized delta files, copy, seed, fingerprint production
   python p2_lakehouse/bootstrap/crash_test.py bronze  --env-file PATH [--trials 3] [--branch main]
   python p2_lakehouse/bootstrap/crash_test.py silver  --env-file PATH [--trials 3] [--branch main]
   python p2_lakehouse/bootstrap/crash_test.py cleanup --env-file PATH           drop scratch, remove copies, compare the fingerprint
@@ -65,7 +65,7 @@ elif mode == "remove":
 
 # ---- pure logic (unit-tested) ------------------------------------------------------------------------------------------
 
-def pick_files(sizes: dict, n: int = 3) -> list:
+def pick_files(sizes: dict, n: int = 6) -> list:
     """The n delta files in the middle of the size ranking (not the smallest, not the biggest): a stable, representative choice."""
     names = sorted((k for k in sizes if k.endswith(".json.gz")), key=lambda k: (sizes[k], k))
     if len(names) < n:
@@ -81,6 +81,8 @@ def should_kill(mode: str, written: int, recorded: int, total: int) -> bool:
         return written > 0 and recorded < total
     if mode == "later_file":
         return recorded >= 1 and recorded < total
+    if mode == "midway":
+        return total // 2 <= recorded < total
     raise ValueError(mode)
 
 
@@ -221,7 +223,7 @@ def fingerprint(q: Sql) -> dict:
 
 def cmd_setup(w, q: Sql, args):
     sizes = {i.name: i.file_size for i in w.files.list_directory_contents(f"{LANDING}/deltas") if not i.is_directory}
-    files = pick_files(sizes)
+    files = pick_files(sizes, args.files_n)
     print("chosen files:", {f: sizes[f] for f in files})
     done_b = int(q.one(f"SELECT count(*) FROM {PROD_BRONZE}.bronze_manifest WHERE file_name IN ({inlist(files)})"))
     done_s = int(q.one(f"SELECT count(*) FROM {PROD_SILVER}.silver_manifest WHERE file_name IN ({inlist(files)})"))
@@ -317,16 +319,19 @@ def trial_loop(w, q, run_id, mode, total, snapshot):
         while True:
             life, res, r = run_state(w, run_id)
             if life in TERMINAL:
-                return False, None
+                return False, None, None
             written, recorded = snapshot()
             if should_kill(mode, written, recorded, total):
+                t_cancel = time.time()
                 w.jobs.cancel_run(run_id)
                 wait_terminal(w, run_id, 10)
+                secs = round(time.time() - t_cancel, 1)
                 time.sleep(8)  # let any in-flight write settle before looking at what is left behind
-                return True, snapshot()
+                # what the poll saw when it decided to kill, and how long the cancel took to take effect
+                return True, snapshot(), {"seen_at_cancel": [written, recorded], "cancel_seconds": secs}
             if time.time() - t0 > 20 * 60:
                 w.jobs.cancel_run(run_id)
-                return False, None
+                return False, None, None
             time.sleep(1)
     except Exception:
         # never leave a run going if the driver itself fails
@@ -351,7 +356,7 @@ def cmd_bronze(w, q: Sql, args):
     wait_idle(w)
     state = load_state()
     files = state["files"]
-    modes = ["first_write", "later_file", "first_write", "later_file", "first_write", "later_file"]
+    modes = ["first_write", "midway", "later_file", "first_write", "midway", "later_file"]
     out = []
     for i in range(args.trials):
         mode = modes[i % len(modes)]
@@ -363,8 +368,10 @@ def cmd_bronze(w, q: Sql, args):
         def snap():
             raw, rows = bronze_snapshot(q)
             return raw, rows
-        killed, after = trial_loop(w, q, waiter.run_id, mode, len(files), lambda: (lambda s: (s[0], len(s[1])))(snap()))
+        killed, after, timing = trial_loop(w, q, waiter.run_id, mode, len(files), lambda: (lambda s: (s[0], len(s[1])))(snap()))
         rec = {"trial": i + 1, "mode": mode, "killed": killed}
+        if timing:
+            rec.update(timing)
         if killed:
             raw, rows = bronze_snapshot(q)
             ins = sum(int(r[1]) for r in rows)
@@ -443,7 +450,7 @@ def cmd_silver(w, q: Sql, args):
     wait_idle(w)
     state = load_state()
     files = state["files"]
-    modes = ["first_write", "later_file", "first_write", "later_file", "first_write", "later_file"]
+    modes = ["first_write", "midway", "later_file", "first_write", "midway", "later_file"]
     out = []
     for i in range(args.trials):
         mode = modes[i % len(modes)]
@@ -455,8 +462,10 @@ def cmd_silver(w, q: Sql, args):
         def snap():
             d, rec = silver_snapshot(q)
             return len(d), len(rec)
-        killed, _ = trial_loop(w, q, waiter.run_id, mode, len(files), snap)
+        killed, _, timing = trial_loop(w, q, waiter.run_id, mode, len(files), snap)
         rec = {"trial": i + 1, "mode": mode, "killed": killed}
+        if timing:
+            rec.update(timing)
         if killed:
             d, recd = silver_snapshot(q)
             rec.update(files_with_data=len(d), files_recorded=len(recd), window=silver_window(d, recd, len(files)))
@@ -482,6 +491,7 @@ def main() -> int:
     ap.add_argument("--env-file", help="optional: otherwise DATABRICKS_HOST and DATABRICKS_TOKEN must already be in the environment")
     ap.add_argument("--branch", default="main", help="git branch the notebooks run from")
     ap.add_argument("--trials", type=int, default=3)
+    ap.add_argument("--files-n", type=int, default=6, help="setup only: how many delta files the trials use (a longer run gives the kill more time to land mid-write)")
     args = ap.parse_args()
     if args.env_file:
         load_env_file(args.env_file)
