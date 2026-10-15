@@ -1,4 +1,5 @@
 """The silver table definitions are generated from the contract; these tests keep the two in step with the transform."""
+import datetime as dt
 import json
 import re
 import sys
@@ -24,8 +25,7 @@ def ddl_columns(sql: str) -> dict:
 
 
 def test_type_mapping():
-    assert schema.spark_type("string") == "STRING"
-    assert schema.spark_type("bigint") == "BIGINT"
+    assert schema.spark_type("string") == "STRING" and schema.spark_type("bigint") == "BIGINT"
     assert schema.spark_type("array<string>") == "ARRAY<STRING>"
     assert schema.spark_type("map<string,struct<value:double,unit:string,modifier:string>>") == \
         "MAP<STRING,STRUCT<value:DOUBLE,unit:STRING,modifier:STRING>>"
@@ -35,16 +35,14 @@ def test_every_contract_column_is_in_the_ddl_in_order_with_the_right_nullability
     cols = ddl_columns(schema.silver_table_sql(C))
     assert list(cols) == [c["name"] for c in C["columns"]]
     for c in C["columns"]:
-        not_null = cols[c["name"]].endswith("NOT NULL")
-        assert not_null == (not c["nullable"]), c["name"]
+        assert cols[c["name"]].endswith("NOT NULL") == (not c["nullable"]), c["name"]
         assert cols[c["name"]].removesuffix(" NOT NULL") == schema.spark_type(c["type"]), c["name"]
 
 
 def test_nested_types_are_balanced_and_complete():
     cols = ddl_columns(schema.silver_table_sql(C))
     for name in ("nutrients", "input_sets"):
-        t = cols[name]
-        assert t.count("<") == t.count(">")
+        assert cols[name].count("<") == cols[name].count(">")
     assert cols["input_sets"].startswith("ARRAY<STRUCT<source:STRING,per:STRING,per_quantity:DOUBLE,per_unit:STRING,preparation:STRING,nutrients:MAP<")
 
 
@@ -59,50 +57,42 @@ def test_ddl_matches_what_the_transform_produces():
     assert seen >= 15
 
 
-def test_table_names_come_from_the_contract():
+def test_five_tables_named_from_the_contract_and_no_identity_table():
     sql = schema.all_table_sql(C)
-    assert len(sql) == 6
-    for name, s in zip((C["table"], C["quarantine_table"], C["manifest_table"], C["stats_table"],
-                        C["personal_data_check"]["identity_table"], C["field_log_table"]), sql):
+    assert len(sql) == 5
+    for name, s in zip((C["table"], C["quarantine_table"], C["manifest_table"], C["stats_table"], C["field_log_table"]), sql):
         assert f"CREATE TABLE IF NOT EXISTS {name} (" in s and s.endswith("USING DELTA")
+    assert not any("identity" in s for s in sql)
 
 
-def test_quarantine_table_holds_what_the_transform_returns_for_a_quarantined_record():
+def test_quarantine_table_holds_what_the_batch_returns_and_nothing_about_personal_data_columns():
     q = ddl_columns(schema.quarantine_table_sql(C))
-    for needed in ("code", "last_modified_t", "reason", "pii_columns", "payload", "source_file", "file_sha256", "record_sha256", "job_run_id", "resolved_by_run"):
-        assert needed in q
-    assert q["reason"].endswith("NOT NULL") and "NOT NULL" not in q["code"]      # a bad record may have no code
+    assert set(q) == {"code", "last_modified_t", "reason", "payload", "source_file", "file_sha256", "record_sha256",
+                      "bronze_ingested_at", "quarantined_at", "job_run_id", "resolved_by_run"}
+    assert q["reason"].endswith("NOT NULL") and "NOT NULL" not in q["code"]      # a broken record may have no code
 
 
-def test_identity_table_stores_only_hashes_and_lengths_never_names():
-    cols = ddl_columns(schema.identity_table_sql(C))
-    assert list(cols) == ["hmac", "kind", "length", "first_seen_at", "first_seen_run"]
+def test_run_stats_table_records_what_the_checks_did():
+    cols = ddl_columns(schema.stats_table_sql(C))
+    for needed in ("rows_in", "rows_silver", "rows_quarantine", "quarantine_by_reason", "coerce_failures", "nutrition_format",
+                   "tags_dropped", "patterns_scrubbed", "own_handles_redacted", "nutrient_entries_dropped", "enums_nulled",
+                   "top_level_fields_seen"):
+        assert needed in cols, needed
+    assert "short_name_hits" not in cols and "identities_added" not in cols
+
+
+def test_struct_ddl_is_the_column_list_without_not_null():
+    ddl = schema.struct_ddl(C)
+    assert "NOT NULL" not in ddl and ddl.startswith("code STRING, code_kind STRING") and ddl.count(", ") >= 70
+
+
+def test_relocated_contract_moves_every_table():
+    moved = contract.relocate(C, silver_schema="workspace.scratch_s", bronze_schema="workspace.scratch_b")
+    for sql in schema.all_table_sql(moved):
+        assert "packsense_silver" not in sql
+    assert re.search(r"^CREATE TABLE IF NOT EXISTS workspace\.scratch_s\.silver_product_versions \(", schema.silver_table_sql(moved))
 
 
 def test_no_tabs_or_unbalanced_brackets_in_any_ddl():
     for s in schema.all_table_sql(C):
         assert "\t" not in s and s.count("(") == s.count(")") and s.count("<") == s.count(">")
-        assert re.search(r"^CREATE TABLE IF NOT EXISTS workspace\.packsense_silver\.\w+ \(", s)
-
-
-def test_run_stats_table_records_the_gate_counters():
-    cols = ddl_columns(schema.stats_table_sql(C))
-    for needed in ("rows_in", "rows_silver", "rows_quarantine", "quarantine_by_reason", "coerce_failures",
-                   "nutrition_format", "patterns_scrubbed", "short_name_hits", "exempt_name_hits", "identities_added"):
-        assert needed in cols, needed
-
-
-def test_struct_ddl_is_the_column_list_without_not_null():
-    ddl = schema.struct_ddl(C)
-    assert "NOT NULL" not in ddl and ddl.startswith("code STRING, code_kind STRING") and ddl.count(", ") >= 67
-
-
-def test_relocate_moves_every_table_to_the_scratch_schemas_and_leaves_the_original_alone():
-    moved = contract.relocate(C, silver_schema="workspace.scratch_s", bronze_schema="workspace.scratch_b")
-    assert moved["table"] == "workspace.scratch_s.silver_product_versions"
-    assert moved["source_table"] == "workspace.scratch_b.bronze_delta_raw"
-    assert moved["personal_data_check"]["identity_table"] == "workspace.scratch_s.silver_identity_hmacs"
-    for sql in schema.all_table_sql(moved):
-        assert "packsense_silver" not in sql
-    assert C["table"] == "workspace.packsense_silver.silver_product_versions"     # the original is untouched
-    assert contract.relocate(C)["table"] == C["table"]

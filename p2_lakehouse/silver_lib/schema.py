@@ -1,7 +1,7 @@
 """Table definitions for the silver layer, built from the contract so the tables and the contract cannot drift apart.
 
-silver_product_versions is generated from contracts/silver.yml. The small bookkeeping tables (quarantine, manifest,
-run stats, known identities) have fixed definitions here; tests check both against the contract.
+silver_product_versions is generated from contracts/silver.yml. The small bookkeeping tables (quarantine, manifest, run
+stats, field log) have fixed definitions here; tests check both against the contract.
 """
 import re
 
@@ -24,7 +24,6 @@ def quarantine_table_sql(contract: dict) -> str:
   code STRING,
   last_modified_t BIGINT,
   reason STRING NOT NULL,
-  pii_columns ARRAY<STRING>,
   payload STRING,
   source_file STRING NOT NULL,
   file_sha256 STRING NOT NULL,
@@ -60,21 +59,12 @@ def stats_table_sql(contract: dict) -> str:
   quarantine_by_reason MAP<STRING,BIGINT>,
   coerce_failures MAP<STRING,BIGINT>,
   nutrition_format MAP<STRING,BIGINT>,
+  tags_dropped MAP<STRING,BIGINT>,
   patterns_scrubbed BIGINT,
-  short_name_hits BIGINT,
-  exempt_name_hits BIGINT,
-  identities_added BIGINT,
+  own_handles_redacted BIGINT,
+  nutrient_entries_dropped BIGINT,
+  enums_nulled BIGINT,
   top_level_fields_seen BIGINT
-) USING DELTA"""
-
-
-def identity_table_sql(contract: dict) -> str:
-    return f"""CREATE TABLE IF NOT EXISTS {contract['personal_data_check']['identity_table']} (
-  hmac STRING NOT NULL,
-  kind STRING NOT NULL,
-  length INT NOT NULL,
-  first_seen_at TIMESTAMP NOT NULL,
-  first_seen_run STRING NOT NULL
 ) USING DELTA"""
 
 
@@ -94,4 +84,4 @@ def struct_ddl(contract: dict) -> str:
 
 def all_table_sql(contract: dict) -> list[str]:
     return [silver_table_sql(contract), quarantine_table_sql(contract), manifest_table_sql(contract),
-            stats_table_sql(contract), identity_table_sql(contract), field_log_table_sql(contract)]
+            stats_table_sql(contract), field_log_table_sql(contract)]

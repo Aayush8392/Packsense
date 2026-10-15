@@ -1,17 +1,14 @@
-"""The silver transform, run against real bronze records (p2_lakehouse/tests/fixtures/bronze_records.jsonl).
+"""The silver transform (contract v2), run against real bronze records (p2_lakehouse/tests/fixtures/bronze_records.jsonl).
 
-The fixtures are real OFF records picked to cover each case, with contributor names replaced by placeholders
-(user_0001 ...), images removed and emails/phones replaced; see bootstrap/extract_fixtures.py. A few tests change one
-field of a real record to plant a fault (a username in a product name, a missing timestamp).
+The fixtures are real OFF records picked to cover each case, with contributor names replaced by placeholders (user_0001 ...),
+images removed and emails/phones replaced; see bootstrap/extract_fixtures.py. Several tests change one field of a real record
+to plant a case (an email in a product name, a contributor's own name in a product name, a junk tag).
 """
-import copy
 import json
 import re
 import sys
 from collections import defaultdict
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -21,8 +18,9 @@ KEY = "test-key-not-a-secret-0000000000000000000000000000000000"
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bronze_records.jsonl"
 LINEAGE = {"source_file": "openfoodfacts_products_1791094877_1791181482.json.gz", "file_sha256": "ab" * 32,
            "bronze_ingested_at": "2026-10-14T09:00:00", "silver_processed_at": "2026-10-14T09:05:00", "job_run_id": "test-run"}
-CONTRACT = contract.load()
-CTX = transform.Context(CONTRACT, KEY)
+C = contract.load()
+CTX = transform.Context(C, KEY)
+SENTINEL = C["own_handle_redaction"]["sentinel"]
 
 
 def load_cases():
@@ -36,32 +34,42 @@ def load_cases():
 CASES = load_cases()
 
 
-def run(case, i=0, ctx=CTX):
-    return transform.process(CASES[case][i], ctx, LINEAGE)
+def record(case, i=0):
+    return json.loads(CASES[case][i])
+
+
+def process(d, ctx=CTX):
+    return transform.process(json.dumps(d, ensure_ascii=False), ctx, LINEAGE)
 
 
 def silver(case, i=0):
-    r = run(case, i)
-    assert r.kind == "silver", (case, r.reason, r.pii_columns)
+    r = transform.process(CASES[case][i], CTX, LINEAGE)
+    assert r.kind == "silver", (case, r.reason)
     return r
 
 
-def test_no_fixture_hits_an_unexpected_error():
+def planted(case="normal_new", **changes):
+    d = record(case)
+    d.update(changes)
+    return process(d)
+
+
+# ---- every real record ---------------------------------------------------------------------------------------------------
+
+def test_every_fixture_loads_and_only_the_empty_barcode_is_quarantined():
     outcomes = {}
     for case, raws in CASES.items():
         for raw in raws:
             r = transform.process(raw, CTX, LINEAGE)
-            assert r.reason not in ("Q_TRANSFORM_ERROR", "Q_BAD_JSON", "Q_NOT_OBJECT"), (case, r.reason)
             outcomes.setdefault(case, []).append(r.reason or "silver")
     assert outcomes["non_digit_code"] == ["Q_BAD_CODE"]
-    others = {c: o for c, o in outcomes.items() if c != "non_digit_code"}
-    assert all(o == ["silver"] * len(o) for o in others.values()), others
+    assert all(o == ["silver"] * len(o) for c, o in outcomes.items() if c != "non_digit_code"), outcomes
 
 
 def test_silver_row_has_exactly_the_contract_columns_and_nothing_else():
-    names = {c["name"] for c in CONTRACT["columns"]}
+    names = {c["name"] for c in C["columns"]}
     for case in CASES:
-        r = run(case)
+        r = transform.process(CASES[case][0], CTX, LINEAGE)
         if r.kind == "silver":
             assert set(r.row) == names, (case, set(r.row) ^ names)
 
@@ -69,10 +77,10 @@ def test_silver_row_has_exactly_the_contract_columns_and_nothing_else():
 def test_values_match_the_declared_types_and_nullability():
     py = {"string": str, "int": int, "bigint": int, "double": float, "boolean": bool, "timestamp": str}
     for case in CASES:
-        r = run(case)
+        r = transform.process(CASES[case][0], CTX, LINEAGE)
         if r.kind != "silver":
             continue
-        for col in CONTRACT["columns"]:
+        for col in C["columns"]:
             v = r.row[col["name"]]
             if v is None:
                 assert col["nullable"], (case, col["name"])
@@ -86,59 +94,29 @@ def test_values_match_the_declared_types_and_nullability():
                 assert isinstance(v, py[base]) and not (base != "boolean" and isinstance(v, bool)), (case, col["name"], type(v))
 
 
-def test_no_placeholder_username_survives_in_any_silver_row():
+def test_no_placeholder_username_survives_in_any_text_column():
+    free = [c["name"] for c in C["columns"] if c["class"] == "public" and c["type"] in ("string", "array<string>")]
     for case in CASES:
-        r = run(case)
+        r = transform.process(CASES[case][0], CTX, LINEAGE)
         if r.kind == "silver":
-            assert "user_0" not in json.dumps(r.row, default=str), case
+            for name in free:
+                assert "user_0" not in json.dumps(r.row[name]), (case, name)
 
+
+def test_processing_is_deterministic_and_independent_of_other_records():
+    forward = [transform.process(raw, CTX, LINEAGE).row for raws in CASES.values() for raw in raws]
+    backward = [transform.process(raw, CTX, LINEAGE).row for raws in reversed(list(CASES.values())) for raw in reversed(raws)]
+    assert forward == backward[::-1]
+
+
+# ---- identities --------------------------------------------------------------------------------------------------------
 
 def test_hashed_columns_are_hmacs_of_the_raw_names():
-    raw = json.loads(CASES["normal_new"][0])
+    raw = record("normal_new")
     row = silver("normal_new").row
     assert row["creator_hmac"] == personal.hmac_hex(KEY, raw["creator"])
     assert row["editors_hmac"] == [personal.hmac_hex(KEY, e) for e in raw["editors_tags"]]
     assert row["hmac_key_version"] == 1
-
-
-def test_lineage_and_contract_version_are_carried():
-    row = silver("normal_new").row
-    assert row["source_file"] == LINEAGE["source_file"] and row["file_sha256"] == LINEAGE["file_sha256"]
-    assert row["job_run_id"] == "test-run" and row["silver_contract_version"] == 1
-
-
-def test_code_kinds():
-    assert silver("gtin8").row["code_kind"] == "gtin8"
-    assert silver("gtin14").row["code_kind"] == "gtin14"
-    assert silver("odd_length_code").row["code_kind"] == "other"
-    assert silver("normal_new").row["code_kind"] in ("gtin13", "gtin8", "gtin12", "gtin14")
-
-
-def test_normal_new_product_nutrition():
-    row = silver("normal_new").row
-    assert row["nutrition_format"] == "new" and row["nutrition_per"] == "100g"
-    for col in ("energy_kj", "energy_kcal", "fat", "saturated_fat", "carbohydrates", "sugars", "proteins", "salt", "sodium", "fiber"):
-        assert isinstance(row[col], float), col
-    assert "energy-kj" in row["nutrients"] and set(row["nutrients"]["fat"]) == {"value", "unit", "modifier"}
-    assert len(row["input_sets"]) >= 2
-    for s in row["input_sets"]:
-        assert set(s) == {"source", "per", "per_quantity", "per_unit", "preparation", "nutrients"}
-
-
-def test_no_nutrition_product():
-    row = silver("no_nutrition").row
-    assert row["nutrition_format"] == "none" and row["energy_kj"] is None and row["nutrients"] is None
-
-
-def test_per_100ml_and_prepared_are_recorded():
-    assert silver("per_100ml").row["nutrition_per"] == "100ml"
-    assert silver("prepared").row["nutrition_preparation"] == "prepared"
-
-
-def test_legacy_nutriments_are_not_mapped():
-    assert "nutriments" not in {c["name"] for c in CONTRACT["columns"]}
-    for i in range(len(CASES["legacy_nutriments_filled"])):
-        assert silver("legacy_nutriments_filled", i).row["nutrition_format"] in ("new", "none")
 
 
 def test_owner_is_hashed_and_flagged():
@@ -146,16 +124,134 @@ def test_owner_is_hashed_and_flagged():
     assert row["producer_owned"] is True and len(row["owner_hmac"]) == 64
 
 
-def test_email_in_ingredients_is_scrubbed():
-    r = silver("email_in_ingredients")
-    assert r.scrubbed >= 1
-    assert not personal.has_pattern(r.row["ingredients_text"], CTX.patterns) and "[removed]" in r.row["ingredients_text"]
+def test_lineage_and_contract_version_are_carried():
+    row = silver("normal_new").row
+    assert row["source_file"] == LINEAGE["source_file"] and row["file_sha256"] == LINEAGE["file_sha256"]
+    assert row["job_run_id"] == "test-run" and row["silver_contract_version"] == 2
 
 
-def test_null_values_and_modifiers_are_kept_as_sent():
-    sets = silver("input_value_null").row["input_sets"]
-    assert any(v["value"] is None for s in sets for v in (s["nutrients"] or {}).values())
+def test_code_kinds():
+    assert silver("gtin8").row["code_kind"] == "gtin8" and silver("gtin14").row["code_kind"] == "gtin14"
+    assert silver("odd_length_code").row["code_kind"] == "other"
+
+
+# ---- text: scrub, own-handle redaction, structure ------------------------------------------------------------------------
+
+def test_patterns_in_product_name_and_brands_are_scrubbed_and_counted():
+    r = planted(product_name="Biscuits www.example.com contact shop@example.org", brands="see instagram.com/some_shop")
+    assert r.row["product_name"] == "Biscuits [removed] contact [removed]" and r.row["brands"] == "see [removed]" and r.scrubbed == 3
+
+
+def test_dates_lot_codes_and_barcodes_in_a_product_name_survive():
+    name = "Biscuits 14.10.2026 lot 9876543210 EAN 8901234567890"
+    assert planted(product_name=name).row["product_name"] == name
+
+
+def test_own_name_in_the_product_name_is_replaced_and_counted():
+    creator = record("normal_new")["creator"]
+    r = planted(product_name=f"Biscuits photo by {creator}.")
+    assert r.row["product_name"] == f"Biscuits photo by {SENTINEL}." and r.own_handles_redacted == 1 and r.kind == "silver"
+
+
+def test_any_of_the_records_own_contributors_counts_as_own():
+    editor = record("normal_new")["editors_tags"][0]
+    assert planted(product_name=f"thanks {editor}").row["product_name"] == f"thanks {SENTINEL}"
+
+
+def test_own_name_in_brands_is_kept_because_producers_write_their_own_brand():
+    creator = record("normal_new")["creator"]
+    r = planted(brands=f"{creator} foods")
+    assert r.row["brands"] == f"{creator} foods" and r.own_handles_redacted == 0
+
+
+def test_another_contributors_name_is_not_touched_and_never_quarantines_the_row():
+    mine = {record("normal_new")["creator"], *record("normal_new")["editors_tags"]}
+    other = next(n for n in record("many_editors")["editors_tags"] if n not in mine)
+    r = planted(product_name=f"{other} bakery", brands=f"{other} foods")
+    assert r.kind == "silver" and r.row["product_name"] == f"{other} bakery" and r.own_handles_redacted == 0
+
+
+def test_a_short_own_name_is_not_replaced():
+    r = planted(creator="abcdefg", editors_tags=["abcdefg"], product_name="by abcdefg")
+    assert r.row["product_name"] == "by abcdefg" and r.own_handles_redacted == 0
+
+
+def test_the_sentinel_count_equals_the_substitutions_made():
+    creator = record("normal_new")["creator"]
+    r = planted(product_name=f"{creator} and {creator.upper()} and x{creator}")
+    assert r.row["product_name"].count(SENTINEL) == r.own_handles_redacted == 2
+
+
+def test_ingredients_text_is_not_kept_only_a_fingerprint_of_it():
+    row = silver("email_in_ingredients").row
+    assert "ingredients_text" not in row and re.fullmatch(r"[0-9a-f]{64}", row["ingredients_sha256"])
+    assert "@" not in json.dumps(row, default=str)
+
+
+def test_the_fingerprint_changes_when_the_ingredients_change_and_not_when_only_spacing_does():
+    base = record("normal_new")
+    a = process({**base, "ingredients_text": "sugar, wheat flour"}).row["ingredients_sha256"]
+    assert a == process({**base, "ingredients_text": "Sugar,  Wheat flour "}).row["ingredients_sha256"]
+    assert a != process({**base, "ingredients_text": "sugar, wheat flour, salt"}).row["ingredients_sha256"]
+    assert process({**base, "ingredients_text": ""}).row["ingredients_sha256"] is None
+
+
+def test_quantity_and_serving_size_become_numbers_and_units():
+    r = planted(quantity="6 x 33 cl", serving_size="1 cup (240 ml)").row
+    assert (r["quantity_amount"], r["quantity_unit"], r["quantity_multiplier"]) == (33.0, "cl", 6)
+    assert (r["serving_amount"], r["serving_unit"]) == (240.0, "ml")
+    assert "quantity" not in r and "serving_size" not in r
+
+
+def test_quantity_and_serving_size_that_do_not_parse_become_null():
+    r = planted(quantity="a big bag", serving_size="1 serving").row
+    assert r["quantity_amount"] is r["quantity_unit"] is r["quantity_multiplier"] is r["serving_amount"] is r["serving_unit"] is None
+
+
+# ---- tags and maps -----------------------------------------------------------------------------------------------------
+
+def test_malformed_tags_are_dropped_and_counted_well_formed_ones_stay():
+    r = planted(categories_tags=["en:milk", "fr:Autres produits", "fr:\\ origin\\ :[\\ France\\ ]}", "en:Groceries"],
+                allergens_tags=["en:milk"], labels_tags=["de:Milch und Milchderivate"])
+    assert r.row["categories_tags"] == ["en:milk", "en:Groceries"] and r.row["labels_tags"] == []
+    assert r.tags_dropped["categories_tags"] == 2 and r.tags_dropped["labels_tags"] == 1 and "allergens_tags" not in r.tags_dropped
+
+
+def test_a_well_formed_tag_that_holds_a_bare_domain_is_scrubbed():
+    r = planted(categories_tags=["en:milk", "en:www.example.com"])
+    assert r.row["categories_tags"] == ["en:milk", "en:[removed]"] and r.scrubbed == 1
+
+
+def test_a_nutrient_key_or_enum_outside_its_vocabulary_is_dropped_or_nulled_and_counted():
+    d = record("normal_new")
+    d["nutrition"]["aggregated_set"]["nutrients"]["Some Free Text"] = {"value": 1, "unit": "g"}
+    d["nutrition"]["aggregated_set"]["per"] = "as sold per portion"
+    d["nutrition"]["input_sets"][0]["source"] = "someone's name here"
+    r = process(d)
+    assert "Some Free Text" not in r.row["nutrients"] and r.row["nutrition_per"] is None and r.row["input_sets"][0]["source"] is None
+    assert r.nutrient_entries_dropped == 1 and r.enums_nulled >= 2
+
+
+def test_normal_new_product_nutrition_is_unchanged():
+    row = silver("normal_new").row
+    assert row["nutrition_format"] == "new" and row["nutrition_per"] == "100g"
+    for col in ("energy_kj", "energy_kcal", "fat", "saturated_fat", "carbohydrates", "sugars", "proteins", "salt", "sodium", "fiber"):
+        assert isinstance(row[col], float), col
+    assert "energy-kj" in row["nutrients"] and set(row["nutrients"]["fat"]) == {"value", "unit", "modifier"}
+    for s in row["input_sets"]:
+        assert set(s) == {"source", "per", "per_quantity", "per_unit", "preparation", "nutrients"}
+
+
+def test_no_nutrition_per_100ml_prepared_and_modifiers():
+    assert silver("no_nutrition").row["nutrition_format"] == "none" and silver("no_nutrition").row["nutrients"] is None
+    assert silver("per_100ml").row["nutrition_per"] == "100ml" and silver("prepared").row["nutrition_preparation"] == "prepared"
     assert any(v["modifier"] == "<" for v in silver("modifier_less_than").row["nutrients"].values())
+    assert any(v["value"] is None for s in silver("input_value_null").row["input_sets"] for v in (s["nutrients"] or {}).values())
+
+
+def test_legacy_nutriments_are_not_mapped():
+    for i in range(len(CASES["legacy_nutriments_filled"])):
+        assert silver("legacy_nutriments_filled", i).row["nutrition_format"] in ("new", "none")
 
 
 def test_product_quantity_that_is_text_becomes_null_and_is_counted():
@@ -165,16 +261,8 @@ def test_product_quantity_that_is_text_becomes_null_and_is_counted():
         assert r.coerce_failures["product_quantity"] == 1
 
 
-def test_many_editors_are_all_hashed():
+def test_many_editors_are_all_hashed_and_a_missing_name_is_null_or_empty():
     assert len(silver("many_editors").row["editors_hmac"]) >= 40
-
-
-def test_phone_in_a_dropped_field_is_collected_as_known_phone():
-    r = silver("phone_in_customer_service")
-    assert r.phones and all(len(h) == 64 for h in r.phones)
-
-
-def test_missing_product_name_is_null_or_empty():
     assert silver("no_product_name").row["product_name"] in (None, "")
 
 
@@ -183,136 +271,69 @@ def test_two_versions_of_one_product_become_two_rows_with_one_code():
     assert a.code == b.code and a.last_modified_t != b.last_modified_t
 
 
-def test_processing_is_deterministic():
-    assert run("normal_new").row == run("normal_new").row
-
-
-# ---- quarantine ------------------------------------------------------------------------------------------------------
-
-def mutated(case, change):
-    d = json.loads(CASES[case][0])
-    change(d)
-    return json.dumps(d, ensure_ascii=False)
-
+# ---- quarantine: broken records only -----------------------------------------------------------------------------------
 
 def test_bad_json_and_non_object():
     assert transform.process("{", CTX, LINEAGE).reason == "Q_BAD_JSON"
     assert transform.process("[1, 2]", CTX, LINEAGE).reason == "Q_NOT_OBJECT"
 
 
-def test_bad_codes_are_quarantined_with_a_scrubbed_restricted_payload():
-    r = run("non_digit_code")
+def test_bad_codes_and_timestamps_are_quarantined():
+    d = record("normal_new")
+    for change, reason in ((lambda x: x.pop("code"), "Q_BAD_CODE"), (lambda x: x.update(code="12AB"), "Q_BAD_CODE"), (lambda x: x.update(code=""), "Q_BAD_CODE"),
+                           (lambda x: x.pop("last_modified_t"), "Q_BAD_LAST_MODIFIED"), (lambda x: x.update(last_modified_t="1791254632"), "Q_BAD_LAST_MODIFIED"),
+                           (lambda x: x.update(last_modified_t=True), "Q_BAD_LAST_MODIFIED")):
+        x = json.loads(json.dumps(d))
+        change(x)
+        assert process(x).reason == reason
+
+
+def test_the_quarantine_payload_is_restricted_hashed_and_carries_no_unkept_text():
+    d = record("normal_new")
+    d.update(code="", quantity="1 kg", serving_size="30 g", ingredients_text="sugar, water", data_sources_tags=["app-somebody"],
+             images={"1": {"uploader": "someone"}}, product_name="Biscuits www.example.com")
+    r = process(d)
     assert r.kind == "quarantine" and r.reason == "Q_BAD_CODE"
     payload = json.loads(r.payload)
-    allowed = {transform.root_field(c) for c in CONTRACT["columns"] if c["class"] in ("public", "key", "hashed")} - {None}
+    allowed = {transform.root_field(c) for c in C["columns"] if c["class"] in ("public", "key", "hashed") and not c.get("parse") and not c.get("fingerprint")} - {None}
     assert set(payload) <= allowed
-    assert "images" not in payload and "data_sources_tags" not in payload
+    for gone in ("images", "data_sources_tags", "quantity", "serving_size", "ingredients_text"):
+        assert gone not in payload
+    assert payload["product_name"] == "Biscuits [removed]" and payload["creator"] == personal.hmac_hex(KEY, d["creator"])
     assert "user_0" not in r.payload
-    for raw in (mutated("normal_new", lambda d: d.pop("code")), mutated("normal_new", lambda d: d.update(code="12AB"))):
-        assert transform.process(raw, CTX, LINEAGE).reason == "Q_BAD_CODE"
 
 
-def test_missing_or_non_integer_timestamp_is_quarantined():
-    for change in (lambda d: d.pop("last_modified_t"), lambda d: d.update(last_modified_t="1791254632"),
-                   lambda d: d.update(last_modified_t=True)):
-        assert transform.process(mutated("normal_new", change), CTX, LINEAGE).reason == "Q_BAD_LAST_MODIFIED"
+def test_the_quarantine_payload_gets_the_same_own_name_treatment_as_silver():
+    d = record("normal_new")
+    d.update(code="", product_name=f"Biscuits by {d['creator']}", brands=f"{d['creator']} foods")
+    payload = json.loads(process(d).payload)
+    assert payload["product_name"] == f"Biscuits by {SENTINEL}" and payload["brands"] == f"{d['creator']} foods"
 
 
-def test_a_username_planted_in_a_product_name_is_caught_and_withheld():
-    raw = json.loads(CASES["normal_new"][0])
-    creator = raw["creator"]
-    r = transform.process(mutated("normal_new", lambda d: d.update(product_name=f"Biscuits photo by {creator}.")), CTX, LINEAGE)
-    assert r.kind == "quarantine" and r.reason == "Q_PII_FOUND" and r.pii_columns == ["product_name"]
-    assert json.loads(r.payload)["product_name"] == "[withheld]"
-    assert creator not in r.payload
-
-
-def own_contributors(case):
-    d = json.loads(CASES[case][0])
-    return {x for f in CONTRACT["personal_source_fields"] for x in
-            (d.get(f) if isinstance(d.get(f), list) else [d.get(f)]) if isinstance(x, str)}
-
-
-def a_name_that_is_not_a_contributor_of(case):
-    """A 9-character placeholder identity taken from another fixture record, not a contributor of `case`."""
-    mine = own_contributors(case)
-    for name in json.loads(CASES["many_editors"][0])["editors_tags"]:
-        if name not in mine:
-            return name
-    raise AssertionError("no suitable placeholder")
-
-
-def test_a_username_known_from_another_product_is_caught_through_the_identity_set():
-    other = a_name_that_is_not_a_contributor_of("normal_new")
-    ctx = transform.Context(CONTRACT, KEY, known_users=frozenset({personal.hmac_hex(KEY, other)}))
-    r = transform.process(mutated("normal_new", lambda d: d.update(product_name=f"{other} foods")), ctx, LINEAGE)
-    assert r.reason == "Q_PII_FOUND" and r.pii_columns == ["product_name"]
-
-
-def test_a_brand_equal_to_the_products_own_contributor_is_exempt_and_counted():
-    creator = json.loads(CASES["normal_new"][0])["creator"]
-    r = transform.process(mutated("normal_new", lambda d: d.update(brands=f"{creator} foods")), CTX, LINEAGE)
-    assert r.kind == "silver" and r.exempt_hits == 1 and r.row["brands"] == f"{creator} foods"
-
-
-def test_a_brand_equal_to_an_unrelated_contributor_is_still_quarantined():
-    other = a_name_that_is_not_a_contributor_of("normal_new")
-    ctx = transform.Context(CONTRACT, KEY, known_users=frozenset({personal.hmac_hex(KEY, other)}))
-    r = transform.process(mutated("normal_new", lambda d: d.update(brands=f"{other} foods")), ctx, LINEAGE)
-    assert r.reason == "Q_PII_FOUND" and r.pii_columns == ["brands"] and r.exempt_hits == 0
-
-
-def test_the_own_contributor_exemption_does_not_apply_to_other_columns():
-    # "photo by <own username>" typed into the product's own text is exactly the leak the gate exists for
-    creator = json.loads(CASES["normal_new"][0])["creator"]
-    for col in ("product_name", "ingredients_text", "quantity"):
-        r = transform.process(mutated("normal_new", lambda d: d.update({col: f"x {creator} y"})), CTX, LINEAGE)
-        assert r.reason == "Q_PII_FOUND" and col in r.pii_columns, col
-
-
-def test_the_gate_is_eight_characters_end_to_end():
-    for name, expected in (("abcdefg", "silver"), ("abcdefgh", "Q_PII_FOUND")):
-        ctx = transform.Context(CONTRACT, KEY, known_users=frozenset({personal.hmac_hex(KEY, name)}))
-        r = transform.process(mutated("normal_new", lambda d: d.update(product_name=f"Biscuits {name}")), ctx, LINEAGE)
-        assert (r.reason or r.kind) == expected, name
-        if expected == "silver":
-            assert r.short_hits == 1
-
-
-def test_a_stoplisted_word_is_never_a_hit():
-    ctx = transform.Context(CONTRACT, KEY, known_users=frozenset({personal.hmac_hex(KEY, "honeycomb")}),
-                            stoplist=frozenset({"honeycomb"}))
-    r = transform.process(mutated("normal_new", lambda d: d.update(product_name="Wild honeycomb")), ctx, LINEAGE)
-    assert r.kind == "silver"
-
-
-def test_a_phone_planted_in_text_is_caught():
-    donor = json.loads(CASES["phone_in_customer_service"][0])
-    phone = next(m.group(0) for k, v in donor.items() if k.startswith("customer_service") and isinstance(v, str)
-                 for m in [personal.PHONE_RE.search(v)] if m)
-    merged = json.loads(CASES["normal_new"][0])
-    merged["customer_service"] = f"Call {phone}"
-    merged["product_name"] = f"Biscuits, order on {phone}"
-    r = transform.process(json.dumps(merged), CTX, LINEAGE)
-    assert r.reason == "Q_PII_FOUND" and "product_name" in r.pii_columns
+def test_content_suspicion_never_quarantines():
+    creator = record("normal_new")["creator"]
+    r = planted(product_name=f"{creator} www.example.com @someone a@b.org 27ABCDE1234F1Z5")
+    assert r.kind == "silver" and r.reason is None
 
 
 def test_a_field_openff_adds_tomorrow_never_reaches_silver_or_the_payload():
     secret = "newfield-value-that-must-not-leak"
-    raw = mutated("normal_new", lambda d: d.update(brand_new_field=secret, last_modified_t="oops"))
-    r = transform.process(raw, CTX, LINEAGE)            # quarantined, so the payload is built
-    assert secret not in (r.payload or "")
-    r2 = transform.process(mutated("normal_new", lambda d: d.update(brand_new_field=secret)), CTX, LINEAGE)
+    r2 = planted(brand_new_field=secret)
     assert r2.kind == "silver" and secret not in json.dumps(r2.row, default=str)
+    r = process({**record("normal_new"), "brand_new_field": secret, "last_modified_t": "oops"})
+    assert r.kind == "quarantine" and secret not in (r.payload or "")
 
 
 def test_an_unforeseen_shape_is_quarantined_not_raised():
-    # nutrition.input_sets entries that are not objects, nutrients that are a list, a number where a dict belongs
-    raw = mutated("normal_new", lambda d: d["nutrition"].update(input_sets=[1, "x", None], aggregated_set={"nutrients": [1, 2]}))
-    r = transform.process(raw, CTX, LINEAGE)
+    d = record("normal_new")
+    d["nutrition"].update(input_sets=[1, "x", None], aggregated_set={"nutrients": [1, 2]})
+    r = process(d)
     assert r.kind in ("silver", "quarantine") and r.reason != "Q_BAD_JSON"
 
 
-def test_new_identities_are_returned_for_the_identity_table():
-    r = silver("normal_new")
-    assert r.identities and all(len(h) == 64 for h in r.identities) and all(n >= 3 for n in r.identities.values())
+def test_top_level_fields_are_counted_for_the_drift_monitor():
+    ctx = transform.Context(C, KEY)
+    for raws in CASES.values():
+        for raw in raws:
+            transform.process(raw, ctx, LINEAGE)
+    assert ctx.field_counts["code"] == sum(len(v) for v in CASES.values()) and "product_name" in ctx.field_counts

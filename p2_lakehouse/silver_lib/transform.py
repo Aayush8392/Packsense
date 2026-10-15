@@ -1,14 +1,14 @@
 """One raw bronze record -> one silver row, or one quarantine row with a coded reason.
 
-Everything silver keeps is listed in contracts/silver.yml; this module reads that list and nothing else gets through.
-A value that cannot be converted to its column type becomes NULL and is counted (it does not quarantine the row);
-only the reasons in the contract's quarantine_codes do.
+Everything silver keeps is listed in contracts/silver.yml (version 2); this module reads that list and nothing else gets
+through. Nothing here judges whether a word is a name: values are validated by shape, patterns with a clear shape are
+scrubbed, the record's own contributor names are replaced, and a record is quarantined only if it cannot be loaded.
+A value that does not fit its column becomes NULL and is counted; it never quarantines the row.
 """
 import json
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from collections import Counter as _Counter
 
 from . import personal
 
@@ -25,32 +25,29 @@ STRIP_FROM_NUTRITION = {"source_description", "value_string"}   # free text / du
 class Context:
     contract: dict
     key: str                                   # the HMAC key (from the secret scope; never printed)
-    known_users: frozenset = frozenset()       # HMACs of every contributor name seen so far
-    known_phones: frozenset = frozenset()
-    stoplist: frozenset = frozenset()          # ordinary words that are also usernames (normalised)
     patterns: dict = field(init=False)
+    shapes: dict = field(init=False)
+    units: dict = field(init=False)
     personal_fields: list = field(init=False)
-    phone_prefixes: list = field(init=False)
-    min_len: int = field(init=False)
-    report_min: int = field(init=False)
-    own_exempt_cols: frozenset = field(init=False)
+    redact_cols: frozenset = field(init=False)
+    redact_min: int = field(init=False)
+    sentinel: str = field(init=False)
     key_version: int = field(init=False)
     cols: list = field(init=False)
-    text_cols: list = field(init=False)
-    field_counts: _Counter = field(default_factory=_Counter)   # top-level fields seen, for the drift monitor
+    field_counts: Counter = field(default_factory=Counter)   # top-level fields seen, for the drift monitor
 
     def __post_init__(self):
         c = self.contract
         self.patterns = personal.compile_patterns(c)
+        self.shapes = personal.compile_shapes(c)
+        self.units = c["parsing"]["units"]
         self.personal_fields = c["personal_source_fields"]
-        self.phone_prefixes = c["personal_data_check"]["known_phones_from"]
-        self.min_len = c["personal_data_check"]["min_username_length"]
-        self.report_min = c["personal_data_check"]["report_min_username_length"]
-        self.own_exempt_cols = frozenset(c["personal_data_check"]["own_contributor_exempt_columns"])
+        own = c["own_handle_redaction"]
+        self.redact_cols = frozenset(own["columns"])
+        self.redact_min = own["min_length"]
+        self.sentinel = own["sentinel"]
         self.key_version = c["hmac"]["key_version"]
         self.cols = c["columns"]
-        self.text_cols = [x["name"] for x in self.cols
-                          if x["class"] == "public" and x["type"] in ("string", "array<string>")]
 
 
 @dataclass
@@ -62,12 +59,11 @@ class Result:
     reason: str = None
     payload: str = None                        # quarantine: scrubbed JSON, restricted to the contract's fields
     coerce_failures: Counter = field(default_factory=Counter)
-    scrubbed: int = 0
-    short_hits: int = 0
-    exempt_hits: int = 0
-    pii_columns: list = field(default_factory=list)
-    identities: dict = field(default_factory=dict)   # hmac -> name length, to add to the identity table
-    phones: dict = field(default_factory=dict)
+    scrubbed: int = 0                          # pattern substitutions
+    own_handles_redacted: int = 0
+    tags_dropped: Counter = field(default_factory=Counter)   # per tag column
+    nutrient_entries_dropped: int = 0
+    enums_nulled: int = 0
 
 
 def get_path(d, path: str):
@@ -117,24 +113,54 @@ def code_kind(code: str) -> str:
     return {8: "gtin8", 12: "gtin12", 13: "gtin13", 14: "gtin14"}.get(len(code), "other")
 
 
-def nutrient_entry(v, failures: Counter):
+def root_field(col: dict):
+    """The top-level raw field a column reads from ('$.nutrition.a.b' -> 'nutrition'); None for derived and lineage columns."""
+    src = col["from"].split(", else")[0]
+    return src[2:].split(".")[0] if src.startswith("$.") else None
+
+
+class Counts:
+    """What the shape checks changed in one record, so the caller can report it."""
+    def __init__(self):
+        self.nutrient_entries_dropped = 0
+        self.enums_nulled = 0
+
+
+def checked_enum(value, ctx: Context, counts: Counts):
+    if value is None:
+        return None
+    if personal.shape_ok(value, ctx.shapes["enum"]):
+        return value
+    counts.enums_nulled += 1
+    return None
+
+
+def nutrient_entry(v, failures: Counter, ctx: Context, counts: Counts):
     if not isinstance(v, dict):
         return None
     val, ok = coerce(v.get("value"), "double")
     if not ok:
         failures["nutrients.value"] += 1
-    unit, _ = coerce(v.get("unit"), "string")
-    mod, _ = coerce(v.get("modifier"), "string")
+    unit = v.get("unit") if isinstance(v.get("unit"), str) and ctx.shapes["unit"].match(v.get("unit")) else None
+    mod = v.get("modifier") if isinstance(v.get("modifier"), str) and ctx.shapes["modifier"].match(v.get("modifier")) else None
+    if (v.get("unit") is not None and unit is None) or (v.get("modifier") is not None and mod is None):
+        counts.enums_nulled += 1
     return {"value": val, "unit": unit, "modifier": mod}
 
 
-def nutrient_map(nutrients, failures: Counter):
+def nutrient_map(nutrients, failures: Counter, ctx: Context, counts: Counts):
     if not isinstance(nutrients, dict):
         return None
-    return {k: nutrient_entry(v, failures) for k, v in nutrients.items() if isinstance(k, str)}
+    out = {}
+    for k, v in nutrients.items():
+        if isinstance(k, str) and ctx.shapes["nutrient_key"].match(k):
+            out[k] = nutrient_entry(v, failures, ctx, counts)
+        else:
+            counts.nutrient_entries_dropped += 1
+    return out
 
 
-def input_sets(sets, failures: Counter):
+def input_sets(sets, failures: Counter, ctx: Context, counts: Counts):
     if not isinstance(sets, list):
         return None
     out = []
@@ -144,10 +170,12 @@ def input_sets(sets, failures: Counter):
         q, ok = coerce(s.get("per_quantity"), "double")
         if not ok:
             failures["input_sets.per_quantity"] += 1
-        out.append({"source": coerce(s.get("source"), "string")[0], "per": coerce(s.get("per"), "string")[0],
-                    "per_quantity": q, "per_unit": coerce(s.get("per_unit"), "string")[0],
-                    "preparation": coerce(s.get("preparation"), "string")[0],
-                    "nutrients": nutrient_map(s.get("nutrients"), failures)})
+        out.append({"source": checked_enum(coerce(s.get("source"), "string")[0], ctx, counts),
+                    "per": checked_enum(coerce(s.get("per"), "string")[0], ctx, counts),
+                    "per_quantity": q,
+                    "per_unit": checked_enum(coerce(s.get("per_unit"), "string")[0], ctx, counts),
+                    "preparation": checked_enum(coerce(s.get("preparation"), "string")[0], ctx, counts),
+                    "nutrients": nutrient_map(s.get("nutrients"), failures, ctx, counts)})
     return out
 
 
@@ -169,60 +197,33 @@ def scrub_leaves(o, ctx: Context):
     return o
 
 
-def root_field(col: dict) -> str:
-    """The top-level raw field a column reads from ('$.nutrition.a.b' -> 'nutrition'); None for derived columns."""
-    src = col["from"]
-    if not src.startswith("$."):
-        return "nutrition" if src.startswith("$.nutrition") else None
-    return src[2:].split(".")[0].split(",")[0]
-
-
-def quarantine_payload(d: dict, ctx: Context, withheld: set) -> str:
-    """The record restricted to the fields the contract keeps, with contributor names hashed, patterns scrubbed and
-    any field that triggered the personal-data check withheld. Never the whole raw record: usernames also hide inside
-    fields silver drops (found in data_sources_tags)."""
+def quarantine_payload(d: dict, ctx: Context) -> str:
+    """The record restricted to the fields the contract keeps, identities hashed and patterns scrubbed. Fields that are only
+    read to be parsed or fingerprinted (quantity, serving size, ingredients) are left out: the payload carries no more free
+    text than silver does. Never the whole raw record: usernames also hide inside fields silver drops (data_sources_tags)."""
     keep = {}
     for col in ctx.cols:
-        if col["class"] not in ("public", "key", "hashed"):
+        if col["class"] not in ("public", "key", "hashed") or col.get("parse") or col.get("fingerprint"):
             continue
-        src = col["from"]
-        if "$." not in src:
-            continue
-        root = src.split(", else")[0].split("$.")[1].split(".")[0]
-        keep[root] = col["class"]
+        root = root_field(col)
+        if root:
+            keep[root] = col["class"]
+    own = personal.own_handles(d, ctx.personal_fields, ctx.redact_min)
+    redact_roots = {root_field(col) for col in ctx.cols if col["name"] in ctx.redact_cols}
     out = {}
     for root, cls in keep.items():
         if root not in d:
             continue
         v = d[root]
-        if root in withheld:
-            out[root] = "[withheld]"
-        elif cls == "hashed":
+        if cls == "hashed":
             out[root] = personal.hash_value(ctx.key, v)
         elif root == "nutrition":
             out[root] = scrub_leaves(strip_keys(v, STRIP_FROM_NUTRITION), ctx)
         else:
             out[root] = scrub_leaves(v, ctx)
+            if root in redact_roots and isinstance(out[root], str):
+                out[root] = personal.redact_handles(out[root], own, ctx.sentinel)[0]     # same treatment as silver
     return json.dumps(out, ensure_ascii=False, separators=(",", ":"))
-
-
-def _flatten(v):
-    if isinstance(v, str):
-        return [v]
-    if isinstance(v, list):
-        return [x for x in v if isinstance(x, str)]
-    return []
-
-
-def identities_of(raw_json: str, ctx: Context):
-    """(usernames, phones) HMACs found in one raw record's personal and phone-bearing fields; empty if it does not parse."""
-    try:
-        d = json.loads(raw_json)
-    except Exception:
-        return {}, {}
-    if not isinstance(d, dict):
-        return {}, {}
-    return personal.known_identities(d, ctx.key, ctx.personal_fields, ctx.phone_prefixes)
 
 
 def process(raw_json: str, ctx: Context, lineage: dict) -> Result:
@@ -235,29 +236,29 @@ def process(raw_json: str, ctx: Context, lineage: dict) -> Result:
         return Result("quarantine", reason="Q_NOT_OBJECT")
 
     ctx.field_counts.update(d.keys())
-    users, phones = personal.known_identities(d, ctx.key, ctx.personal_fields, ctx.phone_prefixes)
     code = d.get("code")
     lmt = d.get("last_modified_t")
-    base = dict(identities=users, phones=phones)
     if not (isinstance(code, str) and CODE_RE.match(code)):
         return Result("quarantine", reason="Q_BAD_CODE", code=code if isinstance(code, str) else None,
-                      payload=quarantine_payload(d, ctx, set()), **base)
+                      payload=quarantine_payload(d, ctx))
     if isinstance(lmt, bool) or not isinstance(lmt, int):
-        return Result("quarantine", reason="Q_BAD_LAST_MODIFIED", code=code,
-                      payload=quarantine_payload(d, ctx, set()), **base)
+        return Result("quarantine", reason="Q_BAD_LAST_MODIFIED", code=code, payload=quarantine_payload(d, ctx))
     try:
-        return _build(d, code, lmt, ctx, lineage, users, phones)
-    except Exception as e:  # unforeseen shape: never lose the record, never crash the batch
-        return Result("quarantine", reason="Q_TRANSFORM_ERROR", code=code, last_modified_t=lmt,
-                      payload=quarantine_payload(d, ctx, set()), **base)
+        return _build(d, code, lmt, ctx, lineage)
+    except Exception:  # unforeseen shape: never lose the record, never crash the batch
+        return Result("quarantine", reason="Q_TRANSFORM_ERROR", code=code, last_modified_t=lmt, payload=quarantine_payload(d, ctx))
 
 
-def _build(d: dict, code: str, lmt: int, ctx: Context, lineage: dict, users: dict, phones: dict) -> Result:
-    failures, scrubbed = Counter(), 0
+def _build(d: dict, code: str, lmt: int, ctx: Context, lineage: dict) -> Result:
+    res = Result("silver", code=code, last_modified_t=lmt)
+    failures, counts = res.coerce_failures, Counts()
     agg = get_path(d, "$.nutrition.aggregated_set")
     agg = agg if isinstance(agg, dict) else {}
     nutrients = agg.get("nutrients") if isinstance(agg.get("nutrients"), dict) else {}
+    own = personal.own_handles(d, ctx.personal_fields, ctx.redact_min)
+    units = ctx.units
     row = {}
+    parsed_quantity = parsed_serving = None
 
     def nval(key):
         v = nutrients.get(key)
@@ -270,23 +271,49 @@ def _build(d: dict, code: str, lmt: int, ctx: Context, lineage: dict, users: dic
         if cls == "hashed":
             row[name] = personal.hash_value(ctx.key, d.get(col["from"].replace("$.", "")))
             continue
-        if name == "energy_kj":
+        ok = True
+        if col.get("parse") == "quantity":
+            if parsed_quantity is None:
+                parsed_quantity = personal.parse_quantity(d.get("quantity"), units)
+            row[name] = parsed_quantity[{"quantity_amount": 0, "quantity_unit": 1, "quantity_multiplier": 2}[name]]
+        elif col.get("parse") == "serving":
+            if parsed_serving is None:
+                parsed_serving = personal.parse_serving(d.get("serving_size"), units)
+            row[name] = parsed_serving[{"serving_amount": 0, "serving_unit": 1}[name]]
+        elif col.get("fingerprint"):
+            row[name] = personal.fingerprint(d.get("ingredients_text"))
+        elif name == "energy_kj":
             raw = nval("energy-kj")
             raw = raw if raw is not None else nval("energy")
             row[name], ok = coerce(raw, "double")
         elif name in CORE_NUTRIENTS:
             row[name], ok = coerce(nval(CORE_NUTRIENTS[name]), "double")
         elif name == "nutrients":
-            row[name], ok = nutrient_map(agg.get("nutrients"), failures), True
+            row[name] = nutrient_map(agg.get("nutrients"), failures, ctx, counts)
         elif name == "input_sets":
-            row[name], ok = input_sets(get_path(d, "$.nutrition.input_sets"), failures), True
+            row[name] = input_sets(get_path(d, "$.nutrition.input_sets"), failures, ctx, counts)
         else:
             row[name], ok = coerce(get_path(d, col["from"]), typ)
+            if col.get("shape_check") == "enum":
+                row[name] = checked_enum(row[name], ctx, counts)
+            if col.get("tag_check") == "shape" and isinstance(row[name], list):
+                kept = [t for t in row[name] if personal.shape_ok(t, ctx.shapes["tag"])]
+                if len(kept) != len(row[name]):
+                    res.tags_dropped[name] += len(row[name]) - len(kept)
+                scrubbed_tags = []
+                for t in kept:                       # a well-formed tag can still hold a bare domain (en:www.example.com)
+                    t, n = personal.scrub(t, ctx.patterns)
+                    res.scrubbed += n
+                    scrubbed_tags.append(t)
+                row[name] = scrubbed_tags
         if not ok:
             failures[name] += 1
         if col.get("scrub") and isinstance(row[name], str):
             row[name], n = personal.scrub(row[name], ctx.patterns)
-            scrubbed += n
+            res.scrubbed += n
+        if name in ctx.redact_cols and isinstance(row[name], str):
+            row[name], n = personal.redact_handles(row[name], own, ctx.sentinel)
+            res.own_handles_redacted += n
 
     row["code_kind"] = code_kind(code)
     row["nutrition_format"] = "new" if agg else "none"
@@ -296,25 +323,7 @@ def _build(d: dict, code: str, lmt: int, ctx: Context, lineage: dict, users: dic
     row["silver_contract_version"] = ctx.contract["version"]
     for k in ("source_file", "file_sha256", "bronze_ingested_at", "silver_processed_at", "job_run_id"):
         row[k] = lineage.get(k)
-
-    # personal-data check on every kept text column: known identities and phones, then patterns that survived
-    all_users = ctx.known_users | users.keys()
-    all_phones = ctx.known_phones | phones.keys()
-    pii_cols, short_total, exempt_total = [], 0, 0
-    for name in ctx.text_cols:
-        texts = _flatten(row.get(name))
-        own = frozenset(users) if name in ctx.own_exempt_cols else frozenset()
-        hits, short, exempt = personal.find_known(texts, ctx.key, all_users, all_phones, ctx.min_len, ctx.stoplist,
-                                                  exempt=own, report_min=ctx.report_min)
-        short_total += short
-        exempt_total += exempt
-        if hits or any(personal.has_pattern(t, ctx.patterns) for t in texts):
-            pii_cols.append(name)
-    if pii_cols:
-        cols_by_name = {c["name"]: c for c in ctx.cols}
-        withheld = {root_field(cols_by_name[n]) for n in pii_cols}
-        return Result("quarantine", reason="Q_PII_FOUND", code=code, last_modified_t=lmt, pii_columns=pii_cols,
-                      payload=quarantine_payload(d, ctx, {w for w in withheld if w}), scrubbed=scrubbed,
-                      short_hits=short_total, exempt_hits=exempt_total, coerce_failures=failures, identities=users, phones=phones)
-    return Result("silver", code=code, last_modified_t=lmt, row=row, coerce_failures=failures, scrubbed=scrubbed,
-                  short_hits=short_total, exempt_hits=exempt_total, identities=users, phones=phones)
+    res.row = row
+    res.nutrient_entries_dropped = counts.nutrient_entries_dropped
+    res.enums_nulled = counts.enums_nulled
+    return res

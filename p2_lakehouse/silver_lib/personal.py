@@ -1,29 +1,29 @@
-"""Personal-data handling for silver: normalising, HMAC, scrubbing and the known-identity checks.
+"""Personal-data and value handling for silver, all stateless (a record in, a value out; no global lists, no tables).
 
-Plain usernames are never stored outside bronze. The "known identities" are kept as HMACs, and a text is checked by
-hashing its words the same way and looking the hashes up.
+hashing        contributor identity fields -> HMAC codes (they never leave silver)
+scrub          patterns with a clear shape (email, URL, social link, @handle, obfuscated email, Aadhaar, PAN, GSTIN)
+own handles    replace the record's OWN contributor names (whole word, 8+ characters) in a text
+fingerprint    a change detector for text we do not keep
+parsing        quantity and serving size text -> number and unit
+shape checks   tags, nutrient keys and enum strings must come from a small closed vocabulary
 """
 import hashlib
 import hmac
 import re
 import unicodedata
 
-# a word as a username is written: letters, digits, underscore, dot, hyphen
-TOKEN_RE = re.compile(r"[\w.\-]+", re.UNICODE)
-# Deliberately liberal: any run of digits with spaces, dots, dashes or brackets, reduced to its digits (8 to 15 of them).
-# It over-matches (dates, codes), which is harmless: a hit needs the digits' HMAC to be in the known-phone set, and that
-# set holds only numbers found in the phone-bearing dropped fields. The narrower pattern used in the first privacy scan
-# missed Indian-style numbers such as "+91 98765 43210" (found by a test).
-PHONE_RE = re.compile(r"(?<![\w.])\+?\(?\d[\d ().\-]{5,17}\d(?!\w)")
-SHORT_MIN = 3   # default for report_min; the contract sets it (report_min_username_length)
+NUM = r"\d+(?:\.\d+)?"
+MAX_AMOUNT = 1_000_000
 
 
 def normalise(value: str) -> str:
     return unicodedata.normalize("NFKC", value).strip().lower()
 
 
-def hmac_hex(key: str, value: str, prefix: str = "") -> str:
-    return hmac.new(key.encode(), (prefix + normalise(value)).encode(), hashlib.sha256).hexdigest()
+# ---- contributor identities -------------------------------------------------------------------------------------------
+
+def hmac_hex(key: str, value: str) -> str:
+    return hmac.new(key.encode(), normalise(value).encode(), hashlib.sha256).hexdigest()
 
 
 def hash_value(key: str, value):
@@ -31,8 +31,7 @@ def hash_value(key: str, value):
     if isinstance(value, str):
         return hmac_hex(key, value) if value.strip() else None
     if isinstance(value, list):
-        out = [hmac_hex(key, v) for v in value if isinstance(v, str) and v.strip()]
-        return out
+        return [hmac_hex(key, v) for v in value if isinstance(v, str) and v.strip()]
     return None
 
 
@@ -47,98 +46,126 @@ def personal_values(record: dict, fields: list[str]) -> list[str]:
     return out
 
 
-def phone_digits(text: str) -> list[str]:
-    """Phone-number-like sequences in a text, reduced to digits (8 to 15 of them)."""
-    found = []
-    for m in PHONE_RE.finditer(text):
-        d = re.sub(r"\D", "", m.group(0))
-        if 8 <= len(d) <= 15:
-            found.append(d)
-    return found
+# ---- the record's own handles -------------------------------------------------------------------------------------------
+
+def own_handles(record: dict, fields: list[str], min_length: int) -> set[str]:
+    """Normalised names of this record's own contributors that are long enough to redact."""
+    return {n for n in (normalise(v) for v in personal_values(record, fields)) if len(n) >= min_length}
 
 
-def known_identities(record: dict, key: str, personal_fields: list[str], phone_prefixes: list[str]):
-    """HMACs of the contributor names and of the phone numbers found in the phone-bearing fields of one record.
+def handle_regex(handles):
+    """One whole-word, case-insensitive pattern for a set of names; None when there are none.
 
-    Returns two dicts: {hmac: name length} for usernames and {hmac: digit count} for phones.
-    """
-    users = {}
-    for v in personal_values(record, personal_fields):
-        users[hmac_hex(key, v)] = len(normalise(v))
-    phones = {}
-    for k, v in record.items():
-        if isinstance(v, str) and any(k.startswith(p) for p in phone_prefixes):
-            for d in phone_digits(v):
-                phones[hmac_hex(key, d, prefix="phone:")] = len(d)
-    return users, phones
+    A name is a whole word when no letter, digit or underscore touches it, and no dot or hyphen that itself touches a letter
+    or digit (so "photo by name." counts, "name.com", "www.name" and "name-bakery" do not). Usernames use only letters,
+    digits, underscore, dot and hyphen: verified on all 75,749 names in bronze."""
+    names = sorted({h for h in handles if h}, key=len, reverse=True)
+    if not names:
+        return None
+    return re.compile(r"(?<!\w)(?<!\w[.\-])(?:" + "|".join(re.escape(n) for n in names) + r")(?!\w)(?![.\-]\w)", re.IGNORECASE)
 
 
-def candidates(text: str):
-    """Words of a text as a username could appear in it: each token, and the token without edge punctuation."""
-    for t in TOKEN_RE.findall(text):
-        yield t
-        s = t.strip("._-")
-        if s and s != t:
-            yield s
+def redact_handles(text: str, handles, sentinel: str) -> tuple[str, int]:
+    rx = handle_regex(handles)
+    if rx is None or not text:
+        return text, 0
+    return rx.subn(sentinel, text)
 
 
-def load_stoplist(path) -> frozenset:
-    """Ordinary words that are also usernames: one per line, # comments and blank lines ignored, normalised."""
-    words = set()
-    for line in open(path, encoding="utf-8").read().splitlines():
-        line = line.strip()
-        if line and not line.startswith("#"):
-            words.add(normalise(line))
-    return frozenset(words)
+# ---- patterns with a clear shape ----------------------------------------------------------------------------------------
+
+SCRUB_ORDER = ("email", "obfuscated_email", "social_link", "url", "at_handle", "aadhaar", "gstin", "pan")
 
 
-def find_known(texts: list[str], key: str, known_users, known_phones, min_len: int, stoplist=frozenset(),
-               exempt=frozenset(), report_min: int = SHORT_MIN):
-    """Search texts for known usernames (whole words) and phone numbers.
-
-    Returns (hits, short_hits, exempt_hits):
-      hits         usernames of min_len or more, and phone numbers: a reason to quarantine the row
-      short_hits   usernames of report_min to min_len-1 characters: counted, never a reason to quarantine
-      exempt_hits  usernames whose HMAC is in `exempt` (the product's own contributors, for columns the contract exempts)
-    """
-    hits, short_hits, exempt_hits = 0, 0, 0
-    for text in texts:
-        if not text:
-            continue
-        seen = set()
-        for c in candidates(text):
-            n = normalise(c)
-            if n in seen or len(n) < report_min or n in stoplist:
-                continue
-            seen.add(n)
-            h = hmac_hex(key, n)
-            if h in known_users:
-                if h in exempt:
-                    exempt_hits += 1
-                elif len(n) >= min_len:
-                    hits += 1
-                else:
-                    short_hits += 1
-        for d in phone_digits(text):
-            if hmac_hex(key, d, prefix="phone:") in known_phones:
-                hits += 1
-    return hits, short_hits, exempt_hits
+def compile_patterns(contract: dict) -> dict:
+    s = contract["scrub"]
+    out = {name: re.compile(s[name]) for name in SCRUB_ORDER}
+    out["replacement"] = s["replacement"]
+    return out
 
 
 def scrub(text: str, patterns: dict) -> tuple[str, int]:
-    """Replace email, Aadhaar and PAN patterns. patterns holds the three compiled regexes and the replacement."""
+    """Replace every pattern with the contract's replacement; returns the new text and how many substitutions were made."""
     n_total = 0
-    for name in ("email", "aadhaar", "pan"):
+    for name in SCRUB_ORDER:
         text, n = patterns[name].subn(patterns["replacement"], text)
         n_total += n
     return text, n_total
 
 
-def compile_patterns(contract: dict) -> dict:
-    s = contract["scrub"]
-    return {"email": re.compile(s["email"]), "aadhaar": re.compile(s["aadhaar"]), "pan": re.compile(s["pan"]),
-            "replacement": s["replacement"]}
-
-
 def has_pattern(text: str, patterns: dict) -> bool:
-    return any(patterns[n].search(text) for n in ("email", "aadhaar", "pan"))
+    return any(patterns[n].search(text) for n in SCRUB_ORDER)
+
+
+# ---- fingerprint of text we do not keep ---------------------------------------------------------------------------------
+
+def fingerprint(text) -> str | None:
+    """SHA-256 of the normalised text (NFKC, lower case, one space between words); None when there is no text."""
+    if not isinstance(text, str):
+        return None
+    t = " ".join(unicodedata.normalize("NFKC", text).lower().split())
+    return hashlib.sha256(t.encode("utf-8")).hexdigest() if t else None
+
+
+# ---- quantity and serving size text -> number and unit -------------------------------------------------------------------
+
+def _clean(s: str) -> str:
+    t = s.strip().lower()
+    t = re.sub(r"(?<=\d),(?=\d)", ".", t)            # decimal comma
+    t = re.sub(r"\([^)]*\)", " ", t)                   # a bracketed alternative such as (8.8 oz)
+    t = re.sub(r"\s*=.*$", "", t)                      # "6 x 50 g = 300 g" keeps the part before the sign
+    t = re.sub(r"[\s.,;:]+$", "", t)                   # trailing punctuation
+    t = re.sub(r"\s*[e℮]$", "", t)                # the estimated-quantity mark after the unit
+    return " ".join(t.split())
+
+
+def _unit_alternation(units: dict) -> str:
+    return "|".join(re.escape(u) for u in sorted(units, key=len, reverse=True))
+
+
+def parse_quantity(value, units: dict):
+    """'6 x 33 cl' -> (33.0, 'cl', 6); '250 g' -> (250.0, 'g', None); anything else -> (None, None, None)."""
+    if not isinstance(value, str) or not value.strip():
+        return None, None, None
+    t = _clean(value)
+    u = _unit_alternation(units)
+    for pattern, order in (
+        (rf"^(\d+)\s*[x×*]\s*({NUM})\s*({u})$", "mult_amount"),     # 6 x 33 cl
+        (rf"^({NUM})\s*({u})\s*[x×*]\s*(\d+)$", "amount_mult"),     # 250 g x 4
+        (rf"^({NUM})\s*({u})(?:\s*/\s*{NUM}\s*(?:{u}))?$", "single"),    # 250 g, or 250 g / 250 ml (the first part)
+    ):
+        m = re.match(pattern, t)
+        if not m:
+            continue
+        if order == "mult_amount":
+            mult, amount, unit = int(m.group(1)), float(m.group(2)), m.group(3)
+        elif order == "amount_mult":
+            amount, unit, mult = float(m.group(1)), m.group(2), int(m.group(3))
+        else:
+            amount, unit, mult = float(m.group(1)), m.group(2), None
+        if 0 < amount < MAX_AMOUNT and (mult is None or 0 < mult < 1000):
+            return amount, units[unit], mult
+    return None, None, None
+
+
+def parse_serving(value, units: dict):
+    """The first amount in grams or millilitres anywhere in the value: '1 cup (240 ml)' -> (240.0, 'ml')."""
+    if not isinstance(value, str) or not value.strip():
+        return None, None
+    t = re.sub(r"(?<=\d),(?=\d)", ".", value.strip().lower())
+    allowed = {k: v for k, v in units.items() if v in ("g", "ml")}
+    m = re.search(rf"(?<![\w.])({NUM})\s*({_unit_alternation(allowed)})(?![\w])", t)
+    if not m:
+        return None, None
+    amount = float(m.group(1))
+    return (amount, allowed[m.group(2)]) if 0 < amount < MAX_AMOUNT else (None, None)
+
+
+# ---- shape checks -------------------------------------------------------------------------------------------------------
+
+def compile_shapes(contract: dict) -> dict:
+    return {name: re.compile(rx) for name, rx in contract["shape"].items()}
+
+
+def shape_ok(value, rx) -> bool:
+    return isinstance(value, str) and rx.match(value) is not None

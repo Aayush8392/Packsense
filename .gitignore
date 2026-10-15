@@ -1,6 +1,9 @@
 # --- private project context (never published) ---
 packsense_*.md
 
+# --- external AI reviews: prompts and verdicts, private (never published) ---
+reviews/
+
 # --- secrets and local environment ---
 .env
 .env.*

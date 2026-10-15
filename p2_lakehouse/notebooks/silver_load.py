@@ -6,13 +6,12 @@
 # of writes safe.
 #
 # Per bronze file that silver has not finished yet (a file is "done" when it has a row in silver_manifest):
-#   1. identities: HMACs of the contributor names and phone numbers in the file go into silver_identity_hmacs first, so a
-#      name is known even if the run dies later (insert-only; plain names are never stored);
-#   2. silver rows: insert-only MERGE on (code, last_modified_t);
-#   3. quarantine rows: insert-only MERGE on (source_file, record_sha256);
-#   4. hand-off check: rows silver + rows quarantine for the file must equal the bronze rows for the file;
-#   5. only then the manifest row (written last, like bronze).
-# A crash anywhere leaves the file "not done"; the re-run merges 0 new rows and then records it.
+#   1. silver rows: insert-only MERGE on (code, last_modified_t);
+#   2. quarantine rows (records that cannot be loaded, nothing else): insert-only MERGE on (source_file, record_sha256);
+#   3. hand-off check: rows silver + rows quarantine for the file must equal the bronze rows for the file;
+#   4. only then the manifest row (written last, like bronze).
+# Every record is handled on its own (contract v2: no global name list, no identity table), so the order of files cannot
+# change a result. A crash anywhere leaves the file "not done"; the re-run merges 0 new rows and then records it.
 # Problems (a file that fails, an unbalanced hand-off, a quarantine rate above the limit, a bronze task that did not
 # succeed) do not stop the other files; the run fails at the end so it goes red, and healthchecks gets a /fail ping.
 
@@ -49,7 +48,7 @@ def find_p2_lakehouse():
 P2 = find_p2_lakehouse()
 sys.path.insert(0, P2)
 print("silver_lib found under", P2)
-from silver_lib import contract, personal, run, schema, transform  # noqa: E402
+from silver_lib import contract, run, schema, transform  # noqa: E402
 
 dbutils.widgets.text("run_id", "manual")
 # the schemas default to production; tests point them at scratch schemas
@@ -73,7 +72,6 @@ ONLY = [x.strip() for x in dbutils.widgets.get("only_files").split(",") if x.str
 C = contract.relocate(contract.load(), silver_schema=SILVER_SCHEMA, bronze_schema=BRONZE_SCHEMA)
 RAW = C["source_table"]
 BRONZE_MANIFEST = f"{BRONZE_SCHEMA}.bronze_manifest"
-IDENT = C["personal_data_check"]["identity_table"]
 
 # COMMAND ----------
 ping_url = dbutils.secrets.get(SCOPE, "healthchecks_core_ping_url") if PING else None
@@ -106,18 +104,12 @@ bronze_files = {r["file_name"]: r["file_sha256"] for r in spark.table(BRONZE_MAN
 todo = sorted(n for n in bronze_files if n not in done and (not ONLY or n in ONLY))
 print(f"{len(bronze_files)} files finished in bronze, {len(done)} already in silver, {len(todo)} to process")
 
-ids = spark.table(IDENT).select("hmac", "kind").collect()
-ctx = transform.Context(
-    C, key,
-    known_users=frozenset(r["hmac"] for r in ids if r["kind"] == "username"),
-    known_phones=frozenset(r["hmac"] for r in ids if r["kind"] == "phone"),
-    stoplist=personal.load_stoplist(contract.stoplist_path(C)))
-print(f"{len(ctx.known_users)} known usernames, {len(ctx.known_phones)} known phones, {len(ctx.stoplist)} stoplisted words (hashes only)")
+ctx = transform.Context(C, key)
 
 # COMMAND ----------
-QCOLS = ["code", "last_modified_t", "reason", "pii_columns", "payload", "source_file", "file_sha256", "record_sha256",
+QCOLS = ["code", "last_modified_t", "reason", "payload", "source_file", "file_sha256", "record_sha256",
          "bronze_ingested_at", "quarantined_at", "job_run_id", "resolved_by_run"]
-QDDL = ("code STRING, last_modified_t BIGINT, reason STRING, pii_columns ARRAY<STRING>, payload STRING, source_file STRING, "
+QDDL = ("code STRING, last_modified_t BIGINT, reason STRING, payload STRING, source_file STRING, "
         "file_sha256 STRING, record_sha256 STRING, bronze_ingested_at TIMESTAMP, quarantined_at TIMESTAMP, "
         "job_run_id STRING, resolved_by_run STRING")
 SILVER_COLS = [c["name"] for c in C["columns"]]
@@ -130,7 +122,7 @@ def merge_insert_only(target, df, view, on):
 
 
 tot = collections.Counter()
-reasons, coerce, fmt = collections.Counter(), collections.Counter(), collections.Counter()
+reasons, coerce, fmt, tags_dropped = collections.Counter(), collections.Counter(), collections.Counter(), collections.Counter()
 files_done = 0
 
 for name in todo:
@@ -138,25 +130,16 @@ for name in todo:
         now = dt.datetime.utcnow()
         rows = [r.asDict() for r in spark.table(RAW).where(F.col("source_file") == name)
                 .select("code", "last_modified_t", "raw_json", "source_file", "file_sha256", "ingested_at").collect()]
-        before_users, before_phones = ctx.known_users, ctx.known_phones
         res = run.process_batch(rows, ctx, RUN_ID, now)
         if not res.balanced():
             raise RuntimeError(f"batch not balanced: {res.rows_in} in, {len(res.silver)} silver + {len(res.quarantine)} quarantine")
 
-        # 1. identities (hashes only), before anything that could fail later
-        new_ids = [(h, "username", n, now, RUN_ID) for h, n in res.users.items() if h not in before_users] + \
-                  [(h, "phone", n, now, RUN_ID) for h, n in res.phones.items() if h not in before_phones]
-        if new_ids:
-            df = spark.createDataFrame(new_ids, schema="hmac STRING, kind STRING, length INT, first_seen_at TIMESTAMP, first_seen_run STRING")
-            merge_insert_only(IDENT, df, "incoming_ids", "t.hmac = s.hmac AND t.kind = s.kind")
-        tot["identities_added"] += len(new_ids)
-
-        # 2. silver rows
+        # 1. silver rows
         if res.silver:
             df = spark.createDataFrame([tuple(r[c] for c in SILVER_COLS) for r in res.silver], schema=SILVER_DDL)
             merge_insert_only(C["table"], df, "incoming_silver", "t.code = s.code AND t.last_modified_t = s.last_modified_t")
 
-        # 3. quarantine rows
+        # 2. quarantine rows
         if res.quarantine:
             def qrow(q):
                 lmt = q["last_modified_t"] if isinstance(q["last_modified_t"], int) and not isinstance(q["last_modified_t"], bool) else None
@@ -165,13 +148,13 @@ for name in todo:
             df = spark.createDataFrame([qrow(q) for q in res.quarantine], schema=QDDL)
             merge_insert_only(C["quarantine_table"], df, "incoming_q", "t.source_file = s.source_file AND t.record_sha256 = s.record_sha256")
 
-        # 4. hand-off check on what is actually stored
+        # 3. hand-off check on what is actually stored
         n_s = spark.table(C["table"]).where(F.col("source_file") == name).count()
         n_q = spark.table(C["quarantine_table"]).where(F.col("source_file") == name).count()
         if n_s + n_q != res.rows_in:
             raise RuntimeError(f"stored rows do not add up: {n_s} silver + {n_q} quarantine, bronze has {res.rows_in}")
 
-        # 5. the manifest row is the last write
+        # 4. the manifest row is the last write
         spark.createDataFrame([(name, bronze_files[name], res.rows_in, len(res.silver), len(res.quarantine), now, RUN_ID)],
                               schema="file_name STRING, file_sha256 STRING, rows_in BIGINT, rows_silver BIGINT, rows_quarantine BIGINT, "
                                      "processed_at TIMESTAMP, job_run_id STRING").write.mode("append").saveAsTable(C["manifest_table"])
@@ -180,8 +163,10 @@ for name in todo:
         tot["rows_silver"] += len(res.silver)
         tot["rows_quarantine"] += len(res.quarantine)
         tot["scrubbed"] += res.scrubbed
-        tot["short_hits"] += res.short_hits
-        tot["exempt_hits"] += res.exempt_hits
+        tot["own_handles_redacted"] += res.own_handles_redacted
+        tot["nutrient_entries_dropped"] += res.nutrient_entries_dropped
+        tot["enums_nulled"] += res.enums_nulled
+        tags_dropped.update(res.tags_dropped)
         reasons.update(res.reasons)
         coerce.update(res.coerce_failures)
         fmt.update(res.nutrition_format)
@@ -200,18 +185,20 @@ processed_at = dt.datetime.utcnow()
 if files_done:
     spark.createDataFrame(
         [(RUN_ID, processed_at, C["version"], files_done, tot["rows_in"], tot["rows_silver"], tot["rows_quarantine"], dict(reasons), dict(coerce),
-          dict(fmt), tot["scrubbed"], tot["short_hits"], tot["exempt_hits"], tot["identities_added"], len(ctx.field_counts))],
+          dict(fmt), dict(tags_dropped), tot["scrubbed"], tot["own_handles_redacted"], tot["nutrient_entries_dropped"], tot["enums_nulled"],
+          len(ctx.field_counts))],
         schema="job_run_id STRING, processed_at TIMESTAMP, contract_version INT, files BIGINT, rows_in BIGINT, rows_silver BIGINT, "
                "rows_quarantine BIGINT, quarantine_by_reason MAP<STRING,BIGINT>, coerce_failures MAP<STRING,BIGINT>, "
-               "nutrition_format MAP<STRING,BIGINT>, patterns_scrubbed BIGINT, short_name_hits BIGINT, exempt_name_hits BIGINT, "
-               "identities_added BIGINT, top_level_fields_seen BIGINT").write.mode("append").saveAsTable(C["stats_table"])
+               "nutrition_format MAP<STRING,BIGINT>, tags_dropped MAP<STRING,BIGINT>, patterns_scrubbed BIGINT, "
+               "own_handles_redacted BIGINT, nutrient_entries_dropped BIGINT, enums_nulled BIGINT, "
+               "top_level_fields_seen BIGINT").write.mode("append").saveAsTable(C["stats_table"])
     spark.createDataFrame([(RUN_ID, processed_at, f, n) for f, n in ctx.field_counts.items()],
                           schema="job_run_id STRING, processed_at TIMESTAMP, field STRING, products BIGINT"
                           ).write.mode("append").saveAsTable(C["field_log_table"])
 
 summary = {"files_processed": files_done, "rows_in": tot["rows_in"], "rows_silver": tot["rows_silver"],
-           "rows_quarantine": tot["rows_quarantine"], "quarantine_by_reason": dict(reasons), "short_name_hits": tot["short_hits"],
-           "exempt_name_hits": tot["exempt_hits"], "identities_added": tot["identities_added"], "problems": len(problems)}
+           "rows_quarantine": tot["rows_quarantine"], "quarantine_by_reason": dict(reasons), "patterns_scrubbed": tot["scrubbed"],
+           "own_handles_redacted": tot["own_handles_redacted"], "tags_dropped": dict(tags_dropped), "problems": len(problems)}
 print(json.dumps(summary))
 if problems:
     ping("/fail", "silver: " + "; ".join(problems))
