@@ -90,44 +90,53 @@ def ping(suffix="", body=None):
 ping("/start")
 problems = []
 
-endpoint = dbutils.widgets.get("b2_endpoint")
-s3 = boto3.client(
-    "s3", endpoint_url=endpoint if endpoint.startswith("http") else "https://" + endpoint,
-    aws_access_key_id=dbutils.secrets.get(SCOPE, "b2_read_key_id"),
-    aws_secret_access_key=dbutils.secrets.get(SCOPE, "b2_read_application_key"),
-    config=Config(signature_version="s3v4", retries={"max_attempts": 5, "mode": "standard"}))
-api = HfApi(token=dbutils.secrets.get(SCOPE, "hf_archive_token"))
-assert api.repo_info(HF_REPO, repo_type="dataset").private, "the archive repo must be private"
+def setup():
+    """Connect and read what B2 holds and what the archive has. Any failure here is reported to healthchecks as /fail."""
+    endpoint = dbutils.widgets.get("b2_endpoint")
+    s3 = boto3.client(
+        "s3", endpoint_url=endpoint if endpoint.startswith("http") else "https://" + endpoint,
+        aws_access_key_id=dbutils.secrets.get(SCOPE, "b2_read_key_id"),
+        aws_secret_access_key=dbutils.secrets.get(SCOPE, "b2_read_application_key"),
+        config=Config(signature_version="s3v4", retries={"max_attempts": 5, "mode": "standard"}))
+    api = HfApi(token=dbutils.secrets.get(SCOPE, "hf_archive_token"))
+    assert api.repo_info(HF_REPO, repo_type="dataset").private, "the archive repo must be private"
 
-# COMMAND ----------
-# What B2 holds now (current versions only: a hidden object is not listed) and what the archive already has.
-b2 = {}
-for prefix in lib.ARCHIVE_PREFIXES:
-    for page in s3.get_paginator("list_objects_v2").paginate(Bucket=BUCKET, Prefix=prefix):
-        for o in page.get("Contents", []):
-            b2[o["Key"]] = o["Size"]
-print(f"B2 lists {len(b2)} objects under {', '.join(lib.ARCHIVE_PREFIXES)}")
+    # What B2 holds now (current versions only: a hidden object is not listed) and what the archive already has.
+    b2 = {}
+    for prefix in lib.ARCHIVE_PREFIXES:
+        for page in s3.get_paginator("list_objects_v2").paginate(Bucket=BUCKET, Prefix=prefix):
+            for o in page.get("Contents", []):
+                b2[o["Key"]] = o["Size"]
+    print(f"B2 lists {len(b2)} objects under {', '.join(lib.ARCHIVE_PREFIXES)}")
+
+    try:
+        manifest = lib.load_manifest(open(hf_hub_download(HF_REPO, MANIFEST_PATH, repo_type="dataset", token=api.token, force_download=True), "rb").read())
+    except EntryNotFoundError:
+        manifest = lib.new_manifest()
+        print("no archive manifest yet: starting a new one")
+
+    todo, changed = lib.plan(b2, manifest)
+    if ONLY:
+        todo = [k for k in todo if k in ONLY]
+    for k in changed:
+        problems.append(f"{k}: size in B2 ({b2[k]}) no longer matches the archived copy ({manifest['files'][k]['bytes']}); not overwritten")
+    print(f"{len(manifest['files'])} already archived, {len(todo)} to archive, {len(changed)} changed in B2")
+
+    # The sha256 the capture recorded for each delta file: from every capture manifest in B2 (they are archived too).
+    capture_manifests = []
+    for k in sorted(b2):
+        if lib.is_capture_manifest(k):
+            capture_manifests.append(json.loads(s3.get_object(Bucket=BUCKET, Key=k)["Body"].read()))
+    expected = lib.expected_sha256(capture_manifests)
+    print(f"{len(capture_manifests)} capture manifests read, {len(expected)} files with a recorded sha256")
+    return s3, api, b2, manifest, todo, changed, expected
+
 
 try:
-    manifest = lib.load_manifest(open(hf_hub_download(HF_REPO, MANIFEST_PATH, repo_type="dataset", token=api.token, force_download=True), "rb").read())
-except EntryNotFoundError:
-    manifest = lib.new_manifest()
-    print("no archive manifest yet: starting a new one")
-
-todo, changed = lib.plan(b2, manifest)
-if ONLY:
-    todo = [k for k in todo if k in ONLY]
-for k in changed:
-    problems.append(f"{k}: size in B2 ({b2[k]}) no longer matches the archived copy ({manifest['files'][k]['bytes']}); not overwritten")
-print(f"{len(manifest['files'])} already archived, {len(todo)} to archive, {len(changed)} changed in B2")
-
-# The sha256 the capture recorded for each delta file: from every capture manifest in B2 (they are archived too).
-capture_manifests = []
-for k in sorted(b2):
-    if lib.is_capture_manifest(k):
-        capture_manifests.append(json.loads(s3.get_object(Bucket=BUCKET, Key=k)["Body"].read()))
-expected = lib.expected_sha256(capture_manifests)
-print(f"{len(capture_manifests)} capture manifests read, {len(expected)} files with a recorded sha256")
+    s3, api, b2, manifest, todo, changed, expected = setup()
+except Exception as e:
+    ping("/fail", f"archive setup failed: {type(e).__name__}: {str(e)[:120]}")
+    raise
 
 # COMMAND ----------
 archived, bytes_archived, unverified = 0, 0, 0
