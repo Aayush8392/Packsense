@@ -337,7 +337,18 @@ def trial_loop(w, q, run_id, mode, total, snapshot):
         raise
 
 
+def wait_idle(w):
+    """Do not start while an earlier kill-test run (for example one orphaned by a crashed driver) is still active."""
+    while True:
+        active = [r for r in w.jobs.list_runs(active_only=True) if (r.run_name or "").startswith("packsense-kill-")]
+        if not active:
+            return
+        print(f"waiting for {len(active)} earlier kill-test run(s) to finish: {[r.run_name for r in active]}", flush=True)
+        time.sleep(15)
+
+
 def cmd_bronze(w, q: Sql, args):
+    wait_idle(w)
     state = load_state()
     files = state["files"]
     modes = ["first_write", "later_file", "first_write", "later_file", "first_write", "later_file"]
@@ -429,6 +440,7 @@ def verify_silver(q: Sql, files: list) -> list:
 
 
 def cmd_silver(w, q: Sql, args):
+    wait_idle(w)
     state = load_state()
     files = state["files"]
     modes = ["first_write", "later_file", "first_write", "later_file", "first_write", "later_file"]
