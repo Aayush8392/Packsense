@@ -96,3 +96,14 @@ def test_relocated_contract_moves_every_table():
 def test_no_tabs_or_unbalanced_brackets_in_any_ddl():
     for s in schema.all_table_sql(C):
         assert "\t" not in s and s.count("(") == s.count(")") and s.count("<") == s.count(">")
+
+
+def test_drift_report_table_sits_next_to_the_silver_table_and_moves_with_it():
+    assert schema.drift_report_table(C) == "workspace.packsense_silver.silver_drift_report"
+    moved = contract.relocate(C, silver_schema="workspace.scratch_s")
+    sql = schema.drift_report_table_sql(moved)
+    assert "CREATE TABLE IF NOT EXISTS workspace.scratch_s.silver_drift_report (" in sql and "packsense_silver" not in sql
+    cols = ddl_columns(sql)
+    for needed in ("evaluated_at", "drift_run_id", "subject_kind", "subject", "check_name", "level", "observed", "baseline_low", "baseline_high", "detail"):
+        assert needed in cols, needed
+    assert sql.endswith("USING DELTA") and sql.count("(") == sql.count(")")

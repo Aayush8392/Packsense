@@ -1,4 +1,4 @@
-"""The job definition the bootstrap script would create: bronze, then silver that still runs when bronze ended red."""
+"""The job definition the bootstrap script would create: bronze, then silver that still runs when bronze ended red, then the drift check."""
 import sys
 from pathlib import Path
 
@@ -14,9 +14,9 @@ def tasks(with_schedule=True):
     return {t.task_key: t for t in job.settings(with_schedule)["tasks"]}
 
 
-def test_two_tasks_silver_after_bronze_and_even_if_bronze_failed():
+def test_three_tasks_silver_after_bronze_and_even_if_bronze_failed():
     t = tasks()
-    assert list(t) == ["bronze", "silver"]
+    assert list(t) == ["bronze", "silver", "drift"]
     assert [d.task_key for d in t["silver"].depends_on] == ["bronze"] and t["bronze"].depends_on is None
     assert t["silver"].run_if.value == "ALL_DONE"
 
@@ -29,6 +29,13 @@ def test_silver_is_told_how_bronze_ended_and_both_read_the_notebooks_from_git():
     assert all(x.notebook_task.source.value == "GIT" for x in t.values())
 
 
+def test_drift_runs_after_silver_even_if_silver_failed_and_gets_no_data_parameters():
+    t = tasks()
+    assert [d.task_key for d in t["drift"].depends_on] == ["silver"] and t["drift"].run_if.value == "ALL_DONE"
+    assert t["drift"].notebook_task.notebook_path == "p2_lakehouse/notebooks/drift_check"
+    assert set(t["drift"].notebook_task.base_parameters) == {"run_id"}
+
+
 def test_one_run_at_a_time_and_the_schedule_is_unchanged():
     s = job.settings(True)
     assert s["max_concurrent_runs"] == 1
@@ -38,5 +45,5 @@ def test_one_run_at_a_time_and_the_schedule_is_unchanged():
 
 def test_the_notebooks_exist_in_the_repo():
     root = Path(__file__).resolve().parents[2]
-    for path in (job.NOTEBOOK, job.SILVER_NOTEBOOK):
+    for path in (job.NOTEBOOK, job.SILVER_NOTEBOOK, job.DRIFT_NOTEBOOK):
         assert (root / (path + ".py")).exists(), path

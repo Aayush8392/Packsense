@@ -77,6 +77,26 @@ def field_log_table_sql(contract: dict) -> str:
 ) USING DELTA"""
 
 
+def drift_report_table(contract: dict) -> str:
+    """Name of the drift report table: next to the silver table, so a relocated contract moves it too."""
+    return contract["table"].rsplit(".", 1)[0] + ".silver_drift_report"
+
+
+def drift_report_table_sql(contract: dict) -> str:
+    return f"""CREATE TABLE IF NOT EXISTS {drift_report_table(contract)} (
+  evaluated_at TIMESTAMP NOT NULL,
+  drift_run_id STRING NOT NULL,
+  subject_kind STRING NOT NULL,
+  subject STRING NOT NULL,
+  check_name STRING NOT NULL,
+  level STRING NOT NULL,
+  observed DOUBLE,
+  baseline_low DOUBLE,
+  baseline_high DOUBLE,
+  detail STRING
+) USING DELTA"""
+
+
 def struct_ddl(contract: dict) -> str:
     """Column list for spark.createDataFrame(rows, schema=...): the table's columns without NOT NULL."""
     return ", ".join(f"{c['name']} {spark_type(c['type'])}" for c in contract["columns"])
