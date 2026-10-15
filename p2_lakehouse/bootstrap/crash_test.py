@@ -455,11 +455,12 @@ def cmd_silver(w, q: Sql, args):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("command", choices=["setup", "bronze", "silver", "cleanup"])
-    ap.add_argument("--env-file", required=True)
+    ap.add_argument("--env-file", help="optional: otherwise DATABRICKS_HOST and DATABRICKS_TOKEN must already be in the environment")
     ap.add_argument("--branch", default="main", help="git branch the notebooks run from")
     ap.add_argument("--trials", type=int, default=3)
     args = ap.parse_args()
-    load_env_file(args.env_file)
+    if args.env_file:
+        load_env_file(args.env_file)
     w = client()
     q = Sql(w)
     {"setup": cmd_setup, "bronze": cmd_bronze, "silver": cmd_silver, "cleanup": cmd_cleanup}[args.command](w, q, args)
