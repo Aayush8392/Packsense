@@ -1,0 +1,67 @@
+name: Keep-alive (stop GitHub disabling the scheduled workflows)
+
+# GitHub disables scheduled workflows in a public repo after 60 days of "no repository activity" and does not define the term.
+# Observed: a push to the default branch resets the clock. Unproven: that a commit pushed with GITHUB_TOKEN counts, and that
+# calling the enable endpoint resets it. This workflow does both, only when the newest commit on main is old, and is best effort:
+# the healthchecks capture alert is the tripwire, and the fix is one click on Enable in Actions (see packsense_buildlog.md).
+
+on:
+  schedule:
+    # Weekly, not monthly: with a 30-day threshold the newest commit is never older than about 37 days, far inside the 60-day limit,
+    # even when GitHub's cron runs hours late.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Push the empty commit even if the newest commit on main is recent (use once to test)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # the empty commit
+  actions: write  # the enable-workflow call
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+env:
+  MAX_AGE_DAYS: "30"
+  # Workflows that have a schedule: trigger (not ci.yml or terraform.yml).
+  SCHEDULED_WORKFLOWS: "capture.yml freshness.yml delete-markers.yml keepalive.yml"
+
+jobs:
+  keepalive:
+    # Only ever act on main: a dispatch from another branch must not push anywhere.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Age of the newest commit on main
+        id: age
+        run: |
+          newest=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          age_days=$(( (now - newest) / 86400 ))
+          echo "Newest commit on main is ${age_days} day(s) old (threshold ${MAX_AGE_DAYS})."
+          echo "age_days=${age_days}" >> "$GITHUB_OUTPUT"
+      - name: Push an empty commit
+        if: ${{ inputs.force == true || steps.age.outputs.age_days >= env.MAX_AGE_DAYS }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "keepalive: empty commit (repository activity; newest commit was ${{ steps.age.outputs.age_days }} day(s) old)"
+          git push origin HEAD:main
+      - name: Call the enable endpoint on the scheduled workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for wf in $SCHEDULED_WORKFLOWS; do
+            echo "enable $wf"
+            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/${wf}/enable" || echo "enable call failed for $wf (non-fatal)"
+          done
+          gh api "repos/${{ github.repository }}/actions/workflows" --jq '.workflows[] | "\(.path) \(.state)"'
