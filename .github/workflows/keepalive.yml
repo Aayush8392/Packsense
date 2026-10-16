@@ -37,7 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Credentials must persist here: the next step pushes the empty commit. Accepted zizmor finding (artipacked).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
         with:
           ref: main
           fetch-depth: 1
@@ -51,10 +52,12 @@ jobs:
           echo "age_days=${age_days}" >> "$GITHUB_OUTPUT"
       - name: Push an empty commit
         if: ${{ inputs.force == true || steps.age.outputs.age_days >= env.MAX_AGE_DAYS }}
+        env:
+          AGE_DAYS: ${{ steps.age.outputs.age_days }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit --allow-empty -m "keepalive: empty commit (repository activity; newest commit was ${{ steps.age.outputs.age_days }} day(s) old)"
+          git commit --allow-empty -m "keepalive: empty commit (repository activity; newest commit was ${AGE_DAYS} day(s) old)"
           git push origin HEAD:main
       - name: Call the enable endpoint on the scheduled workflows
         env:
