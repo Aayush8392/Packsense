@@ -9,6 +9,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from silver_lib import contract, transform  # noqa: E402
@@ -20,6 +22,7 @@ LINEAGE = {"source_file": "openfoodfacts_products_1791094877_1791181482.json.gz"
 C = contract.load()
 CTX = transform.Context(C, KEY)
 TAG = re.compile(C["shape"]["tag"])
+LONG_DIGITS = re.compile(r"\d{7,}")
 TAG_COLUMNS = ["additives_tags", "ingredients_analysis_tags", "nutrient_levels_tags", "food_groups_tags", "packaging_tags", "origins_tags"]
 NEW_COLUMNS = TAG_COLUMNS + ["product_quantity_unit", "environmental_score_grade", "checked", "last_checked_t"]
 
@@ -59,6 +62,8 @@ def test_the_ten_new_columns_are_in_the_contract_with_the_declared_kinds():
         assert by[n]["type"] == "string" and by[n]["shape_check"] == "enum" and by[n]["class"] == "public"
     assert by["last_checked_t"]["type"] == "bigint"
     assert not any(by[n].get("egress") for n in NEW_COLUMNS)
+    assert all(by[n]["max_digit_run"] == 6 for n in TAG_COLUMNS)
+    assert not any("max_digit_run" in c for c in C["columns"] if c["name"] not in TAG_COLUMNS)      # the older tag columns are unchanged
 
 
 def test_the_fixtures_exercise_every_new_column_with_a_real_value():
@@ -78,7 +83,7 @@ def test_every_real_record_keeps_exactly_its_well_formed_tags():
             if raw is None:
                 assert row[n] is None, (case, n)
             else:
-                assert row[n] == [t for t in raw if TAG.match(t)], (case, n)
+                assert row[n] == [t for t in raw if TAG.match(t) and not LONG_DIGITS.search(t)], (case, n)
 
 
 def test_real_strings_and_numbers_come_through():
@@ -121,6 +126,26 @@ def test_every_new_tag_column_is_checked_and_not_only_origins():
     for n in TAG_COLUMNS:
         r = with_field(**{n: ["en:fine", "not a tag", "x:y z"]})
         assert r.row[n] == ["en:fine"] and r.tags_dropped[n] == 2, n
+
+
+def test_a_tag_with_a_long_digit_run_is_dropped_in_the_new_columns_only():
+    for n in TAG_COLUMNS:
+        r = with_field(**{n: ["en:fine", "fr:9876543210", "fr:sachet-12345678-carton", "fr:code-123456"]})
+        assert r.row[n] == ["en:fine", "fr:code-123456"], n                  # 6 digits stay, 7 or more go
+        assert r.tags_dropped[n] == 2, n
+    r = with_field(categories_tags=["en:fine", "fr:9876543210"])             # an older tag column keeps its value (unchanged on purpose)
+    assert r.row["categories_tags"] == ["en:fine", "fr:9876543210"]
+
+
+def test_the_digit_run_option_is_validated():
+    bad = copy.deepcopy(C)
+    next(x for x in bad["columns"] if x["name"] == "product_name")["max_digit_run"] = 6        # not a tag column
+    with pytest.raises(ValueError, match="max_digit_run"):
+        contract.validate(bad)
+    bad = copy.deepcopy(C)
+    next(x for x in bad["columns"] if x["name"] == "packaging_tags")["max_digit_run"] = 0
+    with pytest.raises(ValueError, match="max_digit_run"):
+        contract.validate(bad)
 
 
 def test_a_non_list_tag_value_becomes_null_and_is_counted():

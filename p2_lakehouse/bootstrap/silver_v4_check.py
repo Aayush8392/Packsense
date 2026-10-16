@@ -179,6 +179,21 @@ def cmd_run(w, q, args):
         if n == "origins_tags" and v[3]:
             print("  NOTE origins_tags has digit-run elements: decide whether it stays in v4")
 
+    # 5b. the older tag columns, information only (they are unchanged on purpose; a rule for them is a separate decision)
+    old_tags = [x["name"] for x in c["columns"] if x["type"] == "array<string>" and x["class"] == "public" and x["name"] not in NEW_TAGS]
+    print("5b older tag columns, 7+ digit-run elements (elements | products), information only:")
+    for n in old_tags:
+        row = q.run(f"WITH e AS (SELECT code, explode({n}) t FROM {T} WHERE {n} IS NOT NULL) "
+                    f"SELECT count(*), sum(CASE WHEN t rlike {lit(DIGITS7)} THEN 1 ELSE 0 END), "
+                    f"count(DISTINCT CASE WHEN t rlike {lit(DIGITS7)} THEN code END) FROM e")[0]
+        if int(row[1] or 0):
+            shapes = q.run(f"WITH e AS (SELECT explode({n}) t FROM {T} WHERE {n} IS NOT NULL) "
+                           f"SELECT regexp_replace(regexp_replace(t, '[0-9]', '9'), {lit(chr(92) + 'pL')}, 'a') s, count(*) c FROM e "
+                           f"WHERE t rlike {lit(DIGITS7)} GROUP BY 1 ORDER BY c DESC LIMIT 4")
+            print(f"  {n}: {int(row[1])} of {int(row[0])} elements | {int(row[2])} products; masked shapes {[(x[0][:60], int(x[1])) for x in shapes]}")
+        else:
+            print(f"  {n}: 0 of {int(row[0])} elements")
+
     # 6. lineage ----------------------------------------------------------------------------------------------------------
     orphan = int(q.one(f"SELECT count(*) FROM {T} s LEFT JOIN {BR_PROD}.bronze_delta_raw b ON s.source_file = b.source_file AND s.file_sha256 = b.file_sha256 "
                        f"AND s.code = b.code AND s.last_modified_t = b.last_modified_t WHERE b.code IS NULL"))

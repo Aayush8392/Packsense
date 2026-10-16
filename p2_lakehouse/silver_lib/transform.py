@@ -338,6 +338,9 @@ def _build(d: dict, code: str, lmt: int, ctx: Context, lineage: dict) -> Result:
                 row[name] = checked_enum(row[name], ctx, counts)
             if col.get("tag_check") == "shape" and isinstance(row[name], list):
                 kept = [t for t in row[name] if personal.shape_ok(t, ctx.shapes["tag"])]
+                if col.get("max_digit_run"):      # a long run of digits is no taxonomy id and can be a phone number (contract note, v4)
+                    long_run = re.compile(r"\d{%d,}" % (col["max_digit_run"] + 1))
+                    kept = [t for t in kept if not long_run.search(t)]
                 if len(kept) != len(row[name]):
                     res.tags_dropped[name] += len(row[name]) - len(kept)
                 scrubbed_tags = []

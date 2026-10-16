@@ -55,6 +55,9 @@ def validate(c: dict) -> None:
             raise ValueError(f"column {x['name']}: nullable must be true or false")
         if x.get("egress") not in (None, "never"):
             raise ValueError(f"column {x['name']}: egress must be 'never' when set")
+        if "max_digit_run" in x:
+            if x.get("tag_check") != "shape" or not (isinstance(x["max_digit_run"], int) and x["max_digit_run"] >= 1):
+                raise ValueError(f"column {x['name']}: max_digit_run needs tag_check: shape and a whole number of 1 or more")
     for g in c["grain"]:
         if g not in names:
             raise ValueError(f"grain column {g} is not a column")
