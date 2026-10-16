@@ -1,6 +1,6 @@
 # Runbook: swap the silver tables for a new contract version (first used for v3 to v4, 2026-10-17)
 
-**Status: DRAFT. Not yet drilled; the dev rehearsal comes first and this file is corrected from what it finds.**
+**Status: drilled on the dev target on 2026-10-17 (swap, in-place verification and rollback, all PASS); the production swap itself is still to do.** The statements below are the corrected ones: the rehearsal found four problems, listed at the end.
 
 ## When this is needed
 Silver is insert-only and its tables are created from the contract (`CREATE TABLE IF NOT EXISTS`). A contract that adds, removes or
@@ -30,11 +30,14 @@ The old tables stay as the rollback until the new ones have been through at leas
 ## Steps (target = dev or prod; names below are for prod, dev uses the `packsense_dev_*` schemas)
 1. **Pause the job.** Prod: pause the schedule of `packsense-bronze-load` in the Jobs UI (the bundle-owned job). Dev: schedules are already paused.
 2. **Give the admin the right to rename and drop** (tables belong to the principal that created them, a schema owner does not get access):
-   `GRANT ALL PRIVILEGES ON SCHEMA <silver schema> TO <admin user>`. Revoke it at the end and restore the standing `SELECT`.
+   `GRANT ALL PRIVILEGES ON SCHEMA <silver schema> TO <admin user>`. Revoke it at the end (step 9).
 3. **Note the state to return to:** row counts of the three tables and the manifest file list (`SELECT file_name FROM silver_manifest`).
-4. **Rename the old tables** (admin, SQL editor), one statement each:
-   `ALTER TABLE <silver schema>.silver_product_versions RENAME TO silver_product_versions_v3;` and the same for `silver_quarantine`,
-   `silver_manifest` and `silver_drift_metrics`.
+4. **Rename the old tables** (admin, SQL editor), one statement each, **with the new name fully qualified**:
+   `ALTER TABLE <silver schema>.silver_product_versions RENAME TO <silver schema>.silver_product_versions_v3;` and the same for `silver_quarantine`,
+   `silver_manifest` and `silver_drift_metrics`. An unqualified new name is resolved against the SQL editor's current schema, so the table lands in
+   `workspace.default` (seen in the rehearsal), where the admin has no rights and cannot move it back without first granting itself the schema.
+   **Then list the schema and confirm all four `_v3` tables exist and the four originals are gone** (`SELECT table_name FROM workspace.information_schema.tables
+   WHERE table_schema = '<schema name>' ORDER BY table_name`): in the rehearsal one rename silently did not apply. A rename keeps the owner (the principal).
 5. **Ship the new code.** Dev: `databricks bundle deploy -t dev` from the branch as the dev principal (delete a local `.databricks` folder left
    by another identity first). Prod: merge the branch to `main` through CI; `deploy.yml` deploys dev, then approve the `prod` environment.
    Confirm the deploy output says what was uploaded before going on.
@@ -46,15 +49,31 @@ The old tables stay as the rollback until the new ones have been through at leas
    residue, lineage. Then run the drift check once more and read its report.
 8. **Resume the schedule** (prod) and watch the next scheduled run and its healthchecks; the drift check may be red only for alerts that are
    real (see the drift gotchas in the buildlog).
-9. **Revoke the temporary admin rights** from step 2.
+9. **Revoke the temporary admin rights** from step 2 and restore the standing read access:
+   `REVOKE ALL PRIVILEGES ON SCHEMA <silver schema> FROM <admin user>;` then `GRANT SELECT ON SCHEMA <silver schema> TO <admin user>;`.
 10. **After one clean scheduled day**, drop the four `_v3` tables. Until then they are the rollback.
 
 ## Rollback (if step 6 or 7 fails, or a scheduled day after the swap is wrong)
 1. Pause the job.
-2. Admin: drop the new tables (`silver_product_versions`, `silver_quarantine`, `silver_manifest`, `silver_drift_metrics`), then rename each `_v3` table back.
+2. Admin (with the rights from step 2): drop the new tables (`silver_product_versions`, `silver_quarantine`, `silver_manifest`, `silver_drift_metrics`), then rename each
+   `_v3` table back, again with the fully qualified new name.
 3. Put the old code back: revert the change on `main` (`git revert`, CI, deploy; see `runbook-rollback.md` section E), or for dev `bundle deploy` from the previous commit.
-4. Run the job once: it must find the manifest complete (0 files) and end green; compare the counts with step 3.
+4. Run the job once: it must find the manifest complete (0 files processed) and end green; compare the counts and the column count (71 for v3) with step 3.
 5. Resume the schedule.
 
-## Findings from the dev rehearsal
-(to be filled in)
+## Findings from the dev rehearsal (2026-10-17, dev target, v3 to v4 and back)
+**Result: PASS both ways.** Forward: after the renames and a deploy of the v4 branch as the dev principal, one run of the job rebuilt silver from bronze (2 files, 13,638 rows, 0 problems, about
+2 minutes); the in-place check ended `RESULT: PASS` (balance, keys, lineage, 71 old columns identical on every row except one `traces_tags` row changed by the digit-run rule, all ten new
+columns equal to bronze's raw JSON, no residue). Back: dropping the v4 tables, renaming the `_v3` tables back and deploying `main`'s code left 13,638 silver rows, 2 manifest rows and 71 columns; the
+next run processed 0 files and ended green.
+
+**What the rehearsal found that the first draft got wrong:**
+1. `RENAME TO` with an unqualified new name puts the table into the editor's current schema (`workspace.default`), not the table's own schema. Use fully qualified names.
+2. A table the principal created stays the principal's after a rename; once it sat in `workspace.default` the admin had no rights on it (`PERMISSION_DENIED: does not have MODIFY and SELECT`), and
+   had to grant itself `ALL PRIVILEGES` on that schema before moving it back. Rights come from the schema, so a backup table must stay in the schema whose grants cover it.
+3. One of the four renames printed OK but did not apply (the quarantine table kept its original create date); only the table list showed it. Always list the schema after the renames.
+4. In dev the quarantine table was empty. In production it holds 2 rows (both the empty barcode): the rebuild writes them again, so the quarantine table must be swapped with the others
+   (as step 4 says) and not kept.
+
+**Not exercised:** the production deploy approval path in this order (the dev deploy was by CLI), pausing the production schedule, and a swap with quarantined rows (covered only by the
+scratch full-data run, where the 2 quarantined rows matched production).
