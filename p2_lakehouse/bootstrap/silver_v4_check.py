@@ -1,6 +1,6 @@
 """Scratch rebuild of silver under contract v4 and its comparison with production. Run it from the repo root with the v4 branch pushed.
 
-    python p2_lakehouse/bootstrap/silver_v4_check.py run --env-file .env [--write-metrics PATH]
+    python p2_lakehouse/bootstrap/silver_v4_check.py run --env-file .env [--write-metrics PATH] [--reuse]
     python p2_lakehouse/bootstrap/silver_v4_check.py cleanup --env-file .env
 
 `run` reads ALL of production bronze (read only) and writes silver, quarantine and manifest into scratch schemas with the notebook from
@@ -15,6 +15,7 @@ Checks (any failure prints FAIL):
   6. lineage: every silver row joins to exactly one bronze row (file, checksum, key) and carries contract version 4.
 With --write-metrics it also writes the drift coverage fixture (aggregates only) measured on the scratch silver, and checks that the
 old columns' coverage equals the committed fixture's. Production tables are only read. Prints counts only, never a value.
+--reuse skips the rebuild and checks the scratch silver left by an earlier `run` (the rebuild takes about 9 minutes).
 Reads DATABRICKS_HOST and DATABRICKS_TOKEN from the file or the environment.
 """
 import argparse
@@ -48,23 +49,25 @@ def cmd_run(w, q, args):
     c = contract.load()
     tag_rx, enum_rx = "(?U)" + c["shape"]["tag"], "(?U)" + c["shape"]["enum"]
     problems = []
-    for s in (SI,):
-        q.run(f"DROP SCHEMA IF EXISTS {s} CASCADE")
     n_bronze = int(q.one(f"SELECT count(*) FROM {BR_PROD}.bronze_delta_raw"))
     n_files = int(q.one(f"SELECT count(*) FROM {BR_PROD}.bronze_manifest"))
     print(f"production bronze: {n_bronze} rows in {n_files} files (read only)")
 
-    t0 = time.time()
-    params = {"bronze_schema": BR_PROD, "silver_schema": SI, "ping_healthchecks": "false", "bronze_result": "n/a", "run_id": "v4-check"}
-    waiter = ct.submit(w, "packsense-silver-v4-check", ct.SILVER_NB, params, BRANCH)
-    res, r = ct.wait_terminal(w, waiter.run_id, 60)
-    text, err = ct.run_output(w, r)
-    print(f"silver v4 run: {res} in {round(time.time() - t0)} s\n{text[:900]} {err}", flush=True)
-    if res != "SUCCESS":
-        sys.exit("the scratch silver run failed")
-    stats = json.loads(text) if text.startswith("{") else {}
-    if stats.get("problems", 1) != 0:
-        problems.append(f"notebook reported problems: {stats.get('problems')}")
+    if args.reuse:
+        print("--reuse: checking the scratch silver left by the earlier run")
+    else:
+        q.run(f"DROP SCHEMA IF EXISTS {SI} CASCADE")
+        t0 = time.time()
+        params = {"bronze_schema": BR_PROD, "silver_schema": SI, "ping_healthchecks": "false", "bronze_result": "n/a", "run_id": "v4-check"}
+        waiter = ct.submit(w, "packsense-silver-v4-check", ct.SILVER_NB, params, BRANCH)
+        res, r = ct.wait_terminal(w, waiter.run_id, 60)
+        text, err = ct.run_output(w, r)
+        print(f"silver v4 run: {res} in {round(time.time() - t0)} s", text[:900], err, flush=True)
+        if res != "SUCCESS":
+            sys.exit("the scratch silver run failed")
+        stats = json.loads(text) if text.startswith("{") else {}
+        if stats.get("problems", 1) != 0:
+            problems.append(f"notebook reported problems: {stats.get('problems')}")
 
     T, P = f"{SI}.silver_product_versions", f"{SI_PROD}.silver_product_versions"
     # 1. balance --------------------------------------------------------------------------------------------------------
@@ -107,9 +110,10 @@ def cmd_run(w, q, args):
         problems.append("column sets are not production + the ten new columns")
     compare = [n for n in old_cols if n not in RUN_COLS]
 
+    complex_cols = {x["name"] for x in c["columns"] if "map" in x["type"] or "struct" in x["type"]}   # information_schema gives only 'ARRAY' for these
+
     def expr(n, a, b):
-        t = old_cols[n].upper()
-        return f"to_json({a}.`{n}`) <=> to_json({b}.`{n}`)" if ("MAP" in t or "STRUCT" in t) else f"{a}.`{n}` <=> {b}.`{n}`"
+        return f"to_json({a}.`{n}`) <=> to_json({b}.`{n}`)" if n in complex_cols else f"{a}.`{n}` <=> {b}.`{n}`"
     sums = ", ".join(f"sum(CASE WHEN NOT ({expr(n, 'a', 'b')}) THEN 1 ELSE 0 END)" for n in compare)
     row = q.run(f"SELECT count(*), {sums} FROM {T} a JOIN {P} b ON a.code <=> b.code AND a.last_modified_t <=> b.last_modified_t")[0]
     joined, diffs = int(row[0]), {n: int(v or 0) for n, v in zip(compare, row[1:])}
@@ -211,6 +215,7 @@ def main():
     ap.add_argument("command", choices=["run", "cleanup"])
     ap.add_argument("--env-file")
     ap.add_argument("--write-metrics")
+    ap.add_argument("--reuse", action="store_true")
     a = ap.parse_args()
     if a.env_file:
         ct.load_env_file(a.env_file)
