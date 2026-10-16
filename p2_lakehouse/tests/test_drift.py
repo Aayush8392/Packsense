@@ -289,3 +289,69 @@ def test_failures_by_file_and_attach_round_trip_the_stored_rows():
     assert by == {"a": {"_rows": 100, "tags:labels_tags": 7}, "b": {"_rows": 50}}
     days = drift.attach_failures([{"file": "a"}, {"file": "c"}], by)
     assert days[0]["failures"] == by["a"] and "failures" not in days[1]
+
+
+# ---- layer 3: judging, on the real per-day counts -------------------------------------------------------------------------------
+# fixtures/drift_failures.json: counts per delta day measured by the drift notebook on 2026-10-16 (aggregates only), 15 real days.
+# Only tag failures ever occurred in them; the big day (7,760 products, a producer-heavy import day) has 7.04 dropped allergen tags per
+# 100 products against 0.31-1.51 on every other day.
+
+FAIL_DAYS = [{"file": f, "rows": m["_rows"], "failures": m} for f, m in sorted(json.loads((FIX / "drift_failures.json").read_text(encoding="utf-8"))["days"].items())]
+BIG_DAY = max(range(len(FAIL_DAYS)), key=lambda i: FAIL_DAYS[i]["failures"].get("tags:allergens_tags", 0))
+
+
+def failure_alerts(i, days=None):
+    days = days or FAIL_DAYS
+    return [f for f in drift.failure_findings(days[i], days[max(0, i - drift.WINDOW):i]) if f.level == "ALERT"]
+
+
+def test_the_fixture_is_15_measured_days_with_only_tag_failures():
+    assert len(FAIL_DAYS) == 15 and all(d["rows"] > 5000 for d in FAIL_DAYS)
+    assert {k.split(":")[0] for d in FAIL_DAYS for k in d["failures"]} == {"_rows", "tags"}
+
+
+def test_only_the_big_import_day_alerts_and_only_on_allergens_the_other_real_days_are_quiet():
+    out = {i: failure_alerts(i) for i in range(drift.MIN_BASELINE, len(FAIL_DAYS))}
+    assert [i for i, a in out.items() if a] == [BIG_DAY]
+    assert [f.detail.split(": ")[0] for f in out[BIG_DAY]] == ["tags:allergens_tags"]
+    f = out[BIG_DAY][0]
+    assert f.check == "failure_rate" and round(f.observed, 2) == 7.04 and f.high < 1.0
+
+
+def test_the_first_measured_days_only_warm_up():
+    for i in range(drift.MIN_BASELINE):
+        f = drift.failure_findings(FAIL_DAYS[i], FAIL_DAYS[max(0, i - drift.WINDOW):i])
+        assert [x.level for x in f] == ["WARMUP"] and f[0].check == "failure_rates_baseline_short"
+
+
+def test_a_failure_kind_that_never_happened_alerts_once_it_is_big_enough_and_not_before():
+    i = len(FAIL_DAYS) - 1
+    base = FAIL_DAYS[:i]
+    big = planted(FAIL_DAYS[i], failures={"coerce:completeness": 60})
+    small = planted(FAIL_DAYS[i], failures={"coerce:completeness": drift.MIN_RATE_COUNT - 1})
+    assert [f.detail.split(": ")[0] for f in drift.failure_findings(big, base) if f.level == "ALERT"] == ["coerce:completeness"]
+    assert drift.failure_findings(small, base) == []
+
+
+def test_a_rise_below_the_floor_or_the_factor_does_not_alert():
+    i = len(FAIL_DAYS) - 1
+    base = FAIL_DAYS[:i]
+    hi = max(100 * d["failures"]["tags:labels_tags"] / d["rows"] for d in base)
+    rows = FAIL_DAYS[i]["rows"]
+    just_under = int((drift.RATE_FACTOR * hi) / 100 * rows) - 5
+    assert drift.failure_findings(planted(FAIL_DAYS[i], failures={"tags:labels_tags": just_under}), base) == []
+    just_over = int((drift.RATE_FACTOR * hi) / 100 * rows) + 30
+    assert [f.level for f in drift.failure_findings(planted(FAIL_DAYS[i], failures={"tags:labels_tags": just_over}), base)] == ["ALERT"]
+
+
+def test_a_day_without_counts_is_judged_by_the_other_layers_exactly_as_before():
+    d = copy.deepcopy(DAYS[10])
+    assert "failures" not in d
+    assert [f.check for f in drift.judge(d, drift.baseline_for(DAYS, 10)) if f.check.startswith("failure")] == []
+
+
+def test_days_without_counts_in_the_baseline_are_ignored_not_counted_as_zero():
+    i = len(FAIL_DAYS) - 1
+    base = [{k: v for k, v in d.items() if k != "failures"} for d in FAIL_DAYS[:i - 3]] + FAIL_DAYS[i - 3:i]
+    out = drift.failure_findings(FAIL_DAYS[i], base)
+    assert [f.check for f in out] == ["failure_rates_baseline_short"]       # only 3 measured days: warm-up, no judgement
