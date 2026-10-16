@@ -1,0 +1,24 @@
+# dbt connection profiles. No secret is written here: every value comes from the environment.
+#   dev        the gold-dev principal (OAuth machine-to-machine), the path the scheduled job will use
+#   dev_admin  local scaffolding only, with the admin token, until the gold-dev principal exists
+packsense_gold:
+  target: dev
+  outputs:
+    dev:
+      type: databricks
+      catalog: workspace
+      schema: packsense_dev_gold
+      host: "{{ env_var('DATABRICKS_HOST') | replace('https://', '') | replace('/', '') }}"
+      http_path: "{{ env_var('DBT_HTTP_PATH') }}"
+      auth_type: oauth
+      client_id: "{{ env_var('DATABRICKS_CLIENT_ID') }}"
+      client_secret: "{{ env_var('DATABRICKS_CLIENT_SECRET') }}"
+      threads: 4
+    dev_admin:
+      type: databricks
+      catalog: workspace
+      schema: packsense_dev_gold
+      host: "{{ env_var('DATABRICKS_HOST') | replace('https://', '') | replace('/', '') }}"
+      http_path: "{{ env_var('DBT_HTTP_PATH') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      threads: 4

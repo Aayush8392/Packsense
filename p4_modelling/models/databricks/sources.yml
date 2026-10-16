@@ -1,0 +1,13 @@
+version: 2
+
+# The only tables gold reads. The gold principal gets table-level SELECT on these two and nothing else
+# (no quarantine, no bronze, no secret scope `packsense`).
+sources:
+  - name: silver
+    database: workspace
+    schema: "{{ var('silver_schema') }}"
+    tables:
+      - name: silver_product_versions
+        description: One row per product version (contract v4, 81 columns). Insert-only; gold history is derived from it.
+      - name: silver_manifest
+        description: One row per processed bronze file; gold uses it as a freshness guard.

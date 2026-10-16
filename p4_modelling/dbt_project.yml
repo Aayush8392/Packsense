@@ -1,0 +1,17 @@
+name: packsense
+version: "0.1.0"
+config-version: 2
+profile: packsense_gold
+
+model-paths: ["models"]
+test-paths: ["data_tests"]      # the Python tests live in tests/ and run with pytest, not with dbt
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  silver_schema: packsense_dev_silver    # prod overrides this with --vars when the prod gold job exists
+
+models:
+  packsense:
+    databricks:
+      +materialized: view
