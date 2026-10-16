@@ -51,14 +51,16 @@ from pyspark.sql import functions as F  # noqa: E402
 from silver_lib import contract, drift, run, schema, transform  # noqa: E402
 
 dbutils.widgets.text("run_id", "manual")
+dbutils.widgets.text("bronze_schema", "workspace.packsense_bronze")       # the dev target points this at its scratch bronze
 dbutils.widgets.text("silver_schema", "workspace.packsense_silver")
-dbutils.widgets.text("report_schema", "")                               # tests: write the report here while reading silver from silver_schema
+dbutils.widgets.text("report_schema", "")                             # tests: write the report here while reading silver from silver_schema
 dbutils.widgets.text("secret_scope", "packsense")
 dbutils.widgets.text("ping_healthchecks", "true")                       # tests set "false"
 dbutils.widgets.text("evaluate_prefix", "openfoodfacts_products_")      # which silver source files are judged: the daily delta files
 dbutils.widgets.text("baseline_prefix", "")                             # empty = each day against the days before it; else judge against these files
 
 RUN_ID = dbutils.widgets.get("run_id")
+BRONZE_SCHEMA = dbutils.widgets.get("bronze_schema")
 SILVER_SCHEMA = dbutils.widgets.get("silver_schema")
 REPORT_SCHEMA = dbutils.widgets.get("report_schema").strip() or SILVER_SCHEMA
 SCOPE = dbutils.widgets.get("secret_scope")
@@ -66,7 +68,7 @@ PING = dbutils.widgets.get("ping_healthchecks").strip().lower() == "true"
 EVAL_PREFIX = dbutils.widgets.get("evaluate_prefix")
 BASE_PREFIX = dbutils.widgets.get("baseline_prefix").strip()
 
-C = contract.relocate(contract.load(), silver_schema=SILVER_SCHEMA)
+C = contract.relocate(contract.load(), silver_schema=SILVER_SCHEMA, bronze_schema=BRONZE_SCHEMA)
 CR = contract.relocate(contract.load(), silver_schema=REPORT_SCHEMA)     # the report may live elsewhere than the silver tables (tests)
 REPORT = schema.drift_report_table(CR)
 METRICS = schema.drift_metrics_table(CR)

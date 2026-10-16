@@ -1,0 +1,49 @@
+# PackSense Databricks Asset Bundle: the two scheduled jobs, deployed as a fixed copy of the code instead of
+# running notebooks straight from `main`.
+#
+# dev  : scratch schemas and a scratch landing folder, no schedules (development mode pauses them), no healthchecks pings.
+#        The archive job is deployed there too but must not be run: it would write to the real HF repo and use the B2 caps.
+# prod : the real schemas and landing volume and the current schedules; deployed only by the deploy principal.
+#
+# The identity that deploys also runs the jobs (Free Edition cannot bind a job to another identity), so it needs the grants
+# listed in p3_delivery/README.md. Schemas are created beforehand by an admin; the deployer never creates them.
+bundle:
+  name: packsense
+
+include:
+  - p3_delivery/resources/*.yml
+
+# Only what the notebooks import or run. Tests, infra, docs and bootstrap scripts stay out of the deployed copy.
+sync:
+  exclude:
+    - "**/tests/**"
+    - "**/bootstrap/**"
+    - infra/**
+    - docs/**
+    - reviews/**
+    - .github/**
+
+variables:
+  bronze_schema:
+    default: workspace.packsense_bronze
+  silver_schema:
+    default: workspace.packsense_silver
+  landing:
+    default: /Volumes/workspace/packsense/landing
+  ping:
+    description: whether the notebooks ping healthchecks.io ("true" or "false")
+    default: "true"
+
+targets:
+  dev:
+    default: true
+    mode: development
+    variables:
+      bronze_schema: workspace.packsense_dev_bronze
+      silver_schema: workspace.packsense_dev_silver
+      landing: /Volumes/workspace/packsense/landing/_dev
+      ping: "false"
+  prod:
+    # No custom root_path: only the deploy principal deploys prod, so its own home folder (private to it) holds the files and
+    # the state. /Workspace/Shared would be writable by every workspace user, and these notebooks read the HMAC key.
+    default: false

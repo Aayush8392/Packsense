@@ -1,0 +1,41 @@
+# Same job as p1_intake/bootstrap/create_archive_job.py (job `packsense-archive`): archive B2 to the HF repo, then the
+# B2 reconciliation (even if the archive failed) and the landing retention (only if the archive succeeded).
+# Do not run it from the dev target: it reads B2 and writes to the real HF repo whatever the other variables say.
+resources:
+  jobs:
+    archive:
+      name: packsense-archive
+      max_concurrent_runs: 1
+      timeout_seconds: 3600
+      schedule:
+        quartz_cron_expression: "0 0 16 * * ?"  # 16:00 UTC = 21:30 IST
+        timezone_id: UTC
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: archive
+          notebook_task:
+            notebook_path: ../../p1_intake/notebooks/archive_to_hf.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              ping_healthchecks: ${var.ping}
+        - task_key: retention
+          depends_on:
+            - task_key: archive
+          run_if: ALL_SUCCESS
+          notebook_task:
+            notebook_path: ../../p1_intake/notebooks/landing_retention.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              landing: ${var.landing}
+              bronze_schema: ${var.bronze_schema}
+              ping_healthchecks: ${var.ping}
+        - task_key: reconcile
+          depends_on:
+            - task_key: archive
+          run_if: ALL_DONE
+          notebook_task:
+            notebook_path: ../../p1_intake/notebooks/b2_reconcile.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              landing: ${var.landing}
+              ping_healthchecks: ${var.ping}
