@@ -3,7 +3,8 @@ name: CI (tests and lint)
 on:
   pull_request:
   push:
-    branches: [main]
+    # every branch, not only main: with CI required on main, a commit must already have its result when main moves to it
+    branches: ["**"]
   workflow_dispatch:
 
 # Read-only token, and no secrets anywhere in this workflow: it must run safely on pull requests from forks and from Dependabot.

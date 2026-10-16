@@ -29,7 +29,7 @@ There is no dev stage and no approval step yet (P3 will add them). A push to `ma
 1. `git log --oneline -10` and find the bad commit. If several commits belong together, revert each, newest first.
 2. `git revert <sha>` (one commit per bad commit; do not squash different changes together).
 3. Run the tests: `.venv\Scripts\python.exe -m pytest p1_intake/tests p2_lakehouse/tests`.
-4. Push to a branch, let CI pass, then fast-forward `main` (the normal workflow). In a real emergency, revert and push straight to `main`: the ruleset allows it.
+4. Push to a branch, let CI pass, then fast-forward `main` (the normal workflow). Since 2026-10-16 `main` requires the CI checks `tests` and `lint` on the commit it moves to (ruleset `require-ci`, Terraform), so even an emergency revert goes through a branch and a green CI first (CI runs on every branch push, about a minute). If CI itself is what broke, edit or disable `require-ci` in the repository's rule settings, fix, and turn it back on.
 5. Nothing needs deploying for notebooks: the jobs pick up `main` at their next run. To confirm sooner, run the job once by hand and read the result.
 
 ## B. Repair data after a bad run

@@ -1,7 +1,7 @@
 name: Keep-alive (stop GitHub disabling the scheduled workflows)
 
 # GitHub disables scheduled workflows in a public repo after 60 days of "no repository activity" and does not define the term.
-# Observed: a push to the default branch resets the clock. Unproven: that a commit pushed with GITHUB_TOKEN counts, and that
+# Observed: a push to the default branch resets the clock. Unproven: that an empty commit pushed by a deploy key counts, and that
 # calling the enable endpoint resets it. This workflow does both, only when the newest commit on main is old, and is best effort:
 # the healthchecks capture alert is the tripwire, and the fix is one click on Enable in Actions (see packsense_buildlog.md).
 
@@ -18,8 +18,8 @@ on:
         default: false
 
 permissions:
-  contents: write # the empty commit
-  actions: write  # the enable-workflow call
+  contents: read # the push goes over SSH with the deploy key, not through this token
+  actions: write # the enable-workflow call
 
 concurrency:
   group: keepalive
@@ -37,11 +37,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # Credentials must persist here: the next step pushes the empty commit. Accepted zizmor finding (artipacked).
+      # The push needs credentials to persist, and goes over SSH with the repository's deploy key (secret KEEPALIVE_DEPLOY_KEY): the
+      # ruleset that requires CI on main lets only that key bypass it (infra/terraform/main.tf). Accepted zizmor finding (artipacked).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
         with:
           ref: main
           fetch-depth: 1
+          ssh-key: ${{ secrets.KEEPALIVE_DEPLOY_KEY }}
       - name: Age of the newest commit on main
         id: age
         run: |
