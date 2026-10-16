@@ -1,16 +1,16 @@
 # Runbook: roll back a bad change
 
-**Status: sections A and B drilled on scratch 2026-10-16; C, D and E not exercised.** The steps are read from the repository (workflows, job scripts, the re-key runbook) and from Delta Lake behaviour. The drill (see the end) reverted a deliberate silent bug with a real `git revert` and repaired the data with Delta `RESTORE`; the points it could not cover keep their **(unverified)** tag.
+**Status: sections A, B and E drilled (A and B on scratch 2026-10-16, then A, B and E again through the bundle on the dev target the same night); C and D not exercised.** The steps are read from the repository (workflows, bundle, the re-key runbook) and from Delta Lake behaviour. The drills (see the end) reverted a deliberate silent bug with a real `git revert` and repaired the data with Delta `RESTORE`; the points they could not cover keep their **(unverified)** tag.
 
-## Where changes ship today (the stopgap)
+## Where changes ship today (Asset Bundle, since 2026-10-16)
 
-There is no dev stage and no approval step yet (P3 will add them). A push to `main` changes production:
+A push to `main` no longer changes the scheduled jobs by itself: `deploy.yml` deploys a fixed copy of the code to dev, then to prod after a reviewer approves the `prod` environment (see `p3_delivery/README.md`). The jobs run the deployed copy.
 
 | Thing | How a change reaches production | Takes effect |
 |---|---|---|
-| Notebooks and libraries (`p1_intake/notebooks`, `p2_lakehouse/notebooks`, `silver_lib/`) | The Databricks jobs run git-sourced from `main` | At the next run of the job that uses them |
-| Workflows (`capture.yml`, `freshness.yml`, `delete-markers.yml`, `keepalive.yml`, `ci.yml`, `security.yml`) | GitHub reads the file on `main` | At the next trigger |
-| Job definitions (task list, schedule, parameters) | `p2_lakehouse/bootstrap/create_bronze_job.py create` and `p1_intake/bootstrap/create_archive_job.py`, run by hand | Immediately, and `create` **resets every setting of an existing job** (it carries the schedule over) |
+| Notebooks and libraries (`p1_intake/notebooks`, `p2_lakehouse/notebooks`, `silver_lib/`) | `deploy.yml` uploads a fixed copy (dev automatically, prod after approval) | At the next run of the job that uses them, once the prod deploy is approved |
+| Workflows (`capture.yml`, `freshness.yml`, `delete-markers.yml`, `keepalive.yml`, `ci.yml`, `security.yml`, `deploy.yml`) | GitHub reads the file on `main` | At the next trigger |
+| Job definitions (task list, schedule, parameters) | `databricks.yml` and `p3_delivery/resources/*.yml`, shipped by the same deploy | Immediately on deploy; a deploy changes only what differs and keeps the job id |
 | Infrastructure (B2 bucket, keys, repo secrets, `protect-main`) | Terraform workflow: a plan on pull requests, `apply` only on a manual dispatch behind the `terraform-apply` environment | When the apply finishes |
 | Data (bronze, silver, quarantine, manifests) | Written by the jobs | At each run |
 
@@ -19,10 +19,10 @@ There is no dev stage and no approval step yet (P3 will add them). A push to `ma
 ## Decide first: what broke?
 
 1. **Code is wrong, no bad data written yet** (caught before the next run): revert the code (A).
-2. **Code is wrong and a run already wrote bad data**: revert the code (A), then repair the data (B). Pause the job's schedule first so nothing writes while you work (Databricks UI; `create_bronze_job.py` has no pause command).
+2. **Code is wrong and a run already wrote bad data**: revert the code (A), then repair the data (B). Pause the job's schedule first so nothing writes while you work (Databricks UI, job `packsense-bronze-load`).
 3. **A workflow change broke capture or a tripwire**: revert it (C).
 4. **An infrastructure change is wrong**: revert and re-apply (D).
-5. **A job definition is wrong**: restore it from the script (E).
+5. **A job definition is wrong**: revert the bundle file and redeploy (E).
 
 ## A. Revert code
 
@@ -30,7 +30,7 @@ There is no dev stage and no approval step yet (P3 will add them). A push to `ma
 2. `git revert <sha>` (one commit per bad commit; do not squash different changes together).
 3. Run the tests: `.venv\Scripts\python.exe -m pytest p1_intake/tests p2_lakehouse/tests`.
 4. Push to a branch, let CI pass, then fast-forward `main` (the normal workflow). Since 2026-10-16 `main` requires the CI checks `tests` and `lint` on the commit it moves to (ruleset `require-ci`, Terraform), so even an emergency revert goes through a branch and a green CI first (CI runs on every branch push, about a minute). If CI itself is what broke, edit or disable `require-ci` in the repository's rule settings, fix, and turn it back on.
-5. Nothing needs deploying for notebooks: the jobs pick up `main` at their next run. To confirm sooner, run the job once by hand and read the result.
+5. **The revert is not live until it is deployed.** The jobs run the deployed copy, so after `main` has the revert, `deploy.yml` must ship it: dev runs by itself, prod waits for the reviewer's approval of the `prod` environment. In an emergency, deploy by hand from the reverted checkout with the CLI (see E). To confirm, run the job once by hand (`databricks bundle run bronze_load -t dev` or `-t prod`) and read the result.
 
 ## B. Repair data after a bad run
 
@@ -62,9 +62,17 @@ If a table cannot be restored, rebuild: silver from bronze (the re-key runbook d
 3. Dispatch with `action = apply`; it waits at the `terraform-apply` environment. **(Reviewers must be added to that environment in the repository settings for the approval gate to exist: check before relying on it.)**
 4. Safety net: Terraform state is in the versioned private B2 bucket `tfstate-aayush`; an older state version can be restored through the B2 console if a state file itself is damaged. **(unverified: the restore has not been exercised; the design lists a state-recovery exercise for P9.)**
 
-## E. Restore a job definition
+## E. Restore a job definition (or redeploy earlier code)
 
-Job settings live in the scripts, not in the Databricks UI. Revert the script change (A), then run `create_bronze_job.py create --env-file .env` (or the archive script). `create` replaces every setting and keeps the existing schedule and its pause state. Check with `create_bronze_job.py status`.
+Job settings live in `databricks.yml` and `p3_delivery/resources/*.yml`, not in the Databricks UI. Revert the change (A), then redeploy the same way as any change:
+
+1. Through CI: the revert reaches `main`, `deploy.yml` deploys dev, then prod after approval.
+2. By hand (needs the CLI and the target's principal credentials; the identity that deploys also owns and runs the job, so use the dev principal for dev and the prod principal for prod, never the admin): delete a local `.databricks` folder left by another identity, set `DATABRICKS_HOST`, `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` (and no `DATABRICKS_TOKEN`), then `databricks bundle deploy -t <dev|prod>`.
+3. Check the job on its page in the Jobs UI (the owner column shows which principal's copy it is) and run it once.
+
+A deploy keeps the job id and its history. **Drilled on dev:** the reverted code (`git diff` against the good commit printed nothing) was deployed as the dev principal in one command (`Files: 1 uploaded`, `Resources: 0 created, 0 changed, 0 deleted, 2 unchanged`) and the next run used it.
+
+**Tables belong to the principal that created them**, and a schema owner does not get write access to them: for the `RESTORE` in B, an admin needs write rights on the schema first (the dev drill granted `ALL PRIVILEGES` and revoked it afterwards). On prod, grant it just for the repair and take it back.
 
 ## What a rollback cannot undo
 
@@ -89,4 +97,19 @@ Job settings live in the scripts, not in the Databricks UI. Revert the script ch
 - Silver is insert-only, so rerunning fixed code over files the bad run already wrote changes nothing: the restore in B3 is not optional, it is what makes the repair run write the rows again. (This is why B3 lists the manifest among the tables to restore.)
 - **The drill found a test gap.** Applied to a clean checkout, the same bug passed all 350 tests: no test asserted the 13-digit code kind (the most common barcode). A test over every real fixture code now fails with that bug and passes without it. A deliberate-bug drill is a cheap way to check that the tests would catch a silent data bug.
 
-**Not exercised:** pausing the production schedule, section C (reverting a workflow, including `capture.yml`), section D (Terraform revert and apply, which needs the B2 admin key and the `terraform-apply` approval), section E (restoring a job definition), bronze repair (the same pattern with `bronze_delta_raw` and its manifest), and how far back production's own table history reaches.
+## Drill through the bundle (2026-10-16 night, dev target, `rollback-drill-bad`, local branch never pushed)
+
+**What was run:** the same silent bug (13-digit codes labelled `gtin12`) committed on a local branch and deployed to dev with the CLI as the dev principal (`packsense-deployer-dev`). Dev silver was first restored to "file A only" (silver and manifest version 1, quarantine version 0); a copy of the good A+B silver (`drill_ref_good`, 13,638 rows) served as the reference. Production was not touched.
+
+**Result: PASS.**
+- The bad deploy ran the job to `SUCCESS` with `problems: 0` and wrote 6,523 rows with a wrong `code_kind` (of 13,638): the job's status shows nothing.
+- `git revert` gave code identical to the good commit (`git diff` empty); a one-command redeploy as the dev principal shipped it (1 file uploaded, job unchanged).
+- `RESTORE` of the three silver tables to the noted versions, then a run of the job: silver reprocessed file B (6,847 rows, 0 problems). Final comparison with the reference: 13,638 rows, 0 with a different `code_kind`, 2 manifest rows.
+
+**What the drill showed:**
+- Silver stays insert-only through the bundle too: the restore is required before the repaired code rewrites the rows.
+- A revert is only live after a deploy; a plain revert on `main` changes nothing for the scheduled jobs until `deploy.yml` (and, for prod, the approval) runs.
+- The admin needs write rights on the dev tables to run `RESTORE` (a principal-owned table).
+- The `RESTORE` target versions are the ones noted before the bad run; they stay valid after later restores.
+
+**Not exercised:** pausing the production schedule, section C (reverting a workflow, including `capture.yml`), section D (Terraform revert and apply, which needs the B2 admin key and the `terraform-apply` approval), a prod deploy of a revert (dev only), bronze repair (the same pattern with `bronze_delta_raw` and its manifest), and how far back production's own table history reaches.
