@@ -1,6 +1,7 @@
 """Scratch rebuild of silver under contract v4 and its comparison with production. Run it from the repo root with the v4 branch pushed.
 
     python p2_lakehouse/bootstrap/silver_v4_check.py run --env-file .env [--write-metrics PATH] [--reuse]
+    python p2_lakehouse/bootstrap/silver_v4_check.py drift --env-file .env [--write-failures PATH]   (after `run`)
     python p2_lakehouse/bootstrap/silver_v4_check.py cleanup --env-file .env
 
 `run` reads ALL of production bronze (read only) and writes silver, quarantine and manifest into scratch schemas with the notebook from
@@ -47,7 +48,9 @@ def lit(s: str) -> str:
 
 def cmd_run(w, q, args):
     c = contract.load()
-    tag_rx, enum_rx = "(?U)" + c["shape"]["tag"], "(?U)" + c["shape"]["enum"]
+    # Spark's regex engine (Photon) is RE2-like: \w is ASCII only and (?U) means 'ungreedy', not Unicode. Python's \w also matches accented
+    # letters and other scripts, so the same rule is spelled out with letter and number classes (approximately Python's \w).
+    tag_rx, enum_rx = c["shape"]["tag"].replace(r"\w", r"\pL\pN_"), c["shape"]["enum"]
     problems = []
     n_bronze = int(q.one(f"SELECT count(*) FROM {BR_PROD}.bronze_delta_raw"))
     n_files = int(q.one(f"SELECT count(*) FROM {BR_PROD}.bronze_manifest"))
@@ -168,6 +171,11 @@ def cmd_run(w, q, args):
         print(f"  {n}: contact {v[0]} | {v[1]}; digits {v[2]} | {v[3]}; scrubbed {v[4]}")
         if v[0]:
             problems.append(f"{n}: {v[0]} contact-shaped elements survived the scrub")
+        if v[2]:     # what the digit-run elements look like, with letters and digits masked (structure only, never the value)
+            shapes = q.run(f"WITH e AS (SELECT explode({n}) t FROM {T} WHERE {n} IS NOT NULL) "
+                           f"SELECT regexp_replace(regexp_replace(t, '[0-9]', '9'), {lit(chr(92) + 'pL')}, 'a') s, count(*) c FROM e "
+                           f"WHERE t rlike {lit(DIGITS7)} GROUP BY 1 ORDER BY c DESC LIMIT 8")
+            print(f"    masked shapes of the digit-run elements in {n}:", [(x[0], int(x[1])) for x in shapes])
         if n == "origins_tags" and v[3]:
             print("  NOTE origins_tags has digit-run elements: decide whether it stays in v4")
 
@@ -205,6 +213,33 @@ def cmd_run(w, q, args):
     print("RESULT:", "PASS" if not problems else "FAIL")
 
 
+def cmd_drift(w, q, args):
+    """Runs the drift notebook (branch silver-v4) over the scratch silver: layer 1 on the coverage of all 69 columns, layer 3 on the
+    shape-check counts per day (bronze is read, the transform runs in memory), with the report and counts written to the scratch
+    schema. Prints every ALERT and writes the per-day counts as the layer-3 fixture."""
+    params = {"bronze_schema": BR_PROD, "silver_schema": SI, "report_schema": SI, "ping_healthchecks": "false", "run_id": "v4-drift"}
+    waiter = ct.submit(w, "packsense-silver-v4-drift", "p2_lakehouse/notebooks/drift_check", params, BRANCH)
+    res, r = ct.wait_terminal(w, waiter.run_id, 60)
+    text, err = ct.run_output(w, r)
+    print("drift notebook:", res, text[:500], err[:700])
+    rep = q.run(f"SELECT subject, level, check_name, detail FROM {SI}.silver_drift_report ORDER BY subject, level")
+    levels = {}
+    for x in rep:
+        levels[x[1]] = levels.get(x[1], 0) + 1
+    print("findings by level:", levels)
+    for x in rep:
+        if x[1] in ("ALERT", "WARN"):
+            print(f"  {x[1]} {x[0][-24:]} {x[2]}: {x[3][:200]}")
+    met = q.run(f"SELECT source_file, metric, count FROM {SI}.silver_drift_metrics ORDER BY source_file, metric")
+    days = {}
+    for f, m, n in met:
+        days.setdefault(f, {})[m] = int(n)
+    print(f"measured days: {len(days)}; metrics kinds: {sorted({m for d in days.values() for m in d})}")
+    if args.write_failures:
+        Path(args.write_failures).write_text(json.dumps({"days": days}, indent=1, sort_keys=True), encoding="utf-8")
+        print("wrote", args.write_failures)
+
+
 def cmd_cleanup(w, q, args):
     q.run(f"DROP SCHEMA IF EXISTS {SI} CASCADE")
     print("scratch schemas left:", int(q.one("SELECT count(*) FROM system.information_schema.schemata WHERE schema_name LIKE 'ps_v4%'") or 0))
@@ -212,16 +247,17 @@ def cmd_cleanup(w, q, args):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["run", "cleanup"])
+    ap.add_argument("command", choices=["run", "drift", "cleanup"])
     ap.add_argument("--env-file")
     ap.add_argument("--write-metrics")
     ap.add_argument("--reuse", action="store_true")
+    ap.add_argument("--write-failures")
     a = ap.parse_args()
     if a.env_file:
         ct.load_env_file(a.env_file)
     w = ct.client()
     q = ct.Sql(w)
-    {"run": cmd_run, "cleanup": cmd_cleanup}[a.command](w, q, a)
+    {"run": cmd_run, "drift": cmd_drift, "cleanup": cmd_cleanup}[a.command](w, q, a)
 
 
 if __name__ == "__main__":
