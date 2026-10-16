@@ -135,6 +135,21 @@ def test_code_kinds():
     assert silver("odd_length_code").row["code_kind"] == "other"
 
 
+def test_code_kind_follows_the_length_of_every_real_fixture_code():
+    """Found by the rollback drill: a deliberate bug that labelled 13-digit codes 'gtin12' passed every test, because the 13-digit
+    kind (the most common barcode) was never asserted."""
+    kinds = {8: "gtin8", 12: "gtin12", 13: "gtin13", 14: "gtin14"}
+    seen = set()
+    for raws in CASES.values():
+        for raw in raws:
+            r = transform.process(raw, CTX, LINEAGE)
+            if r.kind == "silver":
+                expected = kinds.get(len(r.code), "other")
+                assert r.row["code_kind"] == expected, (r.code, r.row["code_kind"])
+                seen.add(expected)
+    assert "gtin13" in seen and "gtin8" in seen and "gtin14" in seen and "other" in seen
+
+
 # ---- text: scrub, own-handle redaction, structure ------------------------------------------------------------------------
 
 def test_patterns_in_product_name_and_brands_are_scrubbed_and_counted():

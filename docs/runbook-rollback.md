@@ -1,6 +1,6 @@
 # Runbook: roll back a bad change
 
-**Status: written 2026-10-16, not yet exercised.** The steps are read from the repository (workflows, job scripts, the re-key runbook) and from general Delta Lake behaviour. Points marked **(unverified)** have not been run in this project. Exercise it once (the drill at the end) and record the timings and what differed.
+**Status: sections A and B drilled on scratch 2026-10-16; C, D and E not exercised.** The steps are read from the repository (workflows, job scripts, the re-key runbook) and from Delta Lake behaviour. The drill (see the end) reverted a deliberate silent bug with a real `git revert` and repaired the data with Delta `RESTORE`; the points it could not cover keep their **(unverified)** tag.
 
 ## Where changes ship today (the stopgap)
 
@@ -34,7 +34,7 @@ There is no dev stage and no approval step yet (P3 will add them). A push to `ma
 
 ## B. Repair data after a bad run
 
-**Principle:** Delta keeps table versions, so a table can go back to an earlier version. Bronze, silver and the two manifests are tied together: restoring one without the others leaves a lie. **(unverified here: restoring and the retention window; the project has never run `VACUUM`, and Delta's default keeps files for 7 days after a vacuum, so time travel should reach back to the table's first version until one is run)**.
+**Principle:** Delta keeps table versions, so a table can go back to an earlier version. Bronze, silver and the two manifests are tied together: restoring one without the others leaves a lie. **Drilled on scratch: `RESTORE TABLE ... TO VERSION AS OF` returned the three silver tables to the state before a bad run in 18 s, and version 0 of a table stayed readable. Not verified: how far back the production tables' own history reaches (the project has never run `VACUUM`, and Delta's default keeps files for 7 days after a vacuum, so older versions should stay readable until one is run).**
 
 1. Pause the daily job (`packsense-bronze-load`) and, if the archive wrote something wrong, `packsense-archive`.
 2. Find the last good version of each affected table with `DESCRIBE HISTORY <table>` (timestamps and operations). Use the version just before the first bad run.
@@ -73,10 +73,20 @@ Job settings live in the scripts, not in the Databricks UI. Revert the script ch
 - Anything already published (public site, releases), once those exist. The monthly release will get its own rollback note when P6 builds it.
 - Time: a run that processed the wrong data has used its compute; the repair costs another run.
 
-## Drill (do once, then fill in the timings)
+## Drill (2026-10-16, `p2_lakehouse/bootstrap/rollback_drill.py`)
 
-Use scratch resources only, never production tables:
-1. On a branch, make a harmless deliberate break in code that a scratch run exercises, run it against a scratch schema (the `bronze_schema` and `silver_schema` widgets exist for this), and observe the bad result.
-2. Revert the commit (A), re-run, and check the results match the production counts for the same files.
-3. In the scratch schema, restore a table to an earlier version (B) and confirm `RESTORE` works and how far back versions reach.
-4. Record the time for each step and any point that did not match this runbook, then remove the **(unverified)** tags that were proven.
+**What was run:** sections A and B on scratch (production tables only read). A throwaway branch `rollback-drill-bad` carried a deliberate silent bug (13-digit codes labelled `gtin12`: no error, wrong data); `rollback-drill-fixed` was that branch plus a real `git revert` of it (its content was identical to `main`). Scratch input: the 4 newest real delta files (25,666 rows), 2 processed with the good code, then 2 with the bad code. Both drill branches were deleted afterwards.
+
+**Result: PASS.**
+- The bad run raised no error: it ended SUCCESS and wrote 13,173 rows whose `code_kind` differed from production. The runbook's premise (a bad run can pass quietly, so the data has to be checked, not only the job's status) is confirmed.
+- A real `git revert` of the bad commit gave exactly the old code (no difference from `main`).
+- B3: noting `DESCRIBE HISTORY` versions after the good run (silver rows 2, quarantine 1, manifest 2) and `RESTORE`-ing those three tables took 18 s and returned them exactly to "A only" (10,817 rows, 2 manifest rows, 0 wrong rows).
+- B4/B5: rerunning with the reverted code on the same two files rebuilt them; the final 25,665 rows (plus 1 quarantine row) matched production exactly, with no duplicate keys and one balanced manifest row per file.
+
+**Timings (each silver run includes about a minute of start-up):** good run 132 s, bad run 75 s, `RESTORE` of 3 tables 18 s, repair run 71 s.
+
+**What the drill showed that the steps did not say:**
+- Silver is insert-only, so rerunning fixed code over files the bad run already wrote changes nothing: the restore in B3 is not optional, it is what makes the repair run write the rows again. (This is why B3 lists the manifest among the tables to restore.)
+- **The drill found a test gap.** Applied to a clean checkout, the same bug passed all 350 tests: no test asserted the 13-digit code kind (the most common barcode). A test over every real fixture code now fails with that bug and passes without it. A deliberate-bug drill is a cheap way to check that the tests would catch a silent data bug.
+
+**Not exercised:** pausing the production schedule, section C (reverting a workflow, including `capture.yml`), section D (Terraform revert and apply, which needs the B2 admin key and the `terraform-apply` approval), section E (restoring a job definition), bronze repair (the same pattern with `bronze_delta_raw` and its manifest), and how far back production's own table history reaches.
