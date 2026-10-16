@@ -10,7 +10,8 @@ Checks (any failure prints FAIL):
   1. balance: bronze rows = silver + quarantine, the notebook reports 0 problems, one balanced manifest row per bronze file;
   2. the same keys (code, last_modified_t) as production, quarantine matched by record hash;
   3. every old column identical to production on every row, except the rows the v4 rebuild is expected to change (the old-format
-     delta rows v3 left as 'none'); every difference is listed per column;
+     delta rows v3 left as 'none'); the shape-checked tag columns must equal production minus the long-digit-run tags; every
+     difference is listed per column;
   4. each new column counted against an independent count taken straight from bronze's raw JSON;
   5. residue in the new tag columns: contact-shaped and long-digit-run elements (the gate for origins_tags);
   6. lineage: every silver row joins to exactly one bronze row (file, checksum, key) and carries contract version 4.
@@ -115,13 +116,23 @@ def cmd_run(w, q, args):
 
     complex_cols = {x["name"] for x in c["columns"] if "map" in x["type"] or "struct" in x["type"]}   # information_schema gives only 'ARRAY' for these
 
+    runs = {x["name"]: x["max_digit_run"] for x in c["columns"] if x.get("max_digit_run")}
+
+    def long_run(n):
+        return lit(chr(92) + "d{" + str(runs[n] + 1) + ",}")
+
     def expr(n, a, b):
+        if n in runs:      # a shape-checked tag column: v4 must equal production with the long-digit-run tags removed
+            return f"{a}.`{n}` <=> filter({b}.`{n}`, e -> NOT (e rlike {long_run(n)}))"
         return f"to_json({a}.`{n}`) <=> to_json({b}.`{n}`)" if n in complex_cols else f"{a}.`{n}` <=> {b}.`{n}`"
     sums = ", ".join(f"sum(CASE WHEN NOT ({expr(n, 'a', 'b')}) THEN 1 ELSE 0 END)" for n in compare)
     row = q.run(f"SELECT count(*), {sums} FROM {T} a JOIN {P} b ON a.code <=> b.code AND a.last_modified_t <=> b.last_modified_t")[0]
     joined, diffs = int(row[0]), {n: int(v or 0) for n, v in zip(compare, row[1:])}
     differing = {n: v for n, v in diffs.items() if v}
     print(f"  joined {joined} rows; columns that differ from production (count of rows): {differing or 'none'}")
+    by_rule = {n: int(q.one(f"SELECT sum(CASE WHEN NOT (a.`{n}` <=> b.`{n}`) THEN 1 ELSE 0 END) FROM {T} a JOIN {P} b "
+                            f"ON a.code <=> b.code AND a.last_modified_t <=> b.last_modified_t") or 0) for n in runs if n in old_cols}
+    print(f"  rows changed by the digit-run rule in the older tag columns (production value minus long-digit tags, all other values equal): {by_rule}")
     changed_rows = q.run(f"SELECT a.nutrition_format, b.nutrition_format, count(*) FROM {T} a JOIN {P} b ON a.code <=> b.code AND a.last_modified_t <=> b.last_modified_t "
                          f"WHERE a.nutrition_format <> b.nutrition_format GROUP BY 1, 2")
     print("  rows whose nutrition_format changed (v4, production, rows):", [tuple(x) for x in changed_rows] or "none")
@@ -137,7 +148,6 @@ def cmd_run(w, q, args):
     # 4. new columns against bronze's raw JSON ------------------------------------------------------------------------
     print("4 new columns: bronze raw-JSON count | silver count | note")
     base = f"FROM {BR_PROD}.bronze_delta_raw WHERE code RLIKE '^[0-9]+$'"
-    runs = {x["name"]: x["max_digit_run"] for x in c["columns"] if x.get("max_digit_run")}
     for n in NEW_TAGS:
         keep = f"e -> e rlike {lit(tag_rx)}" + (f" AND NOT (e rlike {lit(chr(92) + 'd{' + str(runs[n] + 1) + ',}')})" if n in runs else "")
         b = q.run(f"WITH y AS (SELECT from_json(get_json_object(raw_json, '$.{n}'), 'array<string>') a {base}) "

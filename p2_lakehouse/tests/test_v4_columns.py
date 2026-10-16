@@ -63,7 +63,10 @@ def test_the_ten_new_columns_are_in_the_contract_with_the_declared_kinds():
     assert by["last_checked_t"]["type"] == "bigint"
     assert not any(by[n].get("egress") for n in NEW_COLUMNS)
     assert all(by[n]["max_digit_run"] == 6 for n in TAG_COLUMNS)
-    assert not any("max_digit_run" in c for c in C["columns"] if c["name"] not in TAG_COLUMNS)      # the older tag columns are unchanged
+    shaped = [c["name"] for c in C["columns"] if c.get("tag_check") == "shape"]
+    assert sorted(shaped) == sorted(TAG_COLUMNS + ["categories_tags", "labels_tags", "allergens_tags", "traces_tags"])
+    assert all(c.get("max_digit_run") == 6 for c in C["columns"] if c["name"] in shaped)             # one rule for every shape-checked tag column
+    assert not any("max_digit_run" in c for c in C["columns"] if c["name"] not in shaped)
 
 
 def test_the_fixtures_exercise_every_new_column_with_a_real_value():
@@ -128,13 +131,13 @@ def test_every_new_tag_column_is_checked_and_not_only_origins():
         assert r.row[n] == ["en:fine"] and r.tags_dropped[n] == 2, n
 
 
-def test_a_tag_with_a_long_digit_run_is_dropped_in_the_new_columns_only():
-    for n in TAG_COLUMNS:
+def test_a_tag_with_a_long_digit_run_is_dropped_in_every_shape_checked_tag_column():
+    for n in TAG_COLUMNS + ["categories_tags", "labels_tags", "allergens_tags", "traces_tags"]:
         r = with_field(**{n: ["en:fine", "fr:9876543210", "fr:sachet-12345678-carton", "fr:code-123456"]})
         assert r.row[n] == ["en:fine", "fr:code-123456"], n                  # 6 digits stay, 7 or more go
         assert r.tags_dropped[n] == 2, n
-    r = with_field(categories_tags=["en:fine", "fr:9876543210"])             # an older tag column keeps its value (unchanged on purpose)
-    assert r.row["categories_tags"] == ["en:fine", "fr:9876543210"]
+    r = with_field(countries_tags=["en:india", "fr:9876543210"])             # a tag column without the shape check keeps its values
+    assert r.row["countries_tags"] == ["en:india", "fr:9876543210"]
 
 
 def test_the_digit_run_option_is_validated():
