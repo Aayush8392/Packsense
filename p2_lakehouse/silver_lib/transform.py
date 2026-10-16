@@ -1,6 +1,6 @@
 """One raw bronze record -> one silver row, or one quarantine row with a coded reason.
 
-Everything silver keeps is listed in contracts/silver.yml (version 2); this module reads that list and nothing else gets
+Everything silver keeps is listed in contracts/silver.yml (version 4); this module reads that list and nothing else gets
 through. Nothing here judges whether a word is a name: values are validated by shape, patterns with a clear shape are
 scrubbed, the record's own contributor names are replaced, and a record is quarantined only if it cannot be loaded.
 A value that does not fit its column becomes NULL and is counted; it never quarantines the row.

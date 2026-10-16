@@ -19,6 +19,8 @@ M = json.loads((FIX / "drift_metrics.json").read_text(encoding="utf-8"))
 DAYS, SEED = M["delta_days"], M["seed_parts"]
 NAMES = (FIX / "field_names_first_run.txt").read_text(encoding="utf-8").split()
 C = contract.load()
+V4_COLUMNS = {"checked", "last_checked_t", "additives_tags", "ingredients_analysis_tags", "nutrient_levels_tags", "packaging_tags",
+              "origins_tags", "product_quantity_unit", "food_groups_tags", "environmental_score_grade"}   # added in contract v4
 
 
 def alerts(findings):
@@ -41,10 +43,10 @@ def planted(day, **changes):
 def test_coverage_columns_are_the_nullable_public_and_hashed_contract_columns():
     cols = drift.coverage_columns(C)
     by_name = {c["name"]: c for c in C["columns"]}
-    assert len(cols) == 59 and "nutrients" in cols and "input_sets" in cols and "creator_hmac" in cols
+    assert len(cols) == 69 and "nutrients" in cols and "input_sets" in cols and "creator_hmac" in cols
     assert all(by_name[c]["nullable"] and by_name[c]["class"] in ("public", "hashed") for c in cols)
     assert "code" not in cols and "nutrition_format" not in cols and "source_file" not in cols
-    assert set(cols) == set(DAYS[0]["coverage"])          # the fixture was measured with exactly these columns
+    assert set(cols) - V4_COLUMNS == set(DAYS[0]["coverage"])          # the fixture was measured on v3 silver: the 59 pre-v4 columns
 
 
 def test_metrics_sql_has_one_share_per_column_the_format_mix_and_an_exact_prefix_match():

@@ -1,4 +1,4 @@
-"""Loads and validates the silver data contract (contracts/silver.yml, version 3)."""
+"""Loads and validates the silver data contract (contracts/silver.yml, version 4)."""
 import copy
 import re
 from pathlib import Path
@@ -36,8 +36,8 @@ def validate(c: dict) -> None:
     missing = [s for s in SECTIONS if s not in c]
     if missing:
         raise ValueError(f"contract sections missing: {missing}")
-    if c.get("version") != 3:
-        raise ValueError(f"this code reads contract version 3, found {c.get('version')}")
+    if c.get("version") != 4:
+        raise ValueError(f"this code reads contract version 4, found {c.get('version')}")
     cols = c["columns"]
     names = [x["name"] for x in cols]
     dupes = sorted({n for n in names if names.count(n) > 1})

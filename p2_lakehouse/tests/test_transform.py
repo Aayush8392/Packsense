@@ -1,4 +1,4 @@
-"""The silver transform (contract v3), run against real bronze records (p2_lakehouse/tests/fixtures/bronze_records.jsonl).
+"""The silver transform (contract v4), run against real bronze records (p2_lakehouse/tests/fixtures/bronze_records.jsonl).
 
 The fixtures are real OFF records picked to cover each case, with contributor names replaced by placeholders (user_0001 ...),
 images removed and emails/phones replaced; see bootstrap/extract_fixtures.py. Several tests change one field of a real record
@@ -127,7 +127,7 @@ def test_owner_is_hashed_and_flagged():
 def test_lineage_and_contract_version_are_carried():
     row = silver("normal_new").row
     assert row["source_file"] == LINEAGE["source_file"] and row["file_sha256"] == LINEAGE["file_sha256"]
-    assert row["job_run_id"] == "test-run" and row["silver_contract_version"] == 3
+    assert row["job_run_id"] == "test-run" and row["silver_contract_version"] == 4
 
 
 def test_code_kinds():

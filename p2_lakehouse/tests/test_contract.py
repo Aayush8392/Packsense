@@ -1,4 +1,4 @@
-"""The silver contract (version 3): structure and the guarantees the rest of the code relies on."""
+"""The silver contract (version 4): structure and the guarantees the rest of the code relies on."""
 import copy
 import sys
 from pathlib import Path
@@ -16,15 +16,16 @@ def cols():
     return {x["name"]: x for x in C["columns"]}
 
 
-def test_loads_and_validates_as_version_3():
-    assert C["version"] == 3 and len(C["columns"]) == 71 and C["grain"] == ["code", "last_modified_t"]
+def test_loads_and_validates_as_version_4():
+    assert C["version"] == 4 and len(C["columns"]) == 81 and C["grain"] == ["code", "last_modified_t"]
 
 
-def test_version_2_is_refused():
-    c = copy.deepcopy(C)
-    c["version"] = 2
-    with pytest.raises(ValueError, match="version 3"):
-        contract.validate(c)
+def test_older_versions_are_refused():
+    for old in (2, 3):
+        c = copy.deepcopy(C)
+        c["version"] = old
+        with pytest.raises(ValueError, match="version 4"):
+            contract.validate(c)
 
 
 def test_key_columns_are_not_nullable():
