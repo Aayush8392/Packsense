@@ -1,6 +1,8 @@
 """Scratch rebuild of silver under contract v4 and its comparison with production. Run it from the repo root with the v4 branch pushed.
 
     python p2_lakehouse/bootstrap/silver_v4_check.py run --env-file .env [--write-metrics PATH] [--reuse]
+    python p2_lakehouse/bootstrap/silver_v4_check.py run --env-file .env --silver-schema S --bronze-schema B --old-suffix _v3   (swap check:
+        compares the swapped tables with the renamed old ones in the same schema; nothing is rebuilt)
     python p2_lakehouse/bootstrap/silver_v4_check.py drift --env-file .env [--write-failures PATH]   (after `run`)
     python p2_lakehouse/bootstrap/silver_v4_check.py cleanup --env-file .env
 
@@ -53,11 +55,15 @@ def cmd_run(w, q, args):
     # letters and other scripts, so the same rule is spelled out with letter and number classes (approximately Python's \w).
     tag_rx, enum_rx = c["shape"]["tag"].replace(r"\w", r"\pL\pN_"), c["shape"]["enum"]
     problems = []
-    n_bronze = int(q.one(f"SELECT count(*) FROM {BR_PROD}.bronze_delta_raw"))
-    n_files = int(q.one(f"SELECT count(*) FROM {BR_PROD}.bronze_manifest"))
-    print(f"production bronze: {n_bronze} rows in {n_files} files (read only)")
+    # Scratch check (default): v4 built into SI, compared with production. Swap check (--silver-schema S --bronze-schema B --old-suffix _v3):
+    # the tables now live in S under their normal names, the old ones were renamed with the suffix, nothing is rebuilt.
+    NEW, BRS = args.silver_schema or SI, args.bronze_schema or BR_PROD
+    OLD, SUF = (NEW, args.old_suffix) if args.old_suffix else (SI_PROD, "")
+    n_bronze = int(q.one(f"SELECT count(*) FROM {BRS}.bronze_delta_raw"))
+    n_files = int(q.one(f"SELECT count(*) FROM {BRS}.bronze_manifest"))
+    print(f"bronze {BRS}: {n_bronze} rows in {n_files} files (read only); new silver in {NEW}; old tables {OLD}.*{SUF}")
 
-    if args.reuse:
+    if args.reuse or args.silver_schema:
         print("--reuse: checking the scratch silver left by the earlier run")
     else:
         q.run(f"DROP SCHEMA IF EXISTS {SI} CASCADE")
@@ -73,19 +79,20 @@ def cmd_run(w, q, args):
         if stats.get("problems", 1) != 0:
             problems.append(f"notebook reported problems: {stats.get('problems')}")
 
-    T, P = f"{SI}.silver_product_versions", f"{SI_PROD}.silver_product_versions"
+    T, P = f"{NEW}.silver_product_versions", f"{OLD}.silver_product_versions{SUF}"
+    QN, QO = f"{NEW}.silver_quarantine", f"{OLD}.silver_quarantine{SUF}"
     # 1. balance --------------------------------------------------------------------------------------------------------
     n_s = int(q.one(f"SELECT count(*) FROM {T}"))
-    n_q = int(q.one(f"SELECT count(*) FROM {SI}.silver_quarantine"))
+    n_q = int(q.one(f"SELECT count(*) FROM {QN}"))
     n_ps = int(q.one(f"SELECT count(*) FROM {P}"))
-    n_pq = int(q.one(f"SELECT count(*) FROM {SI_PROD}.silver_quarantine"))
+    n_pq = int(q.one(f"SELECT count(*) FROM {QO}"))
     print(f"\n1 balance: bronze {n_bronze} = silver {n_s} + quarantine {n_q}; production silver {n_ps} + quarantine {n_pq}")
     if n_s + n_q != n_bronze:
         problems.append("silver + quarantine != bronze")
     if (n_s, n_q) != (n_ps, n_pq):
         problems.append(f"counts differ from production: {(n_s, n_q)} vs {(n_ps, n_pq)}")
     dup = int(q.one(f"SELECT count(*) FROM (SELECT code, last_modified_t FROM {T} GROUP BY 1, 2 HAVING count(*) > 1)"))
-    man = q.run(f"SELECT file_name, rows_in, rows_silver, rows_quarantine FROM {SI}.silver_manifest")
+    man = q.run(f"SELECT file_name, rows_in, rows_silver, rows_quarantine FROM {NEW}.silver_manifest")
     if dup or len(man) != n_files or any(int(x[1]) != int(x[2]) + int(x[3]) for x in man):
         problems.append(f"{dup} duplicate keys; manifest rows {len(man)} of {n_files} files, balanced: {all(int(x[1]) == int(x[2]) + int(x[3]) for x in man)}")
     print(f"  duplicate keys {dup}; manifest rows {len(man)} (bronze files {n_files})")
@@ -93,7 +100,7 @@ def cmd_run(w, q, args):
     # 2. keys ------------------------------------------------------------------------------------------------------------
     miss = q.run(f"SELECT sum(CASE WHEN b.code IS NULL THEN 1 ELSE 0 END), sum(CASE WHEN a.code IS NULL THEN 1 ELSE 0 END) FROM {T} a "
                  f"FULL OUTER JOIN {P} b ON a.code <=> b.code AND a.last_modified_t <=> b.last_modified_t WHERE a.code IS NULL OR b.code IS NULL")[0]
-    qmiss = int(q.one(f"SELECT count(*) FROM {SI}.silver_quarantine a FULL OUTER JOIN {SI_PROD}.silver_quarantine b "
+    qmiss = int(q.one(f"SELECT count(*) FROM {QN} a FULL OUTER JOIN {QO} b "
                       f"ON a.source_file = b.source_file AND a.record_sha256 = b.record_sha256 WHERE a.record_sha256 IS NULL OR b.record_sha256 IS NULL"))
     only_v4, only_prod = int(miss[0] or 0), int(miss[1] or 0)
     print(f"2 keys: only in v4 {only_v4}, only in production {only_prod}; quarantine rows not matched {qmiss}")
@@ -103,11 +110,11 @@ def cmd_run(w, q, args):
         problems.append(f"{qmiss} quarantine rows not matched")
 
     # 3. every old column identical ----------------------------------------------------------------------------------------
-    def cols_of(schema):
+    def cols_of(schema, table):
         rows = q.run(f"SELECT column_name, data_type FROM system.information_schema.columns WHERE table_schema = '{schema.split('.')[1]}' "
-                     f"AND table_name = 'silver_product_versions' AND table_catalog = 'workspace' ORDER BY ordinal_position")
+                     f"AND table_name = '{table}' AND table_catalog = 'workspace' ORDER BY ordinal_position")
         return {x[0]: x[1] for x in rows}
-    new_cols, old_cols = cols_of(SI), cols_of(SI_PROD)
+    new_cols, old_cols = cols_of(NEW, "silver_product_versions"), cols_of(OLD, "silver_product_versions" + SUF)
     added = [n for n in new_cols if n not in old_cols]
     print(f"3 columns: production {len(old_cols)}, v4 {len(new_cols)}; added {sorted(added)}")
     if sorted(added) != sorted(NEW_COLUMNS) or len(new_cols) != len(c["columns"]) or any(n not in new_cols for n in old_cols):
@@ -147,7 +154,7 @@ def cmd_run(w, q, args):
 
     # 4. new columns against bronze's raw JSON ------------------------------------------------------------------------
     print("4 new columns: bronze raw-JSON count | silver count | note")
-    base = f"FROM {BR_PROD}.bronze_delta_raw WHERE code RLIKE '^[0-9]+$'"
+    base = f"FROM {BRS}.bronze_delta_raw WHERE code RLIKE '^[0-9]+$'"
     for n in NEW_TAGS:
         keep = f"e -> e rlike {lit(tag_rx)}" + (f" AND NOT (e rlike {lit(chr(92) + 'd{' + str(runs[n] + 1) + ',}')})" if n in runs else "")
         b = q.run(f"WITH y AS (SELECT from_json(get_json_object(raw_json, '$.{n}'), 'array<string>') a {base}) "
@@ -207,9 +214,9 @@ def cmd_run(w, q, args):
             print(f"  {n}: 0 of {int(row[0])} elements")
 
     # 6. lineage ----------------------------------------------------------------------------------------------------------
-    orphan = int(q.one(f"SELECT count(*) FROM {T} s LEFT JOIN {BR_PROD}.bronze_delta_raw b ON s.source_file = b.source_file AND s.file_sha256 = b.file_sha256 "
+    orphan = int(q.one(f"SELECT count(*) FROM {T} s LEFT JOIN {BRS}.bronze_delta_raw b ON s.source_file = b.source_file AND s.file_sha256 = b.file_sha256 "
                        f"AND s.code = b.code AND s.last_modified_t = b.last_modified_t WHERE b.code IS NULL"))
-    multi = int(q.one(f"SELECT count(*) FROM (SELECT s.code, s.last_modified_t FROM {T} s JOIN {BR_PROD}.bronze_delta_raw b ON s.source_file = b.source_file "
+    multi = int(q.one(f"SELECT count(*) FROM (SELECT s.code, s.last_modified_t FROM {T} s JOIN {BRS}.bronze_delta_raw b ON s.source_file = b.source_file "
                       f"AND s.code = b.code AND s.last_modified_t = b.last_modified_t GROUP BY 1, 2 HAVING count(*) > 1)"))
     ver = [tuple(x) for x in q.run(f"SELECT silver_contract_version, count(*) FROM {T} GROUP BY 1")]
     print(f"6 lineage: silver rows without exactly one bronze row {orphan} / {multi}; contract versions {ver}")
@@ -278,6 +285,9 @@ def main():
     ap.add_argument("--env-file")
     ap.add_argument("--write-metrics")
     ap.add_argument("--reuse", action="store_true")
+    ap.add_argument("--silver-schema", help="swap check: the schema that holds the NEW silver tables under their normal names")
+    ap.add_argument("--bronze-schema", help="swap check: the bronze schema the new silver was built from")
+    ap.add_argument("--old-suffix", help="swap check: suffix of the renamed old tables in the same schema, e.g. _v3")
     ap.add_argument("--write-failures")
     a = ap.parse_args()
     if a.env_file:
