@@ -1,7 +1,8 @@
 """Creates the Databricks job that archives the B2 capture bucket to the private Hugging Face repo.
 
-Two tasks, sourced from this public repo's main branch on serverless compute, one run at a time:
+Three tasks, sourced from this public repo's main branch on serverless compute, one run at a time:
   archive    p1_intake/notebooks/archive_to_hf.py
+  reconcile  p1_intake/notebooks/b2_reconcile.py        (after archive, even if it failed; lists B2, never downloads, writes nothing)
   retention  p1_intake/notebooks/landing_retention.py   (only if archive succeeded; deletes old landed delta files that bronze and
                                                          the archive both hold; same secrets, no new ones)
 It runs as the admin user (a job cannot be bound to a service principal on Free Edition). The secrets it needs are in
@@ -25,6 +26,7 @@ JOB = "packsense-archive"
 REPO = "https://github.com/Aayush8392/Packsense"
 NOTEBOOK = "p1_intake/notebooks/archive_to_hf"
 RETENTION_NOTEBOOK = "p1_intake/notebooks/landing_retention"
+RECONCILE_NOTEBOOK = "p1_intake/notebooks/b2_reconcile"
 # 16:00 UTC = 21:30 IST: after the capture (07:30 UTC plus GitHub's observed lateness of up to ~5.5 h) and the 09:00 UTC core run.
 # The job back-fills everything not yet archived, so a late capture only means the file is archived the next day.
 CRON = "0 0 16 * * ?"
@@ -48,6 +50,10 @@ def settings(with_schedule: bool) -> dict:
                # only if the archive succeeded (the default run_if): an archive problem stops every deletion
                jobs.Task(task_key="retention", depends_on=[jobs.TaskDependency(task_key="archive")], run_if=jobs.RunIf.ALL_SUCCESS,
                          notebook_task=jobs.NotebookTask(notebook_path=RETENTION_NOTEBOOK, source=jobs.Source.GIT,
+                                                         base_parameters={"run_id": "{{job.run_id}}"})),
+               # after the archive, and even if it failed: the audit is how a problem still gets reported (it only lists B2, never downloads)
+               jobs.Task(task_key="reconcile", depends_on=[jobs.TaskDependency(task_key="archive")], run_if=jobs.RunIf.ALL_DONE,
+                         notebook_task=jobs.NotebookTask(notebook_path=RECONCILE_NOTEBOOK, source=jobs.Source.GIT,
                                                          base_parameters={"run_id": "{{job.run_id}}"}))],
         max_concurrent_runs=1,
         timeout_seconds=3600,

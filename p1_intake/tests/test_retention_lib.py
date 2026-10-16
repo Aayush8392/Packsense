@@ -106,7 +106,7 @@ def test_the_archive_job_runs_retention_second_and_only_if_the_archive_succeeded
     import create_archive_job as job
     s = job.settings(True)
     tasks = {t.task_key: t for t in s["tasks"]}
-    assert list(tasks) == ["archive", "retention"] and tasks["archive"].depends_on is None
+    assert list(tasks) == ["archive", "retention", "reconcile"] and tasks["archive"].depends_on is None
     assert [d.task_key for d in tasks["retention"].depends_on] == ["archive"]
     assert tasks["retention"].run_if.value == "ALL_SUCCESS"
     assert tasks["retention"].notebook_task.notebook_path == "p1_intake/notebooks/landing_retention"
