@@ -1,12 +1,13 @@
 # PackSense Databricks Asset Bundle: the two scheduled jobs, deployed as a fixed copy of the code instead of
 # running notebooks straight from `main`.
 #
-# dev  : scratch schemas and a scratch landing folder, no schedules (development mode pauses them), no healthchecks pings.
-#        The archive job is deployed there too but must not be run: it would write to the real HF repo and use the B2 caps.
-# prod : the real schemas and landing volume and the current schedules; deployed only by the deploy principal.
+# dev  : scratch schemas, its own landing volume and secret scope, no schedules (development mode pauses them), no pings.
+#        Deployed by the dev principal, which has rights on dev objects only. The archive job is deployed there too but
+#        cannot work (the dev scope holds no B2 or HF keys); do not run it.
+# prod : the real schemas, landing volume and scope and the current schedules; deployed only by the prod principal.
 #
-# The identity that deploys also runs the jobs (Free Edition cannot bind a job to another identity), so it needs the grants
-# listed in p3_delivery/README.md. Schemas are created beforehand by an admin; the deployer never creates them.
+# The identity that deploys also runs the jobs (Free Edition cannot bind a job to another identity), so each principal
+# needs the grants listed in p3_delivery/README.md. Schemas and volumes are created beforehand by an admin.
 bundle:
   name: packsense
 
@@ -30,6 +31,8 @@ variables:
     default: workspace.packsense_silver
   landing:
     default: /Volumes/workspace/packsense/landing
+  secret_scope:
+    default: packsense
   ping:
     description: whether the notebooks ping healthchecks.io ("true" or "false")
     default: "true"
@@ -41,7 +44,8 @@ targets:
     variables:
       bronze_schema: workspace.packsense_dev_bronze
       silver_schema: workspace.packsense_dev_silver
-      landing: /Volumes/workspace/packsense/landing/_dev
+      landing: /Volumes/workspace/packsense_dev/landing   # its own volume: the dev principal has no rights on the real one
+      secret_scope: packsense_dev                         # holds only a throwaway HMAC key: dev never sees the real secrets
       ping: "false"
   prod:
     # No custom root_path: only the deploy principal deploys prod, so its own home folder (private to it) holds the files and

@@ -29,15 +29,21 @@ resources:
               bronze_result: "{{tasks.bronze.result_state}}"
               bronze_schema: ${var.bronze_schema}
               silver_schema: ${var.silver_schema}
+              secret_scope: ${var.secret_scope}
               ping_healthchecks: ${var.ping}
         - task_key: drift
           depends_on:
             - task_key: silver
           run_if: ALL_DONE
+          # An ALERT makes the notebook raise on purpose (the check stays red, the load is untouched). Serverless retries a
+          # failed task by itself; the retry finds the day already judged, pings OK and turns the check green within a minute,
+          # which hides the alert (seen 2026-10-16). So no automatic retry for this task.
+          disable_auto_optimization: true
           notebook_task:
             notebook_path: ../../p2_lakehouse/notebooks/drift_check.py
             base_parameters:
               run_id: "{{job.run_id}}"
               bronze_schema: ${var.bronze_schema}
               silver_schema: ${var.silver_schema}
+              secret_scope: ${var.secret_scope}
               ping_healthchecks: ${var.ping}

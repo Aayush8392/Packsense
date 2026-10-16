@@ -17,6 +17,7 @@ resources:
             notebook_path: ../../p1_intake/notebooks/archive_to_hf.py
             base_parameters:
               run_id: "{{job.run_id}}"
+              secret_scope: ${var.secret_scope}
               ping_healthchecks: ${var.ping}
         - task_key: retention
           depends_on:
@@ -26,6 +27,7 @@ resources:
             notebook_path: ../../p1_intake/notebooks/landing_retention.py
             base_parameters:
               run_id: "{{job.run_id}}"
+              secret_scope: ${var.secret_scope}
               landing: ${var.landing}
               bronze_schema: ${var.bronze_schema}
               ping_healthchecks: ${var.ping}
@@ -37,5 +39,6 @@ resources:
             notebook_path: ../../p1_intake/notebooks/b2_reconcile.py
             base_parameters:
               run_id: "{{job.run_id}}"
+              secret_scope: ${var.secret_scope}
               landing: ${var.landing}
               ping_healthchecks: ${var.ping}
