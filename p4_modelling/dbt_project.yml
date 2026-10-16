@@ -15,3 +15,5 @@ models:
   packsense:
     databricks:
       +materialized: view
+    portable:
+      +materialized: table

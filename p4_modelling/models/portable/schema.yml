@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: product_history
+    description: >
+      SCD2 history of every product, one row per period, derived from silver's version history and rebuilt in full every run.
+      A new period opens only when the tracked set changes (see macros/tracked.sql); versions that change nothing are merged.
+      The open row is is_latest_observed (never "current": OFF publishes no deletions).
+    columns:
+      - name: history_key
+        description: Deterministic hash of (code, valid_from_t), so a rebuild reproduces the same keys.
+        data_tests: [unique, not_null]
+      - name: code
+        data_tests: [not_null]
+      - name: valid_from_t
+        description: Unix seconds of the version that opened the period (OFF's last_modified_t).
+        data_tests: [not_null]
+      - name: valid_to_t
+        description: Unix seconds of the next period's first version; NULL on the open row.
+      - name: versions_merged
+        description: How many silver versions the period covers (1 plus the no-op versions merged into it).
+        data_tests: [not_null]
+      - name: unseen_edits
+        description: Edits OFF counted (rev) between our versions in this period that we never observed.
+      - name: is_latest_observed
+        description: 1 on the newest period of a code, else 0.
+        data_tests: [not_null]
+
+  - name: product_status
+    description: >
+      Existence status per product. Created now, every product `unverified`; filled by the monthly reconciliation (P9).
+      Incremental: only new codes are inserted, existing rows are never touched.
+    columns:
+      - name: code
+        data_tests: [unique, not_null]
+      - name: status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['unverified', 'exists', 'deleted_or_merged']

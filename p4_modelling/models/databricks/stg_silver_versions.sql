@@ -41,5 +41,6 @@ select
                 0,
                 (acc, x) -> acc + x
             ) % 10)) % 10 = cast(substr(gtin14, 14, 1) as int)
-    end as code_check_digit_valid
+    end as code_check_digit_valid,
+    {{ tracked_hash() }} as tracked_hash
 from parsed
