@@ -13,6 +13,10 @@ Two layers:
      day is an ALERT; a rise or a volume change is a WARN.
   2. Fields we do not use. Per run: OFF sends thousands of top-level field names, many generated per language or timestamp, so names are
      first grouped into families; a family never seen before is a WARN (silver drops it by design, nothing breaks; a human decides).
+  3. How often the shape checks change a value. The notebook re-runs the silver transform in memory over each delta day (nothing is
+     written to silver) and counts dropped tags, values that fail their column type, dropped nutrient entries and nulled enums. A rate
+     (per 100 products) clearly above the highest recent day is an ALERT. This catches the partial breakage that layer 1 cannot see:
+     a column whose share barely moves while more of its values stop fitting.
 Limits: it sees presence and shape, not meaning (a field that keeps its name but changes unit is invisible); with fewer than
 MIN_BASELINE earlier days it only records a warm-up; the thresholds below are judgement calls from 14 real days and are re-checked
 as history grows (the window then moves with it).
@@ -26,6 +30,10 @@ MARGIN_POINTS = 5.0      # percentage points beyond the recent range before a sh
 COLLAPSED = 0.25         # a share below this fraction of the lowest recent day is a collapse, if that low level meant at least...
 MIN_EXPECTED_ROWS = 15   # ...this many products (so a column present on only 0.3% of 6,000 products is still watched, but not noise)
 VOLUME_LOW, VOLUME_HIGH = 0.5, 2.0   # products per day outside [0.5 x lowest, 2 x highest] is a WARN
+RATE_FACTOR = 2.0        # layer 3 (PROVISIONAL, calibrated on the real per-day counts): an ALERT needs a rate above this multiple of the
+RATE_FLOOR = 0.5         # highest recent day AND at least this many points per 100 products above it, and at least...
+MIN_RATE_COUNT = 15      # ...this many failures that day (a handful of odd values is noise)
+ROWS_METRIC = "_rows"    # stored with every measured day: the products behind the counts, and the proof the day was measured
 FORMATS = ("new", "legacy", "none")
 COVERAGE_CLASSES = ("public", "hashed")
 
@@ -65,6 +73,62 @@ def metrics_from_row(row: dict, columns: list[str]) -> dict:
         "format": {f: float(row[f"fmt_{f}"]) for f in FORMATS},
         "schema_versions": sorted(v for v in (row["schema_versions"] or "").split(",") if v),
     }
+
+
+def measure(batch) -> dict[str, int]:
+    """Counts for one measured day from a run.BatchResult: {metric: count}, only non-zero counts plus ROWS_METRIC.
+
+    Metric names: coerce:<column or nutrient field> (a value did not fit its type and became NULL), tags:<column> (tags dropped by the
+    shape check), nutrient_entries_dropped, enums_nulled. Counts only; no record content is ever kept.
+    """
+    out = {ROWS_METRIC: int(batch.rows_in)}
+    for k, n in batch.coerce_failures.items():
+        if n:
+            out[f"coerce:{k}"] = int(n)
+    for k, n in batch.tags_dropped.items():
+        if n:
+            out[f"tags:{k}"] = int(n)
+    for k in ("nutrient_entries_dropped", "enums_nulled"):
+        if getattr(batch, k):
+            out[k] = int(getattr(batch, k))
+    return out
+
+
+def failures_by_file(rows) -> dict[str, dict[str, int]]:
+    """Rows of silver_drift_metrics (source_file, metric, count) -> {file: {metric: count}}."""
+    out: dict[str, dict[str, int]] = {}
+    for r in rows:
+        out.setdefault(r["source_file"], {})[r["metric"]] = int(r["count"])
+    return out
+
+
+def attach_failures(days: list[dict], by_file: dict[str, dict[str, int]]) -> list[dict]:
+    """Days (metrics dicts) with their measured counts under 'failures'; a day that was not measured stays without the key."""
+    for d in days:
+        if d["file"] in by_file:
+            d["failures"] = by_file[d["file"]]
+    return days
+
+
+def _rate(counts: dict[str, int], metric: str) -> float:
+    return 100.0 * counts.get(metric, 0) / counts[ROWS_METRIC]
+
+
+def failure_findings(day: dict, earlier: list[dict]) -> list[Finding]:
+    """Layer 3 for a measured day. Only a rise matters (a fall in failures is already visible as coverage or mix moving)."""
+    hist = [e["failures"] for e in earlier if e.get("failures") and e["failures"].get(ROWS_METRIC)]
+    if len(hist) < MIN_BASELINE:
+        return [Finding("WARMUP", "failure_rates_baseline_short", float(len(hist)), float(MIN_BASELINE), None,
+                        f"only {len(hist)} earlier measured day(s); {MIN_BASELINE} are needed before failure rates are judged")]
+    today = day["failures"]
+    out = []
+    for metric in sorted(m for m in today if m != ROWS_METRIC):
+        rates = [_rate(h, metric) for h in hist]
+        lo, hi, rate = min(rates), max(rates), _rate(today, metric)
+        if today[metric] >= MIN_RATE_COUNT and rate > max(RATE_FACTOR * hi, hi + RATE_FLOOR):
+            out.append(Finding("ALERT", "failure_rate", rate, lo, hi,
+                               f"{metric}: {today[metric]} of {today[ROWS_METRIC]} products ({rate:.2f} per 100), the recent days had {lo:.2f}-{hi:.2f}"))
+    return out
 
 
 # ---- layer 1: the fields we use ---------------------------------------------------------------------------------------
@@ -114,6 +178,8 @@ def judge(day: dict, earlier: list[dict]) -> list[Finding]:
     for v in day["schema_versions"]:
         if v not in seen:
             out.append(Finding("ALERT", "schema_version", None, None, None, f"schema_version {v} was never seen in the recent days ({', '.join(sorted(seen))})"))
+    if day.get("failures"):          # layer 3 runs only for measured days; a day without counts is judged by layers 1 and 2 as before
+        out.extend(failure_findings(day, earlier))
     return out
 
 

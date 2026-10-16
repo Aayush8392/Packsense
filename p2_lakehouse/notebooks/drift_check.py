@@ -11,7 +11,11 @@
 # silver_drift_report (an alert is raised on the day it is found, the table keeps it afterwards).
 #   layer 1 (per day = one delta file): share of products with a value for each nullable contract column, the nutrition-format mix,
 #           products per day, schema_version values, against the last 30 earlier days;
-#   layer 2 (per silver run of daily files): families of top-level field names never seen in an earlier run (a WARN, nothing breaks).
+#   layer 2 (per silver run of daily files): families of top-level field names never seen in an earlier run (a WARN, nothing breaks);
+#   layer 3 (per day): how often the shape checks changed a value (dropped tags, values that do not fit their type, dropped nutrient
+#           entries, nulled enums). Each day's bronze rows are run through the silver transform in memory (nothing is written to silver,
+#           the hashing key is a throwaway) and only the counts are stored in silver_drift_metrics. The first run measures every
+#           existing day; later runs measure the new day. If measuring fails, the report is still written and this task ends red.
 # Widgets for tests: evaluate_prefix / baseline_prefix (judge another population, e.g. the seed, against the daily files).
 
 # COMMAND ----------
@@ -43,7 +47,8 @@ def find_p2_lakehouse():
 
 
 sys.path.insert(0, find_p2_lakehouse())
-from silver_lib import contract, drift, schema  # noqa: E402
+from pyspark.sql import functions as F  # noqa: E402
+from silver_lib import contract, drift, run, schema, transform  # noqa: E402
 
 dbutils.widgets.text("run_id", "manual")
 dbutils.widgets.text("silver_schema", "workspace.packsense_silver")
@@ -64,7 +69,9 @@ BASE_PREFIX = dbutils.widgets.get("baseline_prefix").strip()
 C = contract.relocate(contract.load(), silver_schema=SILVER_SCHEMA)
 CR = contract.relocate(contract.load(), silver_schema=REPORT_SCHEMA)     # the report may live elsewhere than the silver tables (tests)
 REPORT = schema.drift_report_table(CR)
+METRICS = schema.drift_metrics_table(CR)
 COLS = drift.coverage_columns(C)
+MEASURE_KEY = "drift-measure-only-throwaway-key"      # the transform needs a key to hash identities; those hashes are discarded here
 
 # COMMAND ----------
 ping_url = dbutils.secrets.get(SCOPE, "healthchecks_drift_ping_url") if PING else None
@@ -82,6 +89,8 @@ def ping(suffix="", body=None):
 
 ping("/start")
 spark.sql(schema.drift_report_table_sql(CR))
+spark.sql(schema.drift_metrics_table_sql(CR))
+problems = []
 
 
 def day_metrics(prefix):
@@ -97,6 +106,27 @@ def judged(kind):
 # Layer 1: the days (delta files) not judged yet.
 days = day_metrics(EVAL_PREFIX)
 baseline_days = day_metrics(BASE_PREFIX) if BASE_PREFIX and BASE_PREFIX != EVAL_PREFIX else None
+
+# Layer 3 counts: measure the days that have none yet (the seed, judged against the daily files, has no counts and skips layer 3).
+if baseline_days is None:
+    measured = {r[0] for r in spark.table(METRICS).select("source_file").distinct().collect()}
+    ctx = transform.Context(C, MEASURE_KEY)
+    for d in days:
+        if d["file"] in measured:
+            continue
+        try:
+            raw = [r.asDict() for r in spark.table(C["source_table"]).where(F.col("source_file") == d["file"])
+                   .select("code", "last_modified_t", "raw_json", "source_file", "file_sha256", "ingested_at").collect()]
+            counts = drift.measure(run.process_batch(raw, ctx, RUN_ID, dt.datetime.utcnow()))
+            spark.createDataFrame([(dt.datetime.utcnow(), RUN_ID, d["file"], m, n) for m, n in counts.items()],
+                                  schema="measured_at TIMESTAMP, drift_run_id STRING, source_file STRING, metric STRING, count BIGINT"
+                                  ).write.mode("append").saveAsTable(METRICS)
+            print(f"measured {d['file']}: {counts[drift.ROWS_METRIC]:,} products, {len(counts) - 1} kind(s) of failure")
+        except Exception as e:      # the message is cut short: it must never carry record contents into the logs
+            problems.append(f"measuring {d['file']}: {type(e).__name__}: {str(e)[:120]}")
+            print("MEASURE FAILED", d["file"], type(e).__name__)
+    drift.attach_failures(days, drift.failures_by_file(r.asDict() for r in spark.table(METRICS).collect()))
+
 file_results = drift.evaluate_pending(days, judged("file"), baseline_days)
 print(f"{len(days)} day(s) in silver with prefix {EVAL_PREFIX!r}, {len(file_results)} to judge")
 
@@ -132,6 +162,9 @@ text = drift.summary(findings, len(file_results), len(run_results))
 print(text)
 result = {"days_judged": len(file_results), "runs_judged": len(run_results), **{k.lower(): v for k, v in counts.items()}}
 print(json.dumps(result))
+if problems:      # the findings above are already stored; this only turns the drift check red, the load is never touched
+    ping("/fail", text + " | " + "; ".join(problems))
+    raise RuntimeError("drift check could not measure every day:\n" + "\n".join(problems)[:3000])
 if counts["ALERT"]:
     ping("/fail", text)
     raise RuntimeError("drift check found alerts (details in " + REPORT + "):\n" + "\n".join(f.detail for f in findings if f.level == "ALERT")[:3000])

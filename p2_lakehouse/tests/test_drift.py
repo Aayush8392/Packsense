@@ -225,3 +225,67 @@ def test_the_ping_summary_is_short_and_names_alerts_first():
     assert text.startswith("drift: 1 day(s) and 0 run(s) judged;") and "alert" in text and len(text) <= 1000
     assert "of products have a value" in text or "nutrition format" in text
     assert drift.summary([], 0, 0) == "drift: 0 day(s) and 0 run(s) judged; 0 alert, 0 warn, 0 warm-up"
+
+
+# ---- layer 3: how often the shape checks change a value (measuring; the judging tests use real counts, see below) -------------
+
+import datetime as dt  # noqa: E402
+
+from silver_lib import run  # noqa: E402
+
+KEY = "test-key-not-a-secret-0000000000000000000000000000000000"
+RECORDS = [json.loads(line) for line in open(FIX / "bronze_records.jsonl", encoding="utf-8")]
+NOW = dt.datetime(2026, 10, 14, 9, 5)
+
+
+def bronze_row(raw):
+    d = json.loads(raw)
+    return {"code": d.get("code"), "last_modified_t": d.get("last_modified_t"), "raw_json": raw, "source_file": "f",
+            "file_sha256": "ab" * 32, "ingested_at": NOW}
+
+
+def measured(raws):
+    return drift.measure(run.process_batch([bronze_row(r) for r in raws], transform.Context(C, KEY), "r", NOW))
+
+
+def real(case):
+    return next(r["raw_json"] for r in RECORDS if r["case"] == case)
+
+
+def test_measure_counts_the_real_fixture_batch_and_keeps_only_non_zero_counts():
+    raws = [r["raw_json"] for r in RECORDS]
+    batch = run.process_batch([bronze_row(r) for r in raws], transform.Context(C, KEY), "r", NOW)
+    m = drift.measure(batch)
+    assert m[drift.ROWS_METRIC] == len(raws) and all(n > 0 for n in m.values())
+    for k, n in batch.coerce_failures.items():
+        assert m.get(f"coerce:{k}", 0) == n
+    for k, n in batch.tags_dropped.items():
+        assert m.get(f"tags:{k}", 0) == n
+    assert all(k == drift.ROWS_METRIC or k.split(":")[0] in ("coerce", "tags") or k in ("nutrient_entries_dropped", "enums_nulled") for k in m)
+
+
+def test_a_malformed_tag_added_to_a_real_record_shows_up_as_exactly_one_dropped_tag():
+    raw = real("normal_new")
+    before = measured([raw])
+    d = json.loads(raw)
+    d["categories_tags"] = list(d.get("categories_tags") or []) + ["en:not a tag!"]
+    after = measured([json.dumps(d)])
+    assert after.get("tags:categories_tags", 0) == before.get("tags:categories_tags", 0) + 1
+
+
+def test_a_value_that_does_not_fit_its_type_shows_up_as_a_coercion_failure():
+    raw = real("normal_new")
+    d = json.loads(raw)
+    d["last_modified_t"] = d["last_modified_t"]            # keep the key valid: the break goes in a nullable numeric column
+    d["completeness"] = "not a number"
+    after = measured([json.dumps(d)])
+    assert after.get("coerce:completeness", 0) == 1 and after[drift.ROWS_METRIC] == 1
+
+
+def test_failures_by_file_and_attach_round_trip_the_stored_rows():
+    rows = [{"source_file": "a", "metric": "_rows", "count": "100"}, {"source_file": "a", "metric": "tags:labels_tags", "count": 7},
+            {"source_file": "b", "metric": "_rows", "count": 50}]
+    by = drift.failures_by_file(rows)
+    assert by == {"a": {"_rows": 100, "tags:labels_tags": 7}, "b": {"_rows": 50}}
+    days = drift.attach_failures([{"file": "a"}, {"file": "c"}], by)
+    assert days[0]["failures"] == by["a"] and "failures" not in days[1]

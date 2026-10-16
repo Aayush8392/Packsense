@@ -106,3 +106,12 @@ def test_drift_report_table_sits_next_to_the_silver_table_and_moves_with_it():
     for needed in ("evaluated_at", "drift_run_id", "subject_kind", "subject", "check_name", "level", "observed", "baseline_low", "baseline_high", "detail"):
         assert needed in cols, needed
     assert sql.endswith("USING DELTA") and sql.count("(") == sql.count(")")
+
+
+def test_drift_metrics_table_sits_next_to_the_silver_table_and_moves_with_it():
+    assert schema.drift_metrics_table(C) == "workspace.packsense_silver.silver_drift_metrics"
+    moved = contract.relocate(C, silver_schema="workspace.scratch_s")
+    sql = schema.drift_metrics_table_sql(moved)
+    assert "CREATE TABLE IF NOT EXISTS workspace.scratch_s.silver_drift_metrics (" in sql and "packsense_silver" not in sql
+    assert set(ddl_columns(sql)) >= {"measured_at", "drift_run_id", "source_file", "metric", "count"}
+    assert sql.endswith("USING DELTA") and sql.count("(") == sql.count(")")

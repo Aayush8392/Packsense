@@ -97,6 +97,21 @@ def drift_report_table_sql(contract: dict) -> str:
 ) USING DELTA"""
 
 
+def drift_metrics_table(contract: dict) -> str:
+    """Per delta day, how often the shape checks changed a value (counts only, no content); next to the drift report."""
+    return contract["table"].rsplit(".", 1)[0] + ".silver_drift_metrics"
+
+
+def drift_metrics_table_sql(contract: dict) -> str:
+    return f"""CREATE TABLE IF NOT EXISTS {drift_metrics_table(contract)} (
+  measured_at TIMESTAMP NOT NULL,
+  drift_run_id STRING NOT NULL,
+  source_file STRING NOT NULL,
+  metric STRING NOT NULL,
+  count BIGINT NOT NULL
+) USING DELTA"""
+
+
 def struct_ddl(contract: dict) -> str:
     """Column list for spark.createDataFrame(rows, schema=...): the table's columns without NOT NULL."""
     return ", ".join(f"{c['name']} {spark_type(c['type'])}" for c in contract["columns"])
