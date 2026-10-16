@@ -5,20 +5,25 @@
    "tags:allergens_tags": 68,
    "tags:categories_tags": 770,
    "tags:labels_tags": 197,
+   "tags:origins_tags": 84,
+   "tags:packaging_tags": 7,
    "tags:traces_tags": 65
   },
   "openfoodfacts_products_1790836258_1790922999.json.gz": {
    "_rows": 6812,
    "tags:allergens_tags": 40,
    "tags:categories_tags": 453,
-   "tags:labels_tags": 111,
+   "tags:labels_tags": 112,
+   "tags:origins_tags": 147,
    "tags:traces_tags": 51
   },
   "openfoodfacts_products_1790922999_1791008573.json.gz": {
    "_rows": 6705,
    "tags:allergens_tags": 41,
    "tags:categories_tags": 368,
-   "tags:labels_tags": 112,
+   "tags:labels_tags": 113,
+   "tags:origins_tags": 68,
+   "tags:packaging_tags": 2,
    "tags:traces_tags": 39
   },
   "openfoodfacts_products_1791008573_1791094877.json.gz": {
@@ -26,20 +31,25 @@
    "tags:allergens_tags": 21,
    "tags:categories_tags": 393,
    "tags:labels_tags": 119,
+   "tags:origins_tags": 80,
+   "tags:packaging_tags": 1,
    "tags:traces_tags": 20
   },
   "openfoodfacts_products_1791094877_1791181482.json.gz": {
    "_rows": 6365,
    "tags:allergens_tags": 44,
    "tags:categories_tags": 318,
-   "tags:labels_tags": 86,
-   "tags:traces_tags": 39
+   "tags:labels_tags": 88,
+   "tags:origins_tags": 60,
+   "tags:traces_tags": 40
   },
   "openfoodfacts_products_1791181482_1791268364.json.gz": {
    "_rows": 7760,
    "tags:allergens_tags": 546,
    "tags:categories_tags": 442,
-   "tags:labels_tags": 278,
+   "tags:labels_tags": 279,
+   "tags:origins_tags": 153,
+   "tags:packaging_tags": 2,
    "tags:traces_tags": 144
   },
   "openfoodfacts_products_1791268364_1791354008.json.gz": {
@@ -47,6 +57,8 @@
    "tags:allergens_tags": 51,
    "tags:categories_tags": 322,
    "tags:labels_tags": 168,
+   "tags:origins_tags": 90,
+   "tags:packaging_tags": 2,
    "tags:traces_tags": 97
   },
   "openfoodfacts_products_1791354008_1791440891.json.gz": {
@@ -54,13 +66,17 @@
    "tags:allergens_tags": 77,
    "tags:categories_tags": 442,
    "tags:labels_tags": 186,
+   "tags:origins_tags": 95,
+   "tags:packaging_tags": 7,
    "tags:traces_tags": 175
   },
   "openfoodfacts_products_1791440891_1791527472.json.gz": {
    "_rows": 6223,
    "tags:allergens_tags": 69,
    "tags:categories_tags": 354,
-   "tags:labels_tags": 134,
+   "tags:labels_tags": 135,
+   "tags:origins_tags": 81,
+   "tags:packaging_tags": 3,
    "tags:traces_tags": 125
   },
   "openfoodfacts_products_1791527472_1791613749.json.gz": {
@@ -68,6 +84,8 @@
    "tags:allergens_tags": 98,
    "tags:categories_tags": 446,
    "tags:labels_tags": 159,
+   "tags:origins_tags": 121,
+   "tags:packaging_tags": 1,
    "tags:traces_tags": 222
   },
   "openfoodfacts_products_1791613749_1791700013.json.gz": {
@@ -75,6 +93,8 @@
    "tags:allergens_tags": 26,
    "tags:categories_tags": 362,
    "tags:labels_tags": 121,
+   "tags:origins_tags": 77,
+   "tags:packaging_tags": 1,
    "tags:traces_tags": 29
   },
   "openfoodfacts_products_1791700013_1791786521.json.gz": {
@@ -82,6 +102,8 @@
    "tags:allergens_tags": 17,
    "tags:categories_tags": 271,
    "tags:labels_tags": 56,
+   "tags:origins_tags": 37,
+   "tags:packaging_tags": 2,
    "tags:traces_tags": 22
   },
   "openfoodfacts_products_1791786521_1791872470.json.gz": {
@@ -89,6 +111,7 @@
    "tags:allergens_tags": 56,
    "tags:categories_tags": 283,
    "tags:labels_tags": 89,
+   "tags:origins_tags": 52,
    "tags:traces_tags": 107
   },
   "openfoodfacts_products_1791872470_1791958972.json.gz": {
@@ -96,14 +119,18 @@
    "tags:allergens_tags": 70,
    "tags:categories_tags": 386,
    "tags:labels_tags": 118,
-   "tags:traces_tags": 143
+   "tags:origins_tags": 100,
+   "tags:packaging_tags": 2,
+   "tags:traces_tags": 144
   },
   "openfoodfacts_products_1791958972_1792045568.json.gz": {
    "_rows": 8001,
    "tags:allergens_tags": 54,
    "tags:categories_tags": 368,
    "tags:labels_tags": 165,
-   "tags:traces_tags": 45
+   "tags:origins_tags": 66,
+   "tags:packaging_tags": 1,
+   "tags:traces_tags": 46
   }
  }
 }

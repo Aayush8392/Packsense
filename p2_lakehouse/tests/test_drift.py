@@ -1,7 +1,8 @@
 """Schema-drift checks, on real numbers.
 
-fixtures/drift_metrics.json: per-source-file metrics measured on production silver (aggregates only, no personal data) for the 14 real
-delta days (13-14 Oct 2026 files) and the 13 parts of the India seed from the full dump.
+fixtures/drift_metrics.json: per-source-file metrics (aggregates only, no personal data) for the 14 real delta days (13-14 Oct 2026
+files) and the 13 parts of the India seed from the full dump, measured on a scratch rebuild of silver under contract v4 (69 coverage
+columns; identical to production silver for the 59 older columns except the 2 old-format delta rows the v4 rebuild maps).
 fixtures/field_names_first_run.txt: the 6,121 real top-level field names OFF sent in those 14 days.
 Edge cases change one number of a real day, the way the other silver tests change one field of a real record.
 """
@@ -46,7 +47,8 @@ def test_coverage_columns_are_the_nullable_public_and_hashed_contract_columns():
     assert len(cols) == 69 and "nutrients" in cols and "input_sets" in cols and "creator_hmac" in cols
     assert all(by_name[c]["nullable"] and by_name[c]["class"] in ("public", "hashed") for c in cols)
     assert "code" not in cols and "nutrition_format" not in cols and "source_file" not in cols
-    assert set(cols) - V4_COLUMNS == set(DAYS[0]["coverage"])          # the fixture was measured on v3 silver: the 59 pre-v4 columns
+    assert set(cols) == set(DAYS[0]["coverage"])          # the fixture was measured on v4 silver with exactly these columns
+    assert V4_COLUMNS <= set(cols) and len(V4_COLUMNS) == 10
 
 
 def test_metrics_sql_has_one_share_per_column_the_format_mix_and_an_exact_prefix_match():
