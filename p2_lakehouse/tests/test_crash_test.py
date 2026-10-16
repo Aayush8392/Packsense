@@ -20,6 +20,16 @@ def test_pick_files_takes_the_middle_by_size_and_ignores_non_deltas():
                           "openfoodfacts_products_delta_20261001.json.gz"])
 
 
+def test_pick_files_always_includes_the_required_files_and_fills_around_them():
+    must = "openfoodfacts_products_delta_20261004.json.gz"      # the biggest: the plain middle pick would not choose it
+    got = c.pick_files(SIZES, 3, [must])
+    assert must in got and len(got) == 3 and got == sorted(got)
+    assert c.pick_files(SIZES, 3, ["not_a_landed_file.json.gz"]) == c.pick_files(SIZES, 3)      # a file that is not in landing is ignored
+    assert c.pick_files(SIZES, 3, []) == c.pick_files(SIZES, 3)
+    with pytest.raises(ValueError):
+        c.pick_files(SIZES, 2, [k for k in SIZES if k.endswith(".json.gz")][:3])
+
+
 def test_pick_files_needs_enough_files():
     with pytest.raises(ValueError):
         c.pick_files({"a.json.gz": 1})

@@ -12,6 +12,7 @@ The notebooks themselves run unchanged from the git branch (their widgets alread
   python p2_lakehouse/bootstrap/crash_test.py setup   --env-file PATH           pick the mid-sized delta files, copy, seed, fingerprint production
   python p2_lakehouse/bootstrap/crash_test.py bronze  --env-file PATH [--trials 3] [--branch main]
   python p2_lakehouse/bootstrap/crash_test.py silver  --env-file PATH [--trials 3] [--branch main]
+  python p2_lakehouse/bootstrap/crash_test.py window  --env-file PATH [--branch main]   the silver-to-quarantine window (see cmd_window)
   python p2_lakehouse/bootstrap/crash_test.py cleanup --env-file PATH           drop scratch, remove copies, compare the fingerprint
 Environment: DATABRICKS_HOST, DATABRICKS_TOKEN (admin). Values are never printed. No B2, Hugging Face or secret is touched.
 A kill cannot be aimed exactly: each trial records which write window it landed in, and the trial count is the user's budget.
@@ -64,13 +65,19 @@ elif mode == "remove":
 
 # ---- pure logic (unit-tested) ------------------------------------------------------------------------------------------
 
-def pick_files(sizes: dict, n: int = 6) -> list:
-    """The n delta files in the middle of the size ranking (not the smallest, not the biggest): a stable, representative choice."""
+def pick_files(sizes: dict, n: int = 6, must_include=()) -> list:
+    """The n delta files in the middle of the size ranking (not the smallest, not the biggest): a stable, representative choice.
+    must_include: files that have to be in the set (for example those holding quarantined rows); the rest is picked around them."""
     names = sorted((k for k in sizes if k.endswith(".json.gz")), key=lambda k: (sizes[k], k))
     if len(names) < n:
         raise ValueError(f"need {n} delta files, found {len(names)}")
-    start = (len(names) - n) // 2
-    return sorted(names[start:start + n])
+    must = sorted(set(must_include) & set(names))
+    if len(must) > n:
+        raise ValueError(f"{len(must)} files must be included but only {n} are used")
+    rest = [k for k in names if k not in must]
+    k = n - len(must)
+    start = (len(rest) - k) // 2
+    return sorted(must + rest[start:start + k])
 
 
 def should_kill(mode: str, written: int, recorded: int, total: int) -> bool:
@@ -222,13 +229,19 @@ def fingerprint(q: Sql) -> dict:
 
 def cmd_setup(w, q: Sql, args):
     sizes = {i.name: i.file_size for i in w.files.list_directory_contents(f"{LANDING}/deltas") if not i.is_directory}
-    files = pick_files(sizes, args.files_n)
+    # files that hold quarantined rows in production must be in the set, so the silver-to-quarantine write step is exercised
+    qfiles = [r[0] for r in q.run(f"SELECT DISTINCT source_file FROM {PROD_SILVER}.silver_quarantine WHERE source_file IS NOT NULL")]
+    files = pick_files(sizes, args.files_n, qfiles)
+    in_set = [f for f in files if f in qfiles]
     print("chosen files:", {f: sizes[f] for f in files})
+    print("files with quarantined rows in production:", len(qfiles), "| in the chosen set:", len(in_set))
+    if not in_set:
+        print("WARNING: no file with quarantined rows is available in landing; the quarantine write step cannot be exercised")
     done_b = int(q.one(f"SELECT count(*) FROM {PROD_BRONZE}.bronze_manifest WHERE file_name IN ({inlist(files)})"))
     done_s = int(q.one(f"SELECT count(*) FROM {PROD_SILVER}.silver_manifest WHERE file_name IN ({inlist(files)})"))
     if done_b != len(files) or done_s != len(files):
         sys.exit(f"these files are not finished in production bronze ({done_b}) and silver ({done_s}): pick again")
-    state = {"files": files, "fingerprint": fingerprint(q), "results": {}}
+    state = {"files": files, "quarantine_files": in_set, "fingerprint": fingerprint(q), "results": {}}
     save_state(state)
 
     nb = helper_notebook_path(w)
@@ -484,9 +497,48 @@ def cmd_silver(w, q: Sql, args):
     save_state(state)
 
 
+def cmd_window(w, q: Sql, args):
+    """The exact window a kill cannot be aimed at (silver rows written, quarantine rows not yet): run silver normally on scratch,
+    then remove the quarantine rows and the manifest row of the quarantine files, which is the state a crash in that window leaves,
+    and recover. The crash STATE is constructed, the recovery run and the comparison with production are real."""
+    wait_idle(w)
+    state = load_state()
+    files, qfiles = state["files"], state.get("quarantine_files", [])
+    if not qfiles:
+        sys.exit("no file with quarantined rows is in the setup set: run cleanup, then setup again")
+    q.run(f"DROP SCHEMA IF EXISTS {SCR_SILVER} CASCADE")
+    params = {"bronze_schema": SCR_SBRONZE, "silver_schema": SCR_SILVER, "ping_healthchecks": "false",
+              "only_files": ",".join(files), "bronze_result": "n/a"}
+    waiter = submit(w, "packsense-kill-window-1", SILVER_NB, {**params, "run_id": "kill-w-1"}, args.branch)
+    res, r = wait_terminal(w, waiter.run_id)
+    text, err = run_output(w, r)
+    print("normal run:", res, text, err, flush=True)
+    if res != "SUCCESS":
+        sys.exit("the normal run failed")
+    inl = inlist(qfiles)
+    n_q = int(q.one(f"SELECT count(*) FROM {SCR_SILVER}.silver_quarantine WHERE source_file IN ({inl})"))
+    if n_q == 0:
+        sys.exit("the quarantine files produced no quarantine rows in scratch: nothing to test")
+    q.run(f"DELETE FROM {SCR_SILVER}.silver_quarantine WHERE source_file IN ({inl})")
+    q.run(f"DELETE FROM {SCR_SILVER}.silver_manifest WHERE file_name IN ({inl})")
+    left_q = int(q.one(f"SELECT count(*) FROM {SCR_SILVER}.silver_quarantine WHERE source_file IN ({inl})"))
+    left_s = int(q.one(f"SELECT count(*) FROM {SCR_SILVER}.silver_product_versions WHERE source_file IN ({inl})"))
+    left_m = int(q.one(f"SELECT count(*) FROM {SCR_SILVER}.silver_manifest WHERE file_name IN ({inl})"))
+    print(f"constructed state: {left_s} silver rows, {left_q} quarantine rows (was {n_q}), {left_m} manifest rows for the quarantine file(s)", flush=True)
+    rw = submit(w, "packsense-kill-window-1-recover", SILVER_NB, {**params, "run_id": "kill-w-1-recover"}, args.branch)
+    res, r = wait_terminal(w, rw.run_id)
+    text, err = run_output(w, r)
+    rec = {"quarantine_files": qfiles, "quarantine_rows_removed": n_q, "silver_rows_left": left_s, "recovery_state": res,
+           "recovery_output": text, "recovery_error": err}
+    rec["problems"] = verify_silver(q, files) if res == "SUCCESS" else [f"recovery run ended {res}: {err}"]
+    print(f"recovery: {res} {text} -> problems: {rec['problems'] or 'none'}", flush=True)
+    state["results"]["window"] = rec
+    save_state(state)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["setup", "bronze", "silver", "cleanup"])
+    ap.add_argument("command", choices=["setup", "bronze", "silver", "window", "cleanup"])
     ap.add_argument("--env-file", help="optional: otherwise DATABRICKS_HOST and DATABRICKS_TOKEN must already be in the environment")
     ap.add_argument("--branch", default="main", help="git branch the notebooks run from")
     ap.add_argument("--trials", type=int, default=3)
@@ -496,7 +548,7 @@ def main() -> int:
         load_env_file(args.env_file)
     w = client()
     q = Sql(w)
-    {"setup": cmd_setup, "bronze": cmd_bronze, "silver": cmd_silver, "cleanup": cmd_cleanup}[args.command](w, q, args)
+    {"setup": cmd_setup, "bronze": cmd_bronze, "silver": cmd_silver, "window": cmd_window, "cleanup": cmd_cleanup}[args.command](w, q, args)
     return 0
 
 
