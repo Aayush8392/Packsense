@@ -137,9 +137,11 @@ def cmd_run(w, q, args):
     # 4. new columns against bronze's raw JSON ------------------------------------------------------------------------
     print("4 new columns: bronze raw-JSON count | silver count | note")
     base = f"FROM {BR_PROD}.bronze_delta_raw WHERE code RLIKE '^[0-9]+$'"
+    runs = {x["name"]: x["max_digit_run"] for x in c["columns"] if x.get("max_digit_run")}
     for n in NEW_TAGS:
+        keep = f"e -> e rlike {lit(tag_rx)}" + (f" AND NOT (e rlike {lit(chr(92) + 'd{' + str(runs[n] + 1) + ',}')})" if n in runs else "")
         b = q.run(f"WITH y AS (SELECT from_json(get_json_object(raw_json, '$.{n}'), 'array<string>') a {base}) "
-                  f"SELECT sum(coalesce(size(filter(a, e -> e rlike {lit(tag_rx)})), 0)), sum(CASE WHEN size(filter(a, e -> e rlike {lit(tag_rx)})) > 0 THEN 1 ELSE 0 END) FROM y")[0]
+                  f"SELECT sum(coalesce(size(filter(a, {keep})), 0)), sum(CASE WHEN size(filter(a, {keep})) > 0 THEN 1 ELSE 0 END) FROM y")[0]
         s = q.run(f"SELECT sum(coalesce(size({n}), 0)), sum(CASE WHEN size({n}) > 0 THEN 1 ELSE 0 END) FROM {T}")[0]
         be, bp, se, sp = int(b[0] or 0), int(b[1] or 0), int(s[0] or 0), int(s[1] or 0)
         ok = abs(be - se) <= max(2, 0.0005 * be) and abs(bp - sp) <= max(2, 0.0005 * bp)
