@@ -45,6 +45,8 @@ There is no dev stage and no approval step yet (P3 will add them). A push to `ma
 5. Verify against the same checks the verification runs use: row counts equal the figures before the bad run for the same files, manifests one row per file, no duplicate `(code, last_modified_t)`, silver rows join to bronze 1:1, drift task quiet.
 6. Resume the schedule.
 
+**Landing keeps delta files for 30 days only** (retention task of the archive job): older raw files exist in B2 (270 days) and the HF archive, so a rebuild of older data reads the HF archive.
+
 If a table cannot be restored, rebuild: silver from bronze (the re-key runbook describes the rebuild, about 8 minutes on the full data), bronze from the landing volume or the HF archive (read the **HF archive**, not B2, because of B2's daily download cap).
 
 ## C. Revert a workflow change

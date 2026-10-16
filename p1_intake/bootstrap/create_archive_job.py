@@ -1,7 +1,9 @@
 """Creates the Databricks job that archives the B2 capture bucket to the private Hugging Face repo.
 
-One task, sourced from this public repo's main branch on serverless compute, one run at a time:
-  archive  p1_intake/notebooks/archive_to_hf.py
+Two tasks, sourced from this public repo's main branch on serverless compute, one run at a time:
+  archive    p1_intake/notebooks/archive_to_hf.py
+  retention  p1_intake/notebooks/landing_retention.py   (only if archive succeeded; deletes old landed delta files that bronze and
+                                                         the archive both hold; same secrets, no new ones)
 It runs as the admin user (a job cannot be bound to a service principal on Free Edition). The secrets it needs are in
 the Databricks secret scope `packsense` (names only here): b2_read_key_id, b2_read_application_key, hf_archive_token,
 healthchecks_archive_ping_url. They are never job parameters.
@@ -22,6 +24,7 @@ from datetime import timedelta
 JOB = "packsense-archive"
 REPO = "https://github.com/Aayush8392/Packsense"
 NOTEBOOK = "p1_intake/notebooks/archive_to_hf"
+RETENTION_NOTEBOOK = "p1_intake/notebooks/landing_retention"
 # 16:00 UTC = 21:30 IST: after the capture (07:30 UTC plus GitHub's observed lateness of up to ~5.5 h) and the 09:00 UTC core run.
 # The job back-fills everything not yet archived, so a late capture only means the file is archived the next day.
 CRON = "0 0 16 * * ?"
@@ -41,7 +44,11 @@ def settings(with_schedule: bool) -> dict:
         name=JOB,
         git_source=jobs.GitSource(git_url=REPO, git_provider=jobs.GitProvider.GIT_HUB, git_branch="main"),
         tasks=[jobs.Task(task_key="archive", notebook_task=jobs.NotebookTask(
-            notebook_path=NOTEBOOK, source=jobs.Source.GIT, base_parameters={"run_id": "{{job.run_id}}"}))],
+                   notebook_path=NOTEBOOK, source=jobs.Source.GIT, base_parameters={"run_id": "{{job.run_id}}"})),
+               # only if the archive succeeded (the default run_if): an archive problem stops every deletion
+               jobs.Task(task_key="retention", depends_on=[jobs.TaskDependency(task_key="archive")], run_if=jobs.RunIf.ALL_SUCCESS,
+                         notebook_task=jobs.NotebookTask(notebook_path=RETENTION_NOTEBOOK, source=jobs.Source.GIT,
+                                                         base_parameters={"run_id": "{{job.run_id}}"}))],
         max_concurrent_runs=1,
         timeout_seconds=3600,
     )
