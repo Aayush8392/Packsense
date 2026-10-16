@@ -1,6 +1,6 @@
 # Runbook: swap the silver tables for a new contract version (first used for v3 to v4, 2026-10-17)
 
-**Status: drilled on the dev target on 2026-10-17 (swap, in-place verification and rollback, all PASS); the production swap itself is still to do.** The statements below are the corrected ones: the rehearsal found four problems, listed at the end.
+**Status: drilled on the dev target on 2026-10-17 (swap, in-place verification and rollback, all PASS) and carried out on production the same night (v3 to v4, PASS, see the end).** The statements below are the corrected ones: the rehearsal found four problems, listed at the end.
 
 ## When this is needed
 Silver is insert-only and its tables are created from the contract (`CREATE TABLE IF NOT EXISTS`). A contract that adds, removes or
@@ -28,7 +28,10 @@ The old tables stay as the rollback until the new ones have been through at leas
 4. For prod: the person doing it can approve the `prod` environment and has the admin SQL editor open.
 
 ## Steps (target = dev or prod; names below are for prod, dev uses the `packsense_dev_*` schemas)
-1. **Pause the job.** Prod: pause the schedule of `packsense-bronze-load` in the Jobs UI (the bundle-owned job). Dev: schedules are already paused.
+1. **Keep a scheduled run from landing in the middle.** A job deployed from the bundle cannot be paused in the Jobs UI (there was no pause control on 2026-10-17;
+   inferred cause: bundle jobs are locked against UI edits), and `bundle deploy` sets the schedule back to what the bundle file says anyway, so a pause would not survive
+   step 5. Instead choose a window: start at least 4 hours before the next scheduled run (09:00 UTC), do the renames and the deploy back to back, and set a hard stop (07:30 UTC)
+   after which you roll back. Dev: schedules are already paused.
 2. **Give the admin the right to rename and drop** (tables belong to the principal that created them, a schema owner does not get access):
    `GRANT ALL PRIVILEGES ON SCHEMA <silver schema> TO <admin user>`. Revoke it at the end (step 9).
 3. **Note the state to return to:** row counts of the three tables and the manifest file list (`SELECT file_name FROM silver_manifest`).
@@ -75,5 +78,12 @@ next run processed 0 files and ended green.
 4. In dev the quarantine table was empty. In production it holds 2 rows (both the empty barcode): the rebuild writes them again, so the quarantine table must be swapped with the others
    (as step 4 says) and not kept.
 
-**Not exercised:** the production deploy approval path in this order (the dev deploy was by CLI), pausing the production schedule, and a swap with quarantined rows (covered only by the
-scratch full-data run, where the 2 quarantined rows matched production).
+**Not exercised on dev:** the production deploy approval path in this order (the dev deploy was by CLI), and a swap with quarantined rows (covered by the scratch full-data run and then by production).
+
+## Production swap, v3 to v4 (2026-10-17, about 02:00 to 02:45 IST)
+Baseline before: 128,596 silver rows, 2 quarantine rows, 29 manifest rows, 80 drift-metric rows, 128,598 bronze rows. Steps as above, with these differences from the draft: no pause (see step 1);
+the push of `main` to start `deploy.yml` was refused to the assistant by the permission classifier and run by the user; the four renames were applied and listed correctly the first time (qualified names).
+The prod deploy was approved after the renames (deploy run #3), then the bundle-owned job was run by hand: bronze 22 s, silver 7 m 55 s, drift 3 m 10 s, all green (11 m 30 s in total).
+**Verification (`silver_v4_check.py run --silver-schema workspace.packsense_silver --bronze-schema workspace.packsense_bronze --old-suffix _v3`): PASS, identical to the scratch rebuild:** 128,596 silver + 2
+quarantine = 128,598 bronze; same keys; 67 old columns identical on every row except the 2 old-format delta rows (13 nutrition columns) and the digit-rule changes (categories 7 rows, labels 20, traces 10);
+ten new columns equal to bronze's raw JSON; no residue; every row contract version 4. The `_v3` tables stay until one clean scheduled day has passed.
