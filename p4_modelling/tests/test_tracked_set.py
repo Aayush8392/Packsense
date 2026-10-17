@@ -64,3 +64,22 @@ def test_no_duplicates_and_tag_columns_are_arrays():
 def test_the_tracked_set_is_the_agreed_size():
     # 32 scalar columns, 10 tag arrays and the nutrients map; a change here is a design change: update the decision first
     assert (len(macro_list("tracked_scalars")), len(macro_list("tracked_arrays"))) == (32, 10)
+
+
+def change_groups():
+    """group name -> columns, read from macros/change_groups.sql (the daily change fact, slice 5)."""
+    text = (ROOT / "p4_modelling" / "macros" / "change_groups.sql").read_text(encoding="utf-8")
+    body = re.search(r"macro change_groups\(\) %\}(.*?)\{% endmacro", text, re.S).group(1)
+    return {m.group(1): re.findall(r"'([a-z0-9_]+)'", m.group(2)) for m in re.finditer(r"'([a-z_]+)':\s*\[(.*?)\]", body, re.S)}
+
+
+def test_every_tracked_column_is_in_exactly_one_change_group():
+    groups = change_groups()
+    assert len(groups) == 8
+    listed = [c for cols in groups.values() for c in cols]
+    assert len(listed) == len(set(listed)), "a column is in two change groups"
+    assert set(listed) == set(tracked()), (set(listed) ^ set(tracked()))
+
+
+def test_change_group_names_do_not_collide_with_the_reserved_ones():
+    assert not ({"any", "new_product"} & set(change_groups()))

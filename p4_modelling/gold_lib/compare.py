@@ -30,6 +30,7 @@ MODELS = {
     "dim_category": ["category_tag"],
     "bridge_product_label": ["history_key", "label_tag"],
     "dim_label": ["label_tag"],
+    "fct_product_change_daily": ["fact_key"],
 }
 
 _TS = re.compile(r"^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})")

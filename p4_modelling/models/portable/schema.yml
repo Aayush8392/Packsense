@@ -265,3 +265,33 @@ models:
           - accepted_values:
               arguments:
                 values: ['contains', 'may_contain']
+
+  - name: fct_product_change_daily
+    description: >
+      Daily change fact: one row per UTC edit day, scope (all markets or India), change group and seed flag. Group rows overlap (one edit can
+      change several groups), so use change_group 'any' for a total. A product's first period is a change of nothing and appears only as
+      'new_product' when OFF's revision counter says 1 and the version did not come from the seed. unseen_edits makes counts a lower bound.
+    columns:
+      - name: fact_key
+        description: Hash of (change_date, scope, change_group, opened_by_seed); a rebuild reproduces the same keys.
+        data_tests: [unique, not_null]
+      - name: date_key
+        description: Key into dim_date (null would mean an edit day outside 2012 to 2035).
+        data_tests: [not_null]
+      - name: scope
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['all', 'india']
+      - name: change_group
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['any', 'new_product', 'name_brand', 'quantity', 'nutrition', 'nutriscore_nova', 'ingredients', 'allergens', 'categories_labels', 'other_tags']
+      - name: opened_by_seed
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
