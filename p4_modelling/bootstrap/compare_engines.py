@@ -11,6 +11,7 @@ The Databricks side needs DATABRICKS_HOST and DATABRICKS_TOKEN (admin; or --env-
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -72,9 +73,52 @@ def databricks_models():
     return out, rows_out
 
 
+def run_dbt_build(duckdb_path: str, extra=()) -> None:
+    exe = Path(sys.executable).parent / ("dbt.exe" if os.name == "nt" else "dbt")
+    env = dict(os.environ, DUCKDB_PATH=str(Path(duckdb_path).resolve()))
+    r = subprocess.run([str(exe), "build", "--target", "duckdb", "--profiles-dir", str(ROOT), *extra], cwd=str(ROOT), env=env,
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        print(r.stdout[-3000:])
+        raise RuntimeError(f"dbt build {' '.join(extra)} failed")
+
+
+def idempotence(duckdb_path: str) -> list:
+    """Three rebuilds must reproduce the first build exactly. Returns the list of problems (empty = idempotent)."""
+    from gold_lib import fixture_load
+    import duckdb
+    problems = []
+    base, _ = duckdb_models(duckdb_path)
+
+    run_dbt_build(duckdb_path)
+    again, _ = duckdb_models(duckdb_path)
+    problems += [f"second build: {p}" for p in compare.diff(base, again)]
+    print("second build vs first: " + ("identical" if not compare.diff(base, again) else "DIFFERENT"))
+
+    run_dbt_build(duckdb_path, ["--full-refresh"])
+    refreshed, _ = duckdb_models(duckdb_path)
+    problems += [f"full refresh: {p}" for p in compare.diff(base, refreshed)]
+    print("full refresh vs first: " + ("identical" if not compare.diff(base, refreshed) else "DIFFERENT"))
+
+    # arrival order: the same rows stored in the opposite physical order (the seed arrived after newer deltas) must give the same gold
+    rev = ROOT / "target" / "fixture_reversed.duckdb"
+    for f in (rev, Path(str(rev) + ".wal")):
+        f.unlink(missing_ok=True)
+    con = duckdb.connect(str(rev))
+    fixture_load.load(con, reverse=True)
+    con.close()
+    run_dbt_build(str(rev))
+    reordered, _ = duckdb_models(str(rev))
+    problems += [f"reverse order: {p}" for p in compare.diff(base, reordered)]
+    print("reverse-order load vs first: " + ("identical" if not compare.diff(base, reordered) else "DIFFERENT"))
+    return problems
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
+    i = sub.add_parser("idempotence")
+    i.add_argument("--duckdb", default=str(ROOT / "target" / "fixture.duckdb"))
     d = sub.add_parser("dump")
     d.add_argument("--engine", choices=["databricks"], required=True)
     d.add_argument("--env-file")
@@ -84,6 +128,16 @@ def main() -> int:
     c.add_argument("--golden", default=str(GOLDEN))
     c.add_argument("--rows-ref")
     args = ap.parse_args()
+
+    if args.cmd == "idempotence":
+        problems = idempotence(args.duckdb)
+        if problems:
+            print("NOT IDEMPOTENT:")
+            for p in problems:
+                print(" -", p)
+            return 1
+        print("IDEMPOTENT: a second build, a full refresh and a reverse-order load all reproduce the first build exactly")
+        return 0
 
     if args.cmd == "dump":
         if args.env_file:

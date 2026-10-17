@@ -54,14 +54,17 @@ The portable models must not depend on Databricks. The Databricks-only staging c
   hash. **Result 2026-10-17:** product_history 300 rows, product_flag_spans 1,841, product_status 185, dim_brand 145, dim_market 57, bridge 487,
   dim_date 8,766: identical, and all 52 dbt nodes (10 models, 42 tests) pass on both engines. The first attempt differed in `nutrients`: Databricks'
   statement API returns numbers nested in a map as text, a defect of the comparison reader, fixed and tested, not of the models.
+- **Rerun idempotence** (`compare_engines.py idempotence`, 2026-10-17): on DuckDB a second build, a `--full-refresh` build (the incremental
+  `product_status`) and a build from the same rows stored in the opposite physical order (the seed arrived after newer deltas) all reproduce the first build
+  exactly, and the reversed build still equals the Databricks golden file.
 - **Slim CI** (`engines` job in `ci.yml`, not a required check): parse the Databricks project in both modes, build the portable models on DuckDB, compare with
-  the golden file. **To regenerate** after a model change: `fixture_databricks.py load`, `dbt`, `compare_engines.py dump --engine databricks`, `drop` (all
+  the golden file, run the idempotence check. **To regenerate** after a model change: `fixture_databricks.py load`, `dbt`, `compare_engines.py dump --engine databricks`, `drop` (all
   with `--env-file .env`, run with `.venv-dbt`), then commit `golden.json`.
 - **Not covered:** `tracked_hash` and the Databricks staging logic themselves (tested by the Databricks-side dbt tests on real data), and the scheduled job.
 
 ## Still to do
 A deploy workflow for gold (today the principals deploy it by hand), the taxonomy loader and the category, allergen and label dimensions, the change and
-quality facts and the P4 marts, a rerun-idempotence test.
+quality facts and the P4 marts.
 
 ## Gold principals and grants (set by an admin in the SQL editor, kept here so they can be re-created)
 Two principals, each with the **Workspace access** and **Databricks SQL access** entitlements, **Can use** on the SQL warehouse and nothing else.

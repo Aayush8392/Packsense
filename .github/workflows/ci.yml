@@ -75,3 +75,6 @@ jobs:
       - name: Compare with the Databricks run (golden)
         working-directory: p4_modelling
         run: python bootstrap/compare_engines.py check --duckdb target/fixture.duckdb
+      - name: Rerun idempotence (second build, full refresh, reverse-order load)
+        working-directory: p4_modelling
+        run: python bootstrap/compare_engines.py idempotence --duckdb target/fixture.duckdb
