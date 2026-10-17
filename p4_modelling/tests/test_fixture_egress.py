@@ -77,8 +77,6 @@ def test_committed_fixture_matches_its_manifest():
 
 # ---- the taxonomy half of the fixture ------------------------------------------------------------------------------------------
 
-import pytest  # noqa: E402
-
 TAX_NOTEBOOK = ROOT / "p4_modelling" / "notebooks" / "export_taxonomy_fixture.py"
 TAX_FIXTURE = ROOT / "p4_modelling" / "fixtures" / "taxonomy_tag.jsonl"
 TAX_MANIFEST = ROOT / "p4_modelling" / "fixtures" / "taxonomy_manifest.json"
@@ -110,7 +108,6 @@ def test_every_taxonomy_gold_uses_has_a_product_column_in_the_export_notebook():
         assert f'"{name}":' in TAX_NOTEBOOK.read_text(encoding="utf-8"), f"export_taxonomy_fixture.py has no USED_BY entry for {name}"
 
 
-@pytest.mark.skipif(not TAX_FIXTURE.exists(), reason="the taxonomy fixture has not been exported yet; remove this skip once it is committed")
 def test_committed_taxonomy_fixture_is_clean_and_matches_its_manifest():
     manifest = json.loads(TAX_MANIFEST.read_text(encoding="utf-8"))
     rows = [json.loads(line) for line in TAX_FIXTURE.read_text(encoding="utf-8").splitlines()]

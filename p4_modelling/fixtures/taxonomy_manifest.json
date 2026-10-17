@@ -1,0 +1,44 @@
+{
+ "columns": {
+  "children": "array<string>",
+  "name_en": "string",
+  "names": "map<string,string>",
+  "parents": "array<string>",
+  "props": "map<string,string>",
+  "snapshot": "string",
+  "snapshot_sha256": "string",
+  "tag": "string",
+  "taxonomy": "string",
+  "valid_from": "timestamp"
+ },
+ "exit_report": {
+  "columns_dropped": 0,
+  "patterns_removed": 0,
+  "rows": 407
+ },
+ "generated_at_utc": "2026-10-17 13:44:10",
+ "snapshots_per_taxonomy": {
+  "countries": [
+   "countries/20261009T140154Z_fd82b1be810d.json.gz"
+  ],
+  "data_quality": [
+   "data_quality/20261009T140154Z_17330ddb6454.json.gz"
+  ],
+  "labels": [
+   "labels/20261009T140157Z_9a00d027bd2b.json.gz",
+   "labels/20261016T103209Z_e677fddff92c.json.gz"
+  ]
+ },
+ "tags_used_per_taxonomy": {
+  "countries": 57,
+  "data_quality": 134,
+  "labels": 129
+ },
+ "taxonomies": [
+  "countries",
+  "data_quality",
+  "labels"
+ ],
+ "version_rows": 407,
+ "what": "rows of silver_taxonomy_tag for the tags the product fixture uses (countries, labels, quality flags) plus their parents, every snapshot"
+}

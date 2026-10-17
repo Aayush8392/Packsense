@@ -90,10 +90,11 @@ def drop() -> None:
     w = client()
     run_sql(w, f"drop schema if exists {SCHEMA} cascade")
     try:
-        w.files.delete(REMOTE_FILE)
+        for entry in list(w.files.list_directory_contents(REMOTE_DIR)):      # every file this script uploaded, then the folder
+            w.files.delete(f"{REMOTE_DIR}/{entry.name}")
         w.files.delete_directory(REMOTE_DIR)
     except Exception as exc:   # already gone
-        print("remote file:", type(exc).__name__)
+        print("remote folder:", type(exc).__name__)
     print("dropped", SCHEMA, "and removed the uploaded file")
 
 
