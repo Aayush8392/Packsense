@@ -33,6 +33,8 @@ jobs:
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          # The action's own default is 8.24.3, which ignores the [[allowlists]] syntax of .gitleaks.toml (needs 8.25+).
+          GITLEAKS_VERSION: "8.30.1"
 
   zizmor:
     # Static analysis of the workflow files themselves (injection, over-broad permissions, unpinned actions, credential persistence).
