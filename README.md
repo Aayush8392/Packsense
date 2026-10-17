@@ -20,14 +20,15 @@ A daily-updated, cleaned and versioned copy of the [Open Food Facts](https://wor
 - Every tool has a real job; nothing is here only to show a keyword.
 - Everything claimed was tested on real accounts and real data first (41 verification items before the first commit of the build).
 
-## Where it stands (2026-10-15)
+## Where it stands (2026-10-17)
 | Built and running | Not started |
 |---|---|
-| Daily capture (GitHub Actions), landing volume, 34 taxonomy snapshots, freshness and delete-marker tripwires, healthchecks.io monitoring | Gold layer (dbt, star schema, history) |
+| Daily capture (GitHub Actions), landing volume, 34 taxonomy snapshots, freshness and delete-marker tripwires, healthchecks.io monitoring | Gold facts and marts, taxonomy-based dimensions, DuckDB comparison |
 | Verified second copy of the raw files in a private Hugging Face dataset (daily job), landing retention (30 days) and a B2 reconciliation audit | Dashboard, static score lookup, India data release |
-| Bronze (raw, append-only) and silver (typed, checked, scrubbed; data contract v3, 71 columns) as a scheduled Databricks job | Triage model, steward agent, review queue |
-| India seed from the full dump: 24,875 distinct India barcodes in silver | Access control policies and CI checks, Asset Bundles, Terraform for Databricks |
+| Bronze (raw, append-only) and silver (typed, checked, scrubbed; data contract v4, 81 columns) as a scheduled Databricks job, deployed from an Asset Bundle | Triage model, steward agent, review queue |
+| India seed from the full dump: 24,875 distinct India barcodes in silver | Access control policies and CI checks, Terraform for Databricks |
 | Schema-drift monitor with its own alert | Airflow batch workloads, deletion reconciliation |
+| Gold (dbt Core, own principal and scheduled job): product history (SCD2 derived from silver's versions), OFF quality-flag spans, brand, market and date dimensions, product status; 42 dbt tests | Dashboard, static score lookup, India data release |
 
 ## Known limitations (measured, not hoped)
 Each of these is a number from this project's own data, or marked as inferred.
@@ -38,7 +39,7 @@ Each of these is a number from this project's own data, or marked as inferred.
 - **Timing is not met yet.** GitHub's scheduler is best-effort: the three scheduled captures observed so far ran 5 h 27 min, 5 h 15 min and 5 h 5 min late with no skipped day (seven runs are being counted; the verdict is not in). The processing job runs at 09:00 UTC and, on the days observed so far (14-16 Oct), the capture had not landed by then, so each day's data is processed a day late until the schedules are aligned. A missed capture costs nothing inside OFF's 14-day window (the next run back-fills).
 - **Free-tier dependencies.** Databricks Free Edition (non-commercial, unpublished storage and compute quotas), Backblaze B2 (the daily download cap was reached once during testing), Hugging Face. The 13 GB dump has no second copy. A restore from the archive has not been drilled yet.
 - **The drift monitor sees presence and shape, not meaning.** Its baseline is 14 days; it cannot notice a field that keeps its name but changes unit.
-- **CI covers the unit tests and lint, not the pipeline.** On every branch push CI runs the unit tests (real, sanitised records; nothing touches Databricks or the network) and `ruff`, and `main` accepts a commit only after both have passed on it (a ruleset managed by Terraform; its single exception is a deploy key used by the keep-alive workflow, which cannot delete `main` or force-push it). Security scans (gitleaks over the history, zizmor on the workflows, pip-audit) run too but are advisory. Deploying code is still a push to `main`: Databricks jobs read the notebooks from `main`, with no dev stage or approval step yet.
+- **CI covers the unit tests and lint, not the pipeline.** On every branch push CI runs the unit tests (real, sanitised records; nothing touches Databricks or the network) and `ruff`, and `main` accepts a commit only after both have passed on it (a ruleset managed by Terraform; its single exception is a deploy key used by the keep-alive workflow, which cannot delete `main` or force-push it). Security scans (gitleaks over the history, zizmor on the workflows, pip-audit) run too but are advisory. The bronze and archive jobs ship from an Asset Bundle (dev automatically after a push to `main`, production after a manual approval); the gold job has its own bundle that its principal deploys by hand until a workflow exists. CI does not run dbt against a warehouse; the DuckDB comparison of the portable gold models is not built yet.
 
 ## Data and licence
 Code is Apache-2.0 (see [`LICENSE`](LICENSE)). Data comes from Open Food Facts under the [ODbL](https://opendatacommons.org/licenses/odbl/1-0/); published data releases carry the required attribution and share-alike terms. Product images are not redistributed.
