@@ -137,14 +137,28 @@ def _lang_map(value, patterns, stats) -> dict:
     return {lang: _clean_text(text, patterns, stats) for lang, text in value.items() if isinstance(lang, str) and isinstance(text, str)}
 
 
-def _prop(value, patterns, stats):
-    """An allowlisted property as one string: the English value, else the first language by code; None if it has no plain text."""
-    if isinstance(value, str):
-        return _clean_text(value, patterns, stats)
-    values = _lang_map(value, patterns, stats)
-    if not values:
+WIKIDATA_ID = re.compile(r"(?:^|/)(Q\d+)/?$")
+
+
+def _prop(key, value, patterns, stats):
+    """An allowlisted property as one string: the English value, else the first language by code; None if it has no plain text.
+
+    A wikidata value is reduced to its bare id first: OFF stores one as a full URL (en:blood-orange in the ingredients taxonomy), which
+    the URL scrub would turn into '[removed]' and so destroy a legitimate reference."""
+    if isinstance(value, dict):
+        raw = {lang: text for lang, text in value.items() if isinstance(lang, str) and isinstance(text, str)}
+        if not raw:
+            return None
+        text = raw.get("en", raw[min(raw)])
+    elif isinstance(value, str):
+        text = value
+    else:
         return None
-    return values.get("en", values[min(values)])
+    if key == "wikidata":
+        m = WIKIDATA_ID.search(text.strip())
+        if m:
+            return m.group(1)
+    return _clean_text(text, patterns, stats)
 
 
 def _tag_list(value, shape) -> list[str]:
@@ -172,7 +186,7 @@ def parse_snapshot(taxonomy: str, raw: bytes, c: dict, silver_contract: dict):
         props = {}
         for key in allowed:
             if key in entry:
-                value = _prop(entry[key], patterns, stats)
+                value = _prop(key, entry[key], patterns, stats)
                 if value is not None:
                     props[key] = value
         rows.append({"taxonomy": taxonomy, "tag": tag, "name_en": names.get("en"), "names": names,

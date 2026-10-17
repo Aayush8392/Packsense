@@ -235,3 +235,24 @@ def test_the_notebook_never_refers_to_the_same_table_twice_in_one_expression():
                      if not line.lstrip().startswith("#"))
     assert not re.search(r"spark\.table\([^)]*\)\.[A-Za-z_]+\s*==", code)
     assert not re.search(r"spark\.table\([^)]*\)\.where\([^\n]*spark\.table\(", code)
+
+
+def test_a_wikidata_url_becomes_its_bare_id_and_is_not_scrubbed():
+    # real case: en:blood-orange in the ingredients taxonomy stores 'https://www.wikidata.org/wiki/Q303669'; the URL scrub would have destroyed it
+    wikidata_tags = [t for t, v in EXCERPT["allergens"].items() if "wikidata" in v]
+    assert wikidata_tags
+    tag = wikidata_tags[0]
+    bare = EXCERPT["allergens"][tag]["wikidata"]["en"]
+    data = copy.deepcopy(EXCERPT["allergens"])
+    data[tag]["wikidata"] = {"en": f"https://www.wikidata.org/wiki/{bare}"}
+    rows, stats = parsed("allergens", data)
+    assert {r["tag"]: r for r in rows}[tag]["props"]["wikidata"] == bare and stats["values_scrubbed"] == 0
+    assert {r["tag"]: r for r in parsed("allergens")[0]}[tag]["props"]["wikidata"] == bare       # a bare id passes unchanged
+
+
+def test_a_wikidata_value_that_is_neither_an_id_nor_a_url_to_one_still_goes_through_the_scrub():
+    tag = next(t for t, v in EXCERPT["allergens"].items() if "wikidata" in v)
+    data = copy.deepcopy(EXCERPT["allergens"])
+    data[tag]["wikidata"] = {"en": "https://example.org/some/page"}
+    rows, stats = parsed("allergens", data)
+    assert {r["tag"]: r for r in rows}[tag]["props"]["wikidata"] == S["scrub"]["replacement"] and stats["values_scrubbed"] == 1
