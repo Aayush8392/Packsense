@@ -117,6 +117,17 @@ from the Unix time by plain arithmetic (macro `epoch_date`, independent of the s
 equal the spans marked open in `product_flag_spans` and the products held equal the distinct products in the history; and from day to day `open_spans` follows the
 flows exactly and never goes negative. Not in this slice: OFF's completeness score and field coverage (they come with the brand scorecard), distinct products per flag.
 
+## Complete days only (both daily facts, 2026-10-18)
+OFF's delta files run from about 06:20 to 06:35 UTC to the same time the next day, so a calendar day is split across two files (measured on production silver: all
+16 files hold only edits inside their window). The first day and the newest day are therefore partial: 30 Sep had only the edits after 06:17 UTC, and 16 Oct had 762
+edits against 5,000 to 8,000 on a full day (so the first version of the daily facts, which showed 16 Oct, understated it, and its held count grew by 638 against
+about 5,700 the day before). Both `fct_product_change_daily` and `fct_catalogue_quality_daily` now show only the days our files cover completely (macro
+`complete_days`: from the first midnight at or after the earliest window start to the day before the last midnight at or before the latest window end); today that is
+1 Oct to 15 Oct, and a day appears when the next capture completes it. The change fact takes its day from the Unix time by plain arithmetic (macro `epoch_date`)
+instead of a timestamp cast, so neither fact depends on a session time zone. One test (`complete_days_match_the_window_arithmetic`) checks the macro against a second
+formulation of the rule and that the quality fact spans exactly those days; it caught a precedence slip of mine (the macro once ran to 2035 while every other test
+passed). The other two facts' tests now work over the complete days.
+
 ## Still to do
 The brand
 scorecard. The per-market export and the public-site marts belong with P6 (they go through the exit function), the worklist mart waits for P7. Parked: an allergen alias table and a rule

@@ -55,7 +55,7 @@
   session time zone of either engine (a cast of a timestamp to a date does).
 #}
 {% macro epoch_date(seconds_expr) %}{{ return(adapter.dispatch('epoch_date', 'packsense')(seconds_expr)) }}{% endmacro %}
-{% macro default__epoch_date(seconds_expr) %}(cast('1970-01-01' as date) + cast(floor({{ seconds_expr }} / 86400) as integer)){% endmacro %}
-{% macro databricks__epoch_date(seconds_expr) %}date_add(cast('1970-01-01' as date), cast(floor({{ seconds_expr }} / 86400) as int)){% endmacro %}
-{% macro duckdb__epoch_date(seconds_expr) %}(cast('1970-01-01' as date) + cast(floor({{ seconds_expr }} / 86400) as integer)){% endmacro %}
+{% macro default__epoch_date(seconds_expr) %}(cast('1970-01-01' as date) + cast(floor(({{ seconds_expr }}) / 86400) as integer)){% endmacro %}
+{% macro databricks__epoch_date(seconds_expr) %}date_add(cast('1970-01-01' as date), cast(floor(({{ seconds_expr }}) / 86400) as int)){% endmacro %}
+{% macro duckdb__epoch_date(seconds_expr) %}(cast('1970-01-01' as date) + cast(floor(({{ seconds_expr }}) / 86400) as integer)){% endmacro %}
 

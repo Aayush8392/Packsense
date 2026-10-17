@@ -8,6 +8,8 @@
 --                 or 'any' (every period after the first, plus every new product).
 --   opened_by_seed  1 when the opening version came from the one-time dump. The seed brings products' older versions late, so a day's
 --                 count can include late arrivals; the column lets a reader filter or split them out.
+-- Only complete days are shown (macro complete_days): OFF delta files run from about 06:30 UTC to 06:30 UTC, so the first and the newest
+-- calendar day are partial and are left out until the next capture completes them.
 -- Group rows overlap (one edit can change several groups), so group counts are never summed into a total: use the 'any' row.
 -- A product's first period has no predecessor, so it is a change of nothing: it appears only as a new product, when that is provable.
 -- n_periods counts history periods; n_products counts distinct barcodes; unseen_edits sums the edits OFF's revision counter shows that
@@ -16,7 +18,7 @@ with base as (
     select
         c.history_key,
         c.code,
-        cast(c.valid_from as date) as change_date,
+        {{ epoch_date('c.valid_from_t') }} as change_date,
         case when c.opened_by_seed then 1 else 0 end as opened_by_seed,
         coalesce(c.unseen_edits, 0) as unseen_edits,
         case when p.history_key is null then 1 else 0 end as is_first,
@@ -61,6 +63,8 @@ aggregated as (
         count(*) as n_periods,
         sum(unseen_edits) as unseen_edits
     from scoped
+    cross join {{ complete_days() }} as cd
+    where change_date between cd.first_day and cd.last_day
     group by change_date, scope, change_group, opened_by_seed
 )
 

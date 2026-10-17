@@ -1,5 +1,6 @@
--- Independent check of the daily quality fact on its last day: the open spans per scope and severity must equal the spans that product_flag_spans
--- marks open (is_open = 1), counted without the fact's date arithmetic; and the products held per scope must equal the distinct products in the history.
+-- Independent check of the daily quality fact on its last day (the newest COMPLETE day): the open spans per scope and severity must equal the
+-- spans open at the end of that day, counted straight from product_flag_spans (opened on or before the day and not vanished by it, with no
+-- running sum); and the products held per scope must equal the distinct products first seen on or before the day.
 with last_day as (
     select max(snapshot_date) as d from {{ ref('fct_catalogue_quality_daily') }}
 ),
@@ -11,12 +12,20 @@ india as (
     where d.is_target_market = 1
 ),
 
+open_at_end as (
+    select s.code, s.severity
+    from {{ ref('product_flag_spans') }} as s
+    cross join last_day as l
+    where {{ epoch_date('s.first_seen_t') }} <= l.d
+      and (s.vanished_at_t is null or {{ epoch_date('s.vanished_at_t') }} > l.d)
+),
+
 expected_spans as (
-    select 'all' as scope, severity, count(*) as n from {{ ref('product_flag_spans') }} where is_open = 1 group by severity
+    select 'all' as scope, severity, count(*) as n from open_at_end group by severity
     union all
-    select 'india' as scope, s.severity, count(*) as n
-    from {{ ref('product_flag_spans') }} as s inner join india as i on i.code = s.code
-    where s.is_open = 1 group by s.severity
+    select 'india' as scope, o.severity, count(*) as n
+    from open_at_end as o inner join india as i on i.code = o.code
+    group by o.severity
 ),
 
 got_spans as (
@@ -25,10 +34,16 @@ got_spans as (
     group by f.scope, f.severity
 ),
 
+first_day_seen as (
+    select code, min({{ epoch_date('valid_from_t') }}) as d from {{ ref('product_history') }} group by code
+),
+
 expected_held as (
-    select 'all' as scope, count(distinct code) as n from {{ ref('product_history') }}
+    select 'all' as scope, count(*) as n from first_day_seen as f cross join last_day as l where f.d <= l.d
     union all
-    select 'india' as scope, count(distinct h.code) as n from {{ ref('product_history') }} as h inner join india as i on i.code = h.code
+    select 'india' as scope, count(*) as n
+    from first_day_seen as f cross join last_day as l inner join india as i on i.code = f.code
+    where f.d <= l.d
 ),
 
 got_held as (

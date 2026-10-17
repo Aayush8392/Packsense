@@ -11,7 +11,8 @@
 -- what we hold, not of OFF: non-India markets arrive only as products edited since the capture began (dim_market.coverage).
 -- flag_family comes from dim_flag (taxonomy family; the flag itself for a root flag; 'unmapped' when OFF generates the flag in code).
 -- The first day shown starts from the stock carried in by the seed and older versions: read the first day's open_spans as that stock, not activity.
--- Days run from the first delta day to the last observed day. Computed as running sums of daily flows (portable ANSI SQL, no day-by-span join).
+-- Only complete days are shown (macro complete_days): OFF delta files run from about 06:30 UTC to 06:30 UTC, so the first and the newest
+-- calendar day are partial and are left out until the next capture completes them. Computed as running sums of daily flows (portable ANSI SQL, no day-by-span join).
 -- Families come from the newest taxonomy snapshot for every day, so a taxonomy rename relabels old days at the next rebuild.
 with flagged as (
     select
@@ -40,10 +41,7 @@ scoped as (
 ),
 
 bounds as (
-    select
-        min(case when not opened_by_seed then {{ epoch_date('valid_from_t') }} end) as first_day,
-        max({{ epoch_date('valid_from_t') }}) as last_day
-    from {{ ref('product_history') }}
+    select first_day, last_day from {{ complete_days() }} as cd
 ),
 
 spine as (
