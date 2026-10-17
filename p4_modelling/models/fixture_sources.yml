@@ -1,0 +1,11 @@
+version: 2
+
+# The committed comparison fixture (p4_modelling/fixtures): the output of the Databricks staging view for a chosen real slice.
+# On DuckDB, `gold_lib/fixture_load.py` creates this table in the target schema. On Databricks it exists only in the throwaway
+# verification schema (target `fixture_admin`), where `stg_silver_versions` reads it when the var `fixture_mode` is true.
+# Production and dev never read it.
+sources:
+  - name: fixture
+    schema: "{{ target.schema }}"
+    tables:
+      - name: fixture_stg_silver_versions

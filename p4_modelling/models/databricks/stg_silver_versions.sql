@@ -1,5 +1,10 @@
 {{ config(materialized='view') }}
 
+{% if var('fixture_mode', false) %}
+-- Fixture mode (the throwaway verification schema only, target `fixture_admin`): the committed fixture IS this view's output for a
+-- chosen real slice, so the portable models can be run on it and compared with DuckDB. Never set in dev or production.
+select * from {{ source('fixture', 'fixture_stg_silver_versions') }}
+{% else %}
 -- Staging over silver. Databricks-only: it is the one place that reads the hashed contributor columns, and only to count
 -- distinct editors. Those columns never pass through: the EXCEPT list below is the contract's `egress: never` list
 -- (a test in p4_modelling/tests compares the two), and `distinct_editors` is the only value derived from them.
@@ -46,3 +51,4 @@ select
     end as code_check_digit_valid,
     {{ tracked_hash() }} as tracked_hash
 from parsed
+{% endif %}

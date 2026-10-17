@@ -25,6 +25,22 @@ packsense_gold:
       client_id: "{{ env_var('DATABRICKS_CLIENT_ID') }}"
       client_secret: "{{ env_var('DATABRICKS_CLIENT_SECRET') }}"
       threads: 4
+    duckdb:
+      # the engine-portability check (design 6.6): the portable models run on the committed fixture. A local file, no secrets.
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', 'target/fixture.duckdb') }}"
+      schema: main
+      threads: 1
+    fixture_admin:
+      # THROWAWAY verification schema, admin token only: the fixture is loaded here, the portable models run on it (var fixture_mode),
+      # the results are compared with DuckDB, then the schema is dropped (bootstrap/compare_engines.py, bootstrap/fixture_databricks.py)
+      type: databricks
+      catalog: workspace
+      schema: packsense_fixture
+      host: "{{ env_var('DATABRICKS_HOST') | replace('https://', '') | replace('/', '') }}"
+      http_path: "{{ env_var('DBT_HTTP_PATH') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      threads: 4
     dev_admin:
       type: databricks
       catalog: workspace

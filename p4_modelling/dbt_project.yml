@@ -10,10 +10,16 @@ clean-targets: ["target", "dbt_packages"]
 
 vars:
   silver_schema: packsense_dev_silver    # prod overrides this with --vars when the prod gold job exists
+  fixture_mode: false                    # true only in the throwaway verification schema (target fixture_admin), see models/fixture_sources.yml
 
 models:
   packsense:
+    # Same model names live in databricks/ and duckdb/ (the staging views): exactly one folder is enabled per engine.
     databricks:
       +materialized: view
+      +enabled: "{{ target.type == 'databricks' }}"
+    duckdb:
+      +materialized: view
+      +enabled: "{{ target.type == 'duckdb' }}"
     portable:
       +materialized: table
