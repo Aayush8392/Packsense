@@ -104,8 +104,21 @@ brings older versions late, hence the `opened_by_seed` column. Three tests: `any
 1 warning); every group has real rows in the fixture; no fixture row has `opened_by_seed = 1` and India has no `new_product` row, so those two paths are covered by
 the model logic and the tests only, not by a real case.** The golden file was regenerated 2026-10-18 (Databricks fixture build: 134 nodes, 133 pass, 1 warning) and DuckDB reproduces all 18 models and the idempotence check.
 
+## Daily quality snapshot (slice 6, 2026-10-18)
+`fct_catalogue_quality_daily`: one row per UTC day, scope (`all` or `india`), severity and flag family. `open_spans` is the number of flag spans open at the end of
+the day (spans, not products: a product with two flags in a family counts twice); `opened_on_known_product` is a flag that appeared on a product we had already seen
+without it; `carried_in` is a span on a product's first observed version (the product arrived already flagged: not an appearance, 99.7% of spans overall);
+`vanished` and `vanished_with_tracked_change` are spans that ended that day; `n_products_held` is the denominator (products whose first observed version is on or
+before the day). The family comes from `dim_flag` (the taxonomy family, the flag itself for a root flag, `unmapped` for flags OFF generates in code) from the newest
+taxonomy snapshot, so a taxonomy rename relabels old days at the next rebuild. `india` means the product ever had India in a period (fixed, not as-of). Days run from
+the first delta day to the last observed day; the first day's `open_spans` is the stock carried in by the seed and older versions, not activity. It is the quality of
+what we hold, not of OFF: non-India products are only those edited since the capture began. Method: running sums of daily flows (no day-by-span join), the day taken
+from the Unix time by plain arithmetic (macro `epoch_date`, independent of the session time zone). Two tests: on the last day the open spans per scope and severity
+equal the spans marked open in `product_flag_spans` and the products held equal the distinct products in the history; and from day to day `open_spans` follows the
+flows exactly and never goes negative. Not in this slice: OFF's completeness score and field coverage (they come with the brand scorecard), distinct products per flag.
+
 ## Still to do
-`fct_catalogue_quality_daily` and the brand
+The brand
 scorecard. The per-market export and the public-site marts belong with P6 (they go through the exit function), the worklist mart waits for P7. Parked: an allergen alias table and a rule
 table for the roughly 300 generated flags the taxonomy does not list.
 

@@ -295,3 +295,33 @@ models:
           - accepted_values:
               arguments:
                 values: [0, 1]
+
+  - name: fct_catalogue_quality_daily
+    description: >
+      Daily snapshot of OFF quality flags over the products we hold: one row per UTC day, scope (all or india), severity and flag family.
+      open_spans counts spans, not products. carried_in are spans on a product's first observed version (not a real appearance). The first
+      day shown starts from the stock carried in by the seed. This is the quality of what we hold, not of OFF.
+    columns:
+      - name: fact_key
+        description: Hash of (snapshot_date, scope, severity, flag_family); a rebuild reproduces the same keys.
+        data_tests: [unique, not_null]
+      - name: date_key
+        data_tests: [not_null]
+      - name: scope
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['all', 'india']
+      - name: severity
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['error', 'warning', 'info', 'bug']
+      - name: flag_family
+        data_tests: [not_null]
+      - name: open_spans
+        data_tests: [not_null]
+      - name: n_products_held
+        data_tests: [not_null]

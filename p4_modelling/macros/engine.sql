@@ -50,3 +50,12 @@
 {% macro databricks__array_missing_count(first_expr, second_expr) %}coalesce(size(array_except({{ first_expr }}, {{ second_expr }})), 0){% endmacro %}
 {% macro duckdb__array_missing_count(first_expr, second_expr) %}coalesce(len(list_filter({{ first_expr }}, x -> not list_contains({{ second_expr }}, x))), 0){% endmacro %}
 
+{#
+  epoch_date: the UTC calendar day of a Unix time in seconds. Plain arithmetic from 1970-01-01, so the result does not depend on the
+  session time zone of either engine (a cast of a timestamp to a date does).
+#}
+{% macro epoch_date(seconds_expr) %}{{ return(adapter.dispatch('epoch_date', 'packsense')(seconds_expr)) }}{% endmacro %}
+{% macro default__epoch_date(seconds_expr) %}(cast('1970-01-01' as date) + cast(floor({{ seconds_expr }} / 86400) as integer)){% endmacro %}
+{% macro databricks__epoch_date(seconds_expr) %}date_add(cast('1970-01-01' as date), cast(floor({{ seconds_expr }} / 86400) as int)){% endmacro %}
+{% macro duckdb__epoch_date(seconds_expr) %}(cast('1970-01-01' as date) + cast(floor({{ seconds_expr }} / 86400) as integer)){% endmacro %}
+
