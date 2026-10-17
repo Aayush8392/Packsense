@@ -17,9 +17,16 @@ holds: the bronze principal never writes gold, and gold never reads bronze, quar
   full every run: a period opens when the tracked set changes, versions that change nothing are merged, the open row is `is_latest_observed`),
   `product_flag_spans` (OFF's quality flags as spans, with `first_seen_is_first_version` and `vanished_with_tracked_change`), `product_status` (every
   product `unverified`, insert-only), `dim_brand`, `dim_market` (readable names, name matching) with `bridge_product_market`, `dim_date`, `taxonomy_tag_latest`, `taxonomy_name_lookup`,
-  `dim_flag`, `bridge_product_allergen`, `dim_allergen` and `mart_allergen_change_log` (see "Taxonomy-based models").
+  `dim_flag`, `bridge_product_allergen`, `dim_allergen` and `mart_allergen_change_log` (see "Taxonomy-based models"), and `bridge_product_category`, `dim_category`, `bridge_product_label` and `dim_label` (see "Categories and labels").
+- **Categories and labels** (slice 4, `bridge_product_category`, `bridge_product_label`, `dim_category`, `dim_label`): one bridge row per history period and tag, from one Databricks-only explode view
+  (`stg_history_taxonomy_tags`, with a DuckDB twin). The two dimensions share the macro `tag_dimension` (the same tag / name / ambiguous / none resolution as `dim_allergen`) and carry the taxonomy's
+  hierarchy (`parents`, `n_children`, `is_root`). **Measured on production before building (2026-10-18, estimates, not the built tables):** about 347,000 category and 119,000 label bridge rows
+  (the earlier estimate of 2.5 million was wrong); 9,201 distinct category tags and 1,866 label tags; 97.1% of category rows and 98.5% of label rows are exact taxonomy tags; the name match would resolve
+  541 more category tags (0.5% of rows) and 39 label tags, with 5 ambiguous category names and no ambiguous label. **No closure table:** OFF's `categories_tags` already lists a category's ancestors.
+  The test `category_lists_hold_their_ancestors` (a warning, not a failure) checks it: 15 of 1,523 exact-category rows in the fixture (1%) miss a parent, and several are taxonomy renames under old
+  periods (the lists say `en:fruits-based-foods`, the taxonomy now says `en:fruit-based-foods`), which is the stated reason it is a warning. Free text such as `en:Groceries` stays `none`.
 - **The tracked set** is one macro (`macros/tracked.sql`): tag arrays are sorted and the nutrients map is hashed by sorted entries, so a pure reordering is not a change.
-- **Tests:** 83 dbt tests (no duplicate periods, one open row per code, contiguous periods, versions merged equal silver rows, neighbouring periods differ,
+- **Tests:** 99 dbt tests (no duplicate periods, one open row per code, contiguous periods, versions merged equal silver rows, neighbouring periods differ,
   spans cover every occurrence, no overlap, bridge and dimension coverage) and Python tests that tie the staging view and the tracked set to the silver
   contract (run by CI with the other tests).
 - **The job:** a separate bundle (`databricks.yml`, `resources/gold_job.yml`): one serverless notebook (`notebooks/gold_run.py`) runs `dbt build` as the
@@ -70,11 +77,11 @@ The portable models must not depend on Databricks. The Databricks-only staging c
   the DuckDB twins use `unnest` and `list_distinct`. Per-engine macros (`macros/engine.sql`: ISO weekday, weekday name, distinct array size, first element, map get, `name_key`) cover the rest.
   On Databricks the fixture is loaded into a throwaway schema (`bootstrap/fixture_databricks.py load`, dbt target `fixture_admin`, var `fixture_mode`); on
   DuckDB by `gold_lib/fixture_load.py`, with the manifest's exact column types.
-- **The comparison** (`bootstrap/compare_engines.py`): each row of thirteen models is reduced to a canonical form (integers by value, timestamps as UTC seconds,
+- **The comparison** (`bootstrap/compare_engines.py`): each row of seventeen models is reduced to a canonical form (integers by value, timestamps as UTC seconds,
   maps by sorted key, arrays in order) and hashed; `fixtures/golden.json` holds one hash per row from the Databricks run. A DuckDB run must reproduce every
-  hash. **Result 2026-10-17:** identical on all 13 models (product_history 324 rows, product_flag_spans 2,070, product_status 209, dim_brand 166, dim_market 59, bridge_product_market 519,
-  dim_date 8,766, dim_flag 138, taxonomy_tag_latest 312, bridge_product_allergen 608, dim_allergen 54, taxonomy_name_lookup 7,564, mart_allergen_change_log 30), and all 102 dbt nodes
-  (19 models, 83 tests) pass on both engines. **The comparison found two defects:** (1) Databricks' statement API returns numbers nested in a map as text, a defect of the
+  hash. **Result 2026-10-18 (fixture of 233 products, 542 versions and 1,236 taxonomy rows):** identical on all 17 models (product_history 353 rows, product_flag_spans 2,293, product_status 233, dim_brand 187, dim_market 64, bridge_product_market 623,
+  dim_date 8,766, dim_flag 153, taxonomy_tag_latest 723, bridge_product_allergen 626, dim_allergen 55, taxonomy_name_lookup 13,846, mart_allergen_change_log 30, bridge_product_category 1,598, dim_category 420,
+  bridge_product_label 824, dim_label 153), and all 123 dbt nodes (24 models, 99 tests; 122 pass, 1 warning) pass on both engines. The 2026-10-17 result was 13 models on 209 products. **The comparison found two defects:** (1) Databricks' statement API returns numbers nested in a map as text, a defect of the
   comparison reader, fixed and tested; (2) the engines lower-case a few characters differently (Databricks turns the Turkish dotted capital I into `i` plus a combining dot, DuckDB into a
   plain `i`), which made the name lookup differ for 13 Turkish and Azerbaijani names: fixed with the shared `name_key` macro and a test that forbids a bare `lower(trim(`.
 - **Rerun idempotence** (`compare_engines.py idempotence`, 2026-10-17): on DuckDB a second build, a `--full-refresh` build (the incremental
@@ -86,7 +93,7 @@ The portable models must not depend on Databricks. The Databricks-only staging c
 - **Not covered:** `tracked_hash` and the Databricks staging logic themselves (tested by the Databricks-side dbt tests on real data), and the scheduled job.
 
 ## Still to do
-Category and label dimensions with their bridges (14,758 categories, about 2.5 million bridge rows), `fct_product_change_daily`, `fct_catalogue_quality_daily` and the brand
+`fct_product_change_daily`, `fct_catalogue_quality_daily` and the brand
 scorecard. The per-market export and the public-site marts belong with P6 (they go through the exit function), the worklist mart waits for P7. Parked: an allergen alias table and a rule
 table for the roughly 300 generated flags the taxonomy does not list.
 
