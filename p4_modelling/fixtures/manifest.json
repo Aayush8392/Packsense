@@ -1,9 +1,11 @@
 {
  "case_counts": {
+  "allergen_name_variants": 12,
   "flag_vanished_untouched": 10,
   "flag_vanished_with_change": 20,
   "india_new_format": 15,
   "legacy_nutrition": 15,
+  "market_name_variants": 12,
   "most_versions": 3,
   "no_op_pair": 25,
   "non_india": 15,
@@ -21,6 +23,9 @@
   ],
   "0060383101435": [
    "versions_1"
+  ],
+  "00626866": [
+   "allergen_name_variants"
   ],
   "0066721008299": [
    "flag_vanished_with_change"
@@ -81,6 +86,9 @@
   "2525978007700": [
    "non_india",
    "versions_1"
+  ],
+  "28407195": [
+   "allergen_name_variants"
   ],
   "3017620422003": [
    "flag_vanished_untouched",
@@ -190,6 +198,9 @@
    "non_india",
    "versions_1"
   ],
+  "3757694167249": [
+   "allergen_name_variants"
+  ],
   "3800020401217": [
    "versions_3"
   ],
@@ -252,9 +263,24 @@
   "4070765055313": [
    "versions_3"
   ],
+  "4250172925328": [
+   "allergen_name_variants"
+  ],
+  "4260661092165": [
+   "allergen_name_variants"
+  ],
+  "4260686525044": [
+   "allergen_name_variants"
+  ],
   "4262565151047": [
    "non_india",
    "versions_1"
+  ],
+  "4316268723381": [
+   "allergen_name_variants"
+  ],
+  "4335619355118": [
+   "allergen_name_variants"
   ],
   "4335619385474": [
    "flag_vanished_with_change",
@@ -267,6 +293,9 @@
   ],
   "4607004890086": [
    "no_op_pair"
+  ],
+  "4670010903088": [
+   "market_name_variants"
   ],
   "4807788524881": [
    "non_india",
@@ -283,6 +312,9 @@
   ],
   "5060925290752": [
    "versions_3"
+  ],
+  "5400141447590": [
+   "allergen_name_variants"
   ],
   "5404017406155": [
    "legacy_nutrition"
@@ -346,6 +378,9 @@
    "rev_gap",
    "versions_2"
   ],
+  "7340001800999": [
+   "allergen_name_variants"
+  ],
   "7340191188716": [
    "flag_vanished_untouched"
   ],
@@ -386,6 +421,9 @@
   "7630023201028": [
    "flag_vanished_untouched"
   ],
+  "7690543188568": [
+   "market_name_variants"
+  ],
   "7771718010140": [
    "flag_vanished_with_change"
   ],
@@ -412,6 +450,9 @@
   ],
   "8003340092690": [
    "no_op_pair"
+  ],
+  "8008698037720": [
+   "allergen_name_variants"
   ],
   "8410320127363": [
    "no_op_pair"
@@ -448,11 +489,41 @@
    "non_india",
    "versions_1"
   ],
+  "8680586920064": [
+   "market_name_variants"
+  ],
+  "8682214719828": [
+   "market_name_variants"
+  ],
+  "8690526096506": [
+   "market_name_variants"
+  ],
+  "8690530048652": [
+   "market_name_variants"
+  ],
+  "8690575894214": [
+   "market_name_variants"
+  ],
+  "8692886412965": [
+   "market_name_variants"
+  ],
+  "8697426454412": [
+   "market_name_variants"
+  ],
   "8697506991547": [
    "versions_2"
   ],
+  "8698686745012": [
+   "market_name_variants"
+  ],
+  "8699118050797": [
+   "market_name_variants"
+  ],
   "8699462607814": [
    "seed_and_delta"
+  ],
+  "8718114734484": [
+   "allergen_name_variants"
   ],
   "8718452988242": [
    "versions_1"
@@ -624,6 +695,9 @@
   "8996001312476": [
    "india_new_format"
   ],
+  "9121954541690": [
+   "market_name_variants"
+  ],
   "9233000000010": [
    "versions_2"
   ],
@@ -730,15 +804,17 @@
   "names_replaced": 19,
   "ordinary_names_left_alone": 2,
   "patterns_removed": 0,
-  "rows": 486
+  "rows": 510
  },
- "generated_at_utc": "2026-10-17 11:44:31",
- "products": 185,
+ "generated_at_utc": "2026-10-17 15:05:42",
+ "products": 209,
  "selection_limits": {
+  "allergen_name_variants": 12,
   "flag_vanished_untouched": 10,
   "flag_vanished_with_change": 20,
   "india_new_format": 15,
   "legacy_nutrition": 15,
+  "market_name_variants": 12,
   "most_versions": 3,
   "no_op_pair": 25,
   "non_india": 15,
@@ -751,6 +827,6 @@
   "versions_5_plus": 25
  },
  "silver_contract_version": 4,
- "version_rows": 486,
+ "version_rows": 510,
  "what": "output of the gold staging view stg_silver_versions for a chosen real slice, after the exit function"
 }
