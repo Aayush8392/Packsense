@@ -68,7 +68,15 @@ LIMITS = {
     "versions_1": 20, "versions_2": 30, "versions_3": 20, "versions_4": 5, "versions_5_plus": 25, "most_versions": 3,
     "seed_and_delta": 25, "legacy_nutrition": 15, "india_new_format": 15, "non_india": 15,
     "no_op_pair": 25, "rev_gap": 25, "flag_vanished_with_change": 20, "flag_vanished_untouched": 10,
+    "allergen_name_variants": 12, "market_name_variants": 12,
 }
+
+# Real tags observed in production on 2026-10-17 (dim_allergen and dim_market) that are not canonical taxonomy tags but are exactly the
+# name of one taxonomy tag in some language, entered under the wrong prefix or in the wrong case. They are what gold's name-match tier
+# (dim_allergen.match_type = 'name') resolves; products carrying them keep that logic tested on real data on both engines.
+ALLERGEN_VARIANTS = ["en:Milch", "en:lait", "en:Lait", "en:LAIT", "en:Senf", "en:Sellerie", "en:Sesam", "fr:Milch", "en:moutarde",
+                     "en:leche", "en:Eier", "en:Œufs", "en:Erdnüsse", "en:céleri", "en:arachides"]
+MARKET_VARIANTS = ["en:Türkiye", "en:Nederland", "en:Magyarország", "en:日本", "en:Allemagne", "fr:Francia", "en:Maroc"]
 
 per_code = f"""
 select code, count(*) as n,
@@ -98,6 +106,10 @@ parts = [
     pick("rev_gap", "unseen_edits > 0", source=HIST),
     pick("flag_vanished_with_change", "vanished_with_tracked_change = 1", source=SPANS),
     pick("flag_vanished_untouched", "vanished_with_tracked_change = 0", source=SPANS),
+    pick("allergen_name_variants",
+         f"arrays_overlap(allergens_tags, array({', '.join(repr(t) for t in ALLERGEN_VARIANTS)})) "
+         f"or arrays_overlap(traces_tags, array({', '.join(repr(t) for t in ALLERGEN_VARIANTS)}))", source=STG),
+    pick("market_name_variants", f"arrays_overlap(countries_tags, array({', '.join(repr(t) for t in MARKET_VARIANTS)}))", source=STG),
 ]
 chosen = spark.sql(" union all ".join(parts)).collect()
 cases = {}

@@ -61,13 +61,41 @@ print("taxonomies gold uses:", GOLD_TAXONOMIES)
 
 # COMMAND ----------
 # 1. The tags the committed product fixture uses, per taxonomy.
-fixture_rows = [json.loads(line) for line in open(os.path.join(P4, "fixtures", "stg_silver_versions.jsonl"), encoding="utf-8")]
+# the product fixture just exported to the volume if it is there (the two exports run back to back), else the committed one
+fresh = f"{OUT_DIR}/stg_silver_versions.jsonl"
+fixture_path = fresh if os.path.exists(fresh) else os.path.join(P4, "fixtures", "stg_silver_versions.jsonl")
+print("product fixture read from:", "the volume (just exported)" if fixture_path == fresh else "the repo checkout")
+fixture_rows = [json.loads(line) for line in open(fixture_path, encoding="utf-8")]
 wanted = {}
 for taxonomy in GOLD_TAXONOMIES:
     if taxonomy not in USED_BY:
         raise RuntimeError(f"no product column is known for the taxonomy {taxonomy}: add it to USED_BY")
     wanted[taxonomy] = {t for r in fixture_rows for col in USED_BY[taxonomy] for t in (r.get(col) or []) if isinstance(t, str)}
 print({k: len(v) for k, v in wanted.items()}, "tags used by", len(fixture_rows), "fixture versions")
+
+# Name matches: dim_allergen and dim_market also resolve a tag that is not canonical but equals, ignoring case, exactly one tag's name in some
+# language. The canonical tag's row must be in the fixture too, or the fixture could not show the match.
+import re  # noqa: E402
+for taxonomy in ("allergens", "countries"):
+    if taxonomy not in wanted:
+        continue
+    newest = spark.table(TABLE).where(F.col("taxonomy") == taxonomy)
+    newest = newest.where(F.col("valid_from") == newest.agg(F.max("valid_from")).collect()[0][0]).collect()
+    lookup = {}
+    for r in newest:
+        for text in (r["names"] or {}).values():
+            if isinstance(text, str) and text.strip():
+                lookup.setdefault(text.strip().lower(), set()).add(r["tag"])
+    known = {r["tag"] for r in newest}
+    extra = set()
+    for tag in wanted[taxonomy]:
+        if tag in known:
+            continue
+        candidates = lookup.get(re.sub(r"^[^:]*:", "", tag).strip().lower(), set())
+        if len(candidates) == 1:
+            extra |= candidates
+    print(f"{taxonomy}: {len(extra)} canonical tags added for name matches")
+    wanted[taxonomy] |= extra
 
 # COMMAND ----------
 # 2. Their rows in silver (every snapshot), then the parents' rows.
