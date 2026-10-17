@@ -1,0 +1,756 @@
+{
+ "case_counts": {
+  "flag_vanished_untouched": 10,
+  "flag_vanished_with_change": 20,
+  "india_new_format": 15,
+  "legacy_nutrition": 15,
+  "most_versions": 3,
+  "no_op_pair": 25,
+  "non_india": 15,
+  "rev_gap": 25,
+  "seed_and_delta": 25,
+  "versions_1": 20,
+  "versions_2": 30,
+  "versions_3": 20,
+  "versions_4": 5,
+  "versions_5_plus": 25
+ },
+ "cases_per_code": {
+  "0044000015923": [
+   "no_op_pair"
+  ],
+  "0060383101435": [
+   "versions_1"
+  ],
+  "0066721008299": [
+   "flag_vanished_with_change"
+  ],
+  "0066800101194": [
+   "no_op_pair",
+   "versions_2"
+  ],
+  "00678230": [
+   "versions_2"
+  ],
+  "0072655454453": [
+   "versions_4"
+  ],
+  "0092227741408": [
+   "versions_5_plus"
+  ],
+  "0193968901813": [
+   "versions_5_plus"
+  ],
+  "0266096007730": [
+   "non_india",
+   "versions_1"
+  ],
+  "0643843717898": [
+   "versions_5_plus"
+  ],
+  "0670087142995": [
+   "india_new_format"
+  ],
+  "0741839005988": [
+   "non_india",
+   "versions_1"
+  ],
+  "0750515018402": [
+   "versions_3"
+  ],
+  "0810104461962": [
+   "flag_vanished_with_change",
+   "rev_gap"
+  ],
+  "0811130033727": [
+   "versions_5_plus"
+  ],
+  "0850031990012": [
+   "versions_3"
+  ],
+  "0850040325102": [
+   "versions_2"
+  ],
+  "0850049384070": [
+   "flag_vanished_untouched"
+  ],
+  "2097130004143": [
+   "non_india",
+   "versions_1"
+  ],
+  "2525978007700": [
+   "non_india",
+   "versions_1"
+  ],
+  "3017620422003": [
+   "flag_vanished_untouched",
+   "versions_5_plus"
+  ],
+  "3017621421005": [
+   "flag_vanished_untouched"
+  ],
+  "3029330802150": [
+   "rev_gap",
+   "versions_2"
+  ],
+  "3080216054834": [
+   "no_op_pair",
+   "rev_gap",
+   "versions_2"
+  ],
+  "3175681132467": [
+   "versions_5_plus"
+  ],
+  "3179730115838": [
+   "no_op_pair",
+   "rev_gap"
+  ],
+  "3228021170039": [
+   "no_op_pair",
+   "rev_gap",
+   "versions_3"
+  ],
+  "3229820796550": [
+   "non_india",
+   "versions_1"
+  ],
+  "3242271000885": [
+   "versions_3"
+  ],
+  "3245390082596": [
+   "rev_gap",
+   "versions_2"
+  ],
+  "3248830003281": [
+   "flag_vanished_with_change",
+   "non_india",
+   "versions_2"
+  ],
+  "3250390052821": [
+   "most_versions"
+  ],
+  "3250390059035": [
+   "most_versions",
+   "versions_5_plus"
+  ],
+  "3250390166870": [
+   "most_versions",
+   "versions_5_plus"
+  ],
+  "3254560307339": [
+   "versions_4"
+  ],
+  "3256225036240": [
+   "flag_vanished_with_change",
+   "rev_gap",
+   "versions_3"
+  ],
+  "3256225717477": [
+   "versions_2"
+  ],
+  "3263858078820": [
+   "no_op_pair",
+   "versions_2"
+  ],
+  "3270160100415": [
+   "no_op_pair",
+   "versions_2"
+  ],
+  "3271620007725": [
+   "flag_vanished_with_change",
+   "rev_gap"
+  ],
+  "3284230004015": [
+   "flag_vanished_with_change"
+  ],
+  "3385570114102": [
+   "non_india",
+   "versions_1"
+  ],
+  "3559500001293": [
+   "rev_gap"
+  ],
+  "3560071586102": [
+   "versions_5_plus"
+  ],
+  "3596710452453": [
+   "no_op_pair",
+   "versions_2"
+  ],
+  "3596710455300": [
+   "no_op_pair"
+  ],
+  "3596710520770": [
+   "flag_vanished_untouched"
+  ],
+  "3613042717385": [
+   "flag_vanished_untouched"
+  ],
+  "3661112092054": [
+   "non_india",
+   "versions_1"
+  ],
+  "3800020401217": [
+   "versions_3"
+  ],
+  "3800020491423": [
+   "versions_5_plus"
+  ],
+  "3948764112911": [
+   "seed_and_delta"
+  ],
+  "4000339035229": [
+   "versions_5_plus"
+  ],
+  "4006934773658": [
+   "flag_vanished_with_change",
+   "rev_gap"
+  ],
+  "4008366003587": [
+   "versions_4"
+  ],
+  "4008400290126": [
+   "versions_5_plus"
+  ],
+  "4013197767010": [
+   "versions_5_plus"
+  ],
+  "4056631004050": [
+   "rev_gap",
+   "versions_2"
+  ],
+  "4061462858857": [
+   "versions_1"
+  ],
+  "4066447087192": [
+   "flag_vanished_untouched"
+  ],
+  "4067796167399": [
+   "versions_3"
+  ],
+  "4068261061198": [
+   "versions_2"
+  ],
+  "4069366066637": [
+   "flag_vanished_with_change",
+   "versions_2"
+  ],
+  "4070308043562": [
+   "no_op_pair",
+   "versions_3"
+  ],
+  "4070757201872": [
+   "flag_vanished_with_change"
+  ],
+  "4070765021547": [
+   "flag_vanished_with_change",
+   "versions_3"
+  ],
+  "4070765053685": [
+   "versions_3"
+  ],
+  "4070765055313": [
+   "versions_3"
+  ],
+  "4262565151047": [
+   "non_india",
+   "versions_1"
+  ],
+  "4335619385474": [
+   "flag_vanished_with_change",
+   "rev_gap",
+   "versions_2"
+  ],
+  "4604248027377": [
+   "non_india",
+   "versions_1"
+  ],
+  "4607004890086": [
+   "no_op_pair"
+  ],
+  "4807788524881": [
+   "non_india",
+   "versions_1"
+  ],
+  "4823105400492": [
+   "flag_vanished_with_change"
+  ],
+  "5056281160747": [
+   "legacy_nutrition"
+  ],
+  "5060108459273": [
+   "flag_vanished_with_change"
+  ],
+  "5060925290752": [
+   "versions_3"
+  ],
+  "5404017406155": [
+   "legacy_nutrition"
+  ],
+  "5404038604370": [
+   "no_op_pair",
+   "rev_gap",
+   "versions_2"
+  ],
+  "5413548280189": [
+   "versions_4"
+  ],
+  "5449000000996": [
+   "versions_5_plus"
+  ],
+  "5602364000075": [
+   "flag_vanished_with_change"
+  ],
+  "5909227010074": [
+   "legacy_nutrition",
+   "versions_1"
+  ],
+  "5941065012056": [
+   "versions_5_plus"
+  ],
+  "5941209001571": [
+   "no_op_pair",
+   "versions_4"
+  ],
+  "5941209014298": [
+   "versions_5_plus"
+  ],
+  "5941209014588": [
+   "versions_5_plus"
+  ],
+  "5941265011682": [
+   "versions_5_plus"
+  ],
+  "5941265012641": [
+   "no_op_pair",
+   "rev_gap",
+   "versions_5_plus"
+  ],
+  "5941265020004": [
+   "versions_5_plus"
+  ],
+  "5941485002781": [
+   "versions_3"
+  ],
+  "5999882848044": [
+   "versions_2"
+  ],
+  "6263541402267": [
+   "no_op_pair"
+  ],
+  "6909409012017": [
+   "flag_vanished_with_change"
+  ],
+  "7037710024937": [
+   "flag_vanished_with_change",
+   "rev_gap",
+   "versions_2"
+  ],
+  "7340191188716": [
+   "flag_vanished_untouched"
+  ],
+  "7373621765324": [
+   "versions_2"
+  ],
+  "7392672001540": [
+   "versions_2"
+  ],
+  "7452100340129": [
+   "flag_vanished_with_change",
+   "versions_2"
+  ],
+  "7613031586592": [
+   "rev_gap"
+  ],
+  "7613035694989": [
+   "no_op_pair",
+   "rev_gap",
+   "versions_3"
+  ],
+  "7613035898677": [
+   "no_op_pair",
+   "rev_gap",
+   "versions_2"
+  ],
+  "7613036892520": [
+   "no_op_pair",
+   "rev_gap",
+   "versions_3"
+  ],
+  "7613037986938": [
+   "versions_3"
+  ],
+  "7622201809638": [
+   "versions_3"
+  ],
+  "7630023201028": [
+   "flag_vanished_untouched"
+  ],
+  "7771718010140": [
+   "flag_vanished_with_change"
+  ],
+  "7772619004108": [
+   "flag_vanished_with_change"
+  ],
+  "7980342379725": [
+   "no_op_pair",
+   "rev_gap",
+   "versions_2"
+  ],
+  "8000300424058": [
+   "no_op_pair",
+   "rev_gap"
+  ],
+  "8000500309469": [
+   "versions_5_plus"
+  ],
+  "8001665713160": [
+   "versions_5_plus"
+  ],
+  "8002580321157": [
+   "flag_vanished_untouched"
+  ],
+  "8003340092690": [
+   "no_op_pair"
+  ],
+  "8410320127363": [
+   "no_op_pair"
+  ],
+  "8410714108947": [
+   "rev_gap"
+  ],
+  "8410762220806": [
+   "no_op_pair",
+   "rev_gap",
+   "versions_5_plus"
+  ],
+  "8410814014025": [
+   "non_india",
+   "versions_1"
+  ],
+  "8410843036333": [
+   "versions_3"
+  ],
+  "8436022842724": [
+   "versions_2"
+  ],
+  "8436607850809": [
+   "non_india",
+   "versions_1"
+  ],
+  "8445290508423": [
+   "versions_3"
+  ],
+  "8445291174955": [
+   "versions_5_plus"
+  ],
+  "8480000146373": [
+   "non_india",
+   "versions_1"
+  ],
+  "8697506991547": [
+   "versions_2"
+  ],
+  "8699462607814": [
+   "seed_and_delta"
+  ],
+  "8718452988242": [
+   "versions_1"
+  ],
+  "8719587444030": [
+   "versions_2"
+  ],
+  "8721274500271": [
+   "seed_and_delta"
+  ],
+  "8801062267675": [
+   "versions_3"
+  ],
+  "8900095067648": [
+   "legacy_nutrition"
+  ],
+  "8901058903966": [
+   "flag_vanished_untouched",
+   "seed_and_delta"
+  ],
+  "8901063139336": [
+   "india_new_format"
+  ],
+  "8901063325364": [
+   "legacy_nutrition"
+  ],
+  "8901063341500": [
+   "seed_and_delta"
+  ],
+  "8901063368675": [
+   "seed_and_delta"
+  ],
+  "8901071732512": [
+   "seed_and_delta"
+  ],
+  "8901207001826": [
+   "seed_and_delta"
+  ],
+  "8901262030540": [
+   "india_new_format"
+  ],
+  "8901262071703": [
+   "seed_and_delta"
+  ],
+  "8901595852321": [
+   "seed_and_delta"
+  ],
+  "8901595963348": [
+   "seed_and_delta"
+  ],
+  "8901719135170": [
+   "india_new_format",
+   "versions_2"
+  ],
+  "8901725001087": [
+   "india_new_format"
+  ],
+  "8901725015886": [
+   "seed_and_delta"
+  ],
+  "8901725018658": [
+   "versions_1"
+  ],
+  "8901764111105": [
+   "seed_and_delta"
+  ],
+  "8901774002509": [
+   "india_new_format",
+   "versions_2"
+  ],
+  "8901883001745": [
+   "legacy_nutrition"
+  ],
+  "8902268002326": [
+   "legacy_nutrition"
+  ],
+  "8902268014688": [
+   "india_new_format"
+  ],
+  "8902433030550": [
+   "india_new_format"
+  ],
+  "8902579002121": [
+   "seed_and_delta"
+  ],
+  "8902979001724": [
+   "seed_and_delta"
+  ],
+  "8902979029841": [
+   "seed_and_delta"
+  ],
+  "8903553178290": [
+   "versions_1"
+  ],
+  "8904063253958": [
+   "legacy_nutrition"
+  ],
+  "8904132983403": [
+   "seed_and_delta"
+  ],
+  "8906002661404": [
+   "legacy_nutrition"
+  ],
+  "8906005618238": [
+   "india_new_format"
+  ],
+  "8906018901563": [
+   "india_new_format"
+  ],
+  "8906020580367": [
+   "legacy_nutrition"
+  ],
+  "8906031931066": [
+   "flag_vanished_with_change",
+   "rev_gap",
+   "versions_2"
+  ],
+  "8906055440704": [
+   "seed_and_delta"
+  ],
+  "8906065169930": [
+   "india_new_format"
+  ],
+  "8906066202803": [
+   "seed_and_delta"
+  ],
+  "8906078720418": [
+   "legacy_nutrition"
+  ],
+  "8906097598241": [
+   "india_new_format"
+  ],
+  "8906112666474": [
+   "legacy_nutrition"
+  ],
+  "8906113441964": [
+   "seed_and_delta"
+  ],
+  "8906136651982": [
+   "seed_and_delta"
+  ],
+  "8906170470365": [
+   "india_new_format"
+  ],
+  "8908006646746": [
+   "seed_and_delta"
+  ],
+  "8908014021092": [
+   "legacy_nutrition"
+  ],
+  "8908014672065": [
+   "seed_and_delta"
+  ],
+  "8908016716590": [
+   "legacy_nutrition"
+  ],
+  "8908020733095": [
+   "legacy_nutrition"
+  ],
+  "8908022254956": [
+   "seed_and_delta"
+  ],
+  "8909106048928": [
+   "india_new_format"
+  ],
+  "8935304202411": [
+   "no_op_pair"
+  ],
+  "8996001312476": [
+   "india_new_format"
+  ],
+  "9233000000010": [
+   "versions_2"
+  ],
+  "9300658411892": [
+   "no_op_pair",
+   "rev_gap",
+   "versions_5_plus"
+  ],
+  "9556562002958": [
+   "seed_and_delta"
+  ],
+  "9926340003222": [
+   "non_india",
+   "versions_1"
+  ]
+ },
+ "columns": {
+  "added_sugars": "double",
+  "additives_tags": "array<string>",
+  "allergens_tags": "array<string>",
+  "brands": "string",
+  "bronze_ingested_at": "timestamp",
+  "carbohydrates": "double",
+  "categories_tags": "array<string>",
+  "checked": "string",
+  "code": "string",
+  "code_check_digit_valid": "boolean",
+  "code_kind": "string",
+  "completeness": "double",
+  "countries_tags": "array<string>",
+  "created_t": "bigint",
+  "created_ts": "timestamp",
+  "data_quality_bugs_tags": "array<string>",
+  "data_quality_errors_tags": "array<string>",
+  "data_quality_info_tags": "array<string>",
+  "data_quality_warnings_tags": "array<string>",
+  "delta_end_t": "bigint",
+  "delta_start_t": "bigint",
+  "delta_window_end": "timestamp",
+  "delta_window_start": "timestamp",
+  "distinct_editors": "int",
+  "energy_kcal": "double",
+  "energy_kj": "double",
+  "environmental_score_grade": "string",
+  "fat": "double",
+  "fiber": "double",
+  "file_sha256": "string",
+  "first_brand": "string",
+  "food_groups_tags": "array<string>",
+  "gs1_prefix": "string",
+  "gtin14": "string",
+  "ingredients_analysis_tags": "array<string>",
+  "ingredients_sha256": "string",
+  "input_sets": "array<struct<source:string,per:string,per_quantity:double,per_unit:string,preparation:string,nutrients:map<string,struct<value:double,unit:string,modifier:string>>>>",
+  "is_seed": "boolean",
+  "job_run_id": "string",
+  "labels_tags": "array<string>",
+  "last_checked_t": "bigint",
+  "last_modified_t": "bigint",
+  "last_modified_ts": "timestamp",
+  "lc": "string",
+  "nova_group": "int",
+  "nutrient_levels_tags": "array<string>",
+  "nutrients": "map<string,struct<value:double,unit:string,modifier:string>>",
+  "nutriscore_grade": "string",
+  "nutriscore_score": "int",
+  "nutrition_format": "string",
+  "nutrition_per": "string",
+  "nutrition_preparation": "string",
+  "origins_tags": "array<string>",
+  "packaging_tags": "array<string>",
+  "pnns_groups_1": "string",
+  "pnns_groups_2": "string",
+  "popularity_key": "bigint",
+  "producer_owned": "boolean",
+  "product_name": "string",
+  "product_quantity": "double",
+  "product_quantity_unit": "string",
+  "product_type": "string",
+  "proteins": "double",
+  "quantity_amount": "double",
+  "quantity_multiplier": "int",
+  "quantity_unit": "string",
+  "rev": "int",
+  "salt": "double",
+  "saturated_fat": "double",
+  "schema_version": "int",
+  "serving_amount": "double",
+  "serving_quantity": "double",
+  "serving_unit": "string",
+  "silver_contract_version": "int",
+  "silver_processed_at": "timestamp",
+  "sodium": "double",
+  "source_file": "string",
+  "starch": "double",
+  "states_tags": "array<string>",
+  "sugars": "double",
+  "traces_tags": "array<string>",
+  "tracked_hash": "string",
+  "unique_scans_n": "bigint"
+ },
+ "exit_report": {
+  "columns_dropped": 0,
+  "names_replaced": 19,
+  "ordinary_names_left_alone": 2,
+  "patterns_removed": 0,
+  "rows": 486
+ },
+ "generated_at_utc": "2026-10-17 11:44:31",
+ "products": 185,
+ "selection_limits": {
+  "flag_vanished_untouched": 10,
+  "flag_vanished_with_change": 20,
+  "india_new_format": 15,
+  "legacy_nutrition": 15,
+  "most_versions": 3,
+  "no_op_pair": 25,
+  "non_india": 15,
+  "rev_gap": 25,
+  "seed_and_delta": 25,
+  "versions_1": 20,
+  "versions_2": 30,
+  "versions_3": 20,
+  "versions_4": 5,
+  "versions_5_plus": 25
+ },
+ "silver_contract_version": 4,
+ "version_rows": 486,
+ "what": "output of the gold staging view stg_silver_versions for a chosen real slice, after the exit function"
+}

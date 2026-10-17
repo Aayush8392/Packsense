@@ -37,6 +37,7 @@ data/
 *.jsonl
 # the one exception: small real slices used as test fixtures, with personal data removed (see the README beside them)
 !p2_lakehouse/tests/fixtures/*.jsonl
+!p4_modelling/fixtures/*.jsonl
 *.jsonl.gz
 *.json.gz
 *.csv.gz

@@ -10,8 +10,6 @@ import re
 import sys
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "p2_lakehouse"))
 
@@ -52,7 +50,6 @@ def fixture_rows():
     return [json.loads(line) for line in FIXTURE.read_text(encoding="utf-8").splitlines()]
 
 
-@pytest.mark.skipif(not FIXTURE.exists(), reason="the fixture has not been exported yet; remove this skip once it is committed")
 def test_committed_fixture_has_no_hashed_columns_and_no_scrub_pattern():
     rows = fixture_rows()
     assert rows
@@ -69,7 +66,6 @@ def test_committed_fixture_has_no_hashed_columns_and_no_scrub_pattern():
                     assert not personal.has_pattern(body, patterns), f"scrub pattern left in {col} of {row['code']}"
 
 
-@pytest.mark.skipif(not FIXTURE.exists(), reason="the fixture has not been exported yet; remove this skip once it is committed")
 def test_committed_fixture_matches_its_manifest():
     manifest = json.loads((FIXTURE.parent / "manifest.json").read_text(encoding="utf-8"))
     rows = fixture_rows()
