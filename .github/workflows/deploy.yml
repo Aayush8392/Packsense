@@ -8,10 +8,15 @@ on:
   push:
     branches: [main]
     paths:
+      # what changes the deployed bundle: not the tests, the bootstrap scripts or the READMEs (the bundle's sync leaves out the first two,
+      # and a README edit changes nothing the jobs run). The negative patterns apply to the positive ones above them.
       - databricks.yml
       - p1_intake/**
       - p2_lakehouse/**
       - p3_delivery/**
+      - '!**/tests/**'
+      - '!**/bootstrap/**'
+      - '!**/README.md'
       - .github/workflows/deploy.yml
   workflow_dispatch:
 
