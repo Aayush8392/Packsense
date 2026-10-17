@@ -14,6 +14,17 @@ packsense_gold:
       client_id: "{{ env_var('DATABRICKS_CLIENT_ID') }}"
       client_secret: "{{ env_var('DATABRICKS_CLIENT_SECRET') }}"
       threads: 4
+    prod:
+      # the production gold principal (`packsense-gold`); run with --vars '{silver_schema: packsense_silver}'
+      type: databricks
+      catalog: workspace
+      schema: packsense_gold
+      host: "{{ env_var('DATABRICKS_HOST') | replace('https://', '') | replace('/', '') }}"
+      http_path: "{{ env_var('DBT_HTTP_PATH') }}"
+      auth_type: oauth
+      client_id: "{{ env_var('DATABRICKS_CLIENT_ID') }}"
+      client_secret: "{{ env_var('DATABRICKS_CLIENT_SECRET') }}"
+      threads: 4
     dev_admin:
       type: databricks
       catalog: workspace

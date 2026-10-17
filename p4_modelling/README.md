@@ -18,6 +18,27 @@ History table (SCD2 from silver's own versions, tracked set, no-op versions coll
 (every product `unverified`), brand, market and date dimensions, tests, the DuckDB comparison on a real fixture, the gold principals and job.
 The design is in the private build log; the decisions are summarised in the top-level README when gold is live.
 
+## Gold principals and grants (set by an admin in the SQL editor, kept here so they can be re-created)
+Two principals, each with the **Workspace access** and **Databricks SQL access** entitlements, **Can use** on the SQL warehouse and nothing else.
+Replace `<principal>` with the application (client) id. A principal reads exactly two silver tables and writes only its own gold schema:
+it has no access to bronze, to quarantine, or to the secret scope `packsense`. No `CREATE SCHEMA`: an admin creates the schema first.
+Unity Catalog has no `CREATE VIEW` privilege; `CREATE TABLE` covers views.
+
+Prod (`packsense-gold`; schema `workspace.packsense_gold`):
+```sql
+CREATE SCHEMA IF NOT EXISTS workspace.packsense_gold;
+GRANT USE CATALOG ON CATALOG workspace TO `<principal>`;
+GRANT USE SCHEMA ON SCHEMA workspace.packsense_silver TO `<principal>`;
+GRANT SELECT ON TABLE workspace.packsense_silver.silver_product_versions TO `<principal>`;
+GRANT SELECT ON TABLE workspace.packsense_silver.silver_manifest TO `<principal>`;
+GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_gold TO `<principal>`;
+GRANT SELECT ON SCHEMA workspace.packsense_gold TO `<admin user>`;
+```
+Dev (`packsense-gold-dev`): the same shapes on `workspace.packsense_dev_silver` and `workspace.packsense_dev_gold`.
+
+Table-level grants on silver are lost when a silver table is renamed or dropped and recreated (the table-swap runbook): re-grant afterwards.
+A table is owned by the principal that created it and a schema owner gets no read access to it, hence the standing `SELECT` for the admin.
+
 ## Run locally (dev)
 ```
 pip install -r p4_modelling/requirements.txt

@@ -26,6 +26,30 @@ models:
         description: 1 on the newest period of a code, else 0.
         data_tests: [not_null]
 
+  - name: product_flag_spans
+    description: >
+      OFF's quality flags as spans: one row per product, flag and unbroken run of versions that carry it (a flag that vanishes and
+      returns is two spans). Separate from the history table. The flag is the raw OFF tag; mapping to check families waits for the
+      taxonomy loader.
+    columns:
+      - name: flag_id
+        description: Hash of (code, severity, flag, first_seen_t); a rebuild reproduces the same ids.
+        data_tests: [unique, not_null]
+      - name: severity
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['error', 'warning', 'info', 'bug']
+      - name: first_seen_is_first_version
+        description: 1 when the product was never observed without the flag, so its appearance time is not known.
+        data_tests: [not_null]
+      - name: is_open
+        description: 1 when the product's newest observed version still carries the flag.
+        data_tests: [not_null]
+      - name: vanished_with_tracked_change
+        description: 1 when the version that dropped the flag also changed the tracked set; NULL while the span is open.
+
   - name: product_status
     description: >
       Existence status per product. Created now, every product `unverified`; filled by the monthly reconciliation (P9).
