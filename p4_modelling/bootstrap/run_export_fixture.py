@@ -1,7 +1,7 @@
 """Runs the fixture export notebook (p4_modelling/notebooks/export_fixture.py) once on Databricks serverless, from a git branch,
 and prints its result. A one-off run, not a job. The branch must be pushed first (the run reads it from GitHub).
 
-  python p4_modelling/bootstrap/run_export_fixture.py --branch p4-duckdb
+  python p4_modelling/bootstrap/run_export_fixture.py --branch p4-duckdb [--notebook export_fixture | export_taxonomy_fixture]
 Environment: DATABRICKS_HOST and DATABRICKS_TOKEN (admin), set in your own shell; or pass --env-file PATH. Values are never printed.
 The admin needs SELECT on the production gold schema (staging view, product_history, product_flag_spans) and on bronze.
 Then fetch the result with p4_modelling/bootstrap/fetch_fixture.py.
@@ -12,7 +12,8 @@ import sys
 from datetime import timedelta
 
 REPO = "https://github.com/Aayush8392/Packsense"
-NOTEBOOK = "p4_modelling/notebooks/export_fixture"
+NOTEBOOKS = {"export_fixture": 1800, "export_taxonomy_fixture": 1800}   # notebook name -> timeout in seconds
+NOTEBOOK_DIR = "p4_modelling/notebooks/"
 
 
 def load_env_file(path: str) -> None:
@@ -27,6 +28,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--env-file")
     ap.add_argument("--branch", default="main")
+    ap.add_argument("--notebook", default="export_fixture", choices=sorted(NOTEBOOKS))
     ap.add_argument("--param", action="append", default=[], help="notebook widget, name=value (gold_schema, bronze_table, out_dir)")
     args = ap.parse_args()
     if args.env_file:
@@ -38,10 +40,10 @@ def main() -> int:
     from databricks.sdk.service import jobs
     w = WorkspaceClient(host=os.environ["DATABRICKS_HOST"], token=os.environ["DATABRICKS_TOKEN"], auth_type="pat")
     waiter = w.jobs.submit(
-        run_name="packsense-export-fixture", timeout_seconds=1800,
+        run_name=f"packsense-{args.notebook.replace('_', '-')}", timeout_seconds=NOTEBOOKS[args.notebook],
         git_source=jobs.GitSource(git_url=REPO, git_provider=jobs.GitProvider.GIT_HUB, git_branch=args.branch),
         tasks=[jobs.SubmitTask(task_key="export", notebook_task=jobs.NotebookTask(
-            notebook_path=NOTEBOOK, source=jobs.Source.GIT, base_parameters=params))])
+            notebook_path=NOTEBOOK_DIR + args.notebook, source=jobs.Source.GIT, base_parameters=params))])
     print("submitted run", waiter.run_id, flush=True)
     try:
         run = waiter.result(timeout=timedelta(minutes=29))

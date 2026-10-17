@@ -105,6 +105,62 @@ def prepare_for_export(rows: list, c: dict, handles, brand_exempt=None):
     return out, report
 
 
+def _walk_strings(value, fn):
+    """The same structure with fn applied to every string value (dict keys are not touched)."""
+    if isinstance(value, str):
+        return fn(value)
+    if isinstance(value, list):
+        return [_walk_strings(v, fn) for v in value]
+    if isinstance(value, dict):
+        return {k: _walk_strings(v, fn) for k, v in value.items()}
+    return value
+
+
+def _all_strings(value):
+    """Every string in a value, dict keys included (used by the scan after cleaning)."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, list):
+        for v in value:
+            yield from _all_strings(v)
+    elif isinstance(value, dict):
+        for k, v in value.items():
+            yield from _all_strings(k)
+            yield from _all_strings(v)
+
+
+def prepare_vocabulary_for_export(rows: list, c: dict):
+    """The exit for taxonomy (vocabulary) rows: rows of silver_taxonomy_tag, or an excerpt of them, such as the comparison fixture.
+
+    Taxonomies hold no contributor names (their properties are an allowlist, see contracts/taxonomy.yml), so there is no name list
+    here. What remains of the product exit's duties: columns marked egress: never are dropped, the contract's scrub patterns are
+    applied to every string value, and the result is scanned again (dict keys included): the export is refused if a pattern is
+    still present. Returns (clean rows, report). The input rows are not changed."""
+    patterns = personal.compile_patterns(c)
+    replacement = c["scrub"]["replacement"]
+    drop = never_columns(c)
+    report = collections.Counter()
+    report["rows"] = len(rows)
+
+    def scrub_text(text):
+        out, n = personal.scrub(text, patterns)
+        report["patterns_removed"] += n
+        return out
+
+    out = []
+    for row in rows:
+        report["columns_dropped"] += len(drop & set(row))
+        out.append({k: _walk_strings(v, scrub_text) for k, v in row.items() if k not in drop})
+    for row in out:
+        for text in _all_strings(list(row.values())):
+            if personal.has_pattern(text.replace(replacement, ""), patterns):
+                raise EgressRefused(f"a scrub pattern is still present in a vocabulary row (tag {row.get('tag')})")
+    leftover = [k for k in drop if any(k in r for r in out)]
+    if leftover:
+        raise EgressRefused(f"columns marked egress: never are still present: {leftover}")
+    return out, report
+
+
 def assert_no_hashed_columns(columns, c: dict):
     """For export paths that build their own column list: refuse any column marked egress: never."""
     bad = sorted(set(columns) & never_columns(c))

@@ -122,3 +122,55 @@ def test_the_report_counts_rows_and_what_was_done():
     rows[-1]["product_name"] = "Cake user_00077 www.example.com"
     _, report = egress.prepare_for_export(rows, C, handles={"user_00077"})
     assert report["rows"] == len(rows) and report["patterns_removed"] >= 1 and report["names_replaced"] == 1
+
+
+# ---- the exit for taxonomy (vocabulary) rows -----------------------------------------------------------------------------------
+
+def vocabulary_rows():
+    """Real taxonomy excerpt rows (allergens, countries, labels with contact data in the source, data_quality, categories)."""
+    from silver_lib import taxonomy
+    excerpt = json.loads((Path(__file__).resolve().parent / "fixtures" / "taxonomy_excerpt.json").read_text(encoding="utf-8"))
+    tc = taxonomy.load()
+    rows = []
+    for name, tags in excerpt.items():
+        rows += taxonomy.parse_snapshot(name, json.dumps(tags).encode("utf-8"), tc, C)[0]
+    return rows
+
+
+def test_vocabulary_rows_pass_through_unchanged_when_clean():
+    rows = vocabulary_rows()
+    out, report = egress.prepare_vocabulary_for_export(rows, C)
+    assert out == rows and report["rows"] == len(rows) and report["patterns_removed"] == 0
+
+
+def test_vocabulary_text_with_a_contact_pattern_is_scrubbed_and_counted():
+    rows = vocabulary_rows()
+    rows[0]["names"]["en"] = "Milk www.example.com"
+    rows[1]["props"]["wikidata"] = "info@example.com"
+    out, report = egress.prepare_vocabulary_for_export(rows, C)
+    assert "example.com" not in json.dumps(out) and report["patterns_removed"] >= 2
+    assert C["scrub"]["replacement"] in out[0]["names"]["en"]
+
+
+def test_vocabulary_export_is_refused_when_the_scan_still_finds_a_pattern(monkeypatch):
+    rows = vocabulary_rows()
+    rows[0]["names"]["en"] = "Milk www.example.com"
+    monkeypatch.setattr(egress.personal, "scrub", lambda text, patterns: (text, 0))     # a broken scrubber
+    with pytest.raises(egress.EgressRefused, match="vocabulary row"):
+        egress.prepare_vocabulary_for_export(rows, C)
+
+
+def test_vocabulary_export_refuses_a_pattern_hidden_in_a_dict_key(monkeypatch):
+    rows = vocabulary_rows()
+    rows[0]["props"] = {"www.example.com": "x"}          # keys are not scrubbed, so the scan after cleaning must catch them
+    with pytest.raises(egress.EgressRefused, match="vocabulary row"):
+        egress.prepare_vocabulary_for_export(rows, C)
+
+
+def test_vocabulary_export_drops_hashed_columns_and_leaves_the_input_alone():
+    rows = vocabulary_rows()
+    rows[0]["owner_hmac"] = "ab" * 32
+    before = copy.deepcopy(rows)
+    out, report = egress.prepare_vocabulary_for_export(rows, C)
+    assert not any("owner_hmac" in r for r in out) and report["columns_dropped"] == 1
+    assert rows == before

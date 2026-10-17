@@ -20,6 +20,8 @@ MODELS = {
     "dim_market": ["market_code"],
     "bridge_product_market": ["history_key", "market_code"],
     "dim_date": ["date_key"],
+    "dim_flag": ["flag"],
+    "taxonomy_tag_latest": ["taxonomy", "tag"],
 }
 
 _TS = re.compile(r"^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})")

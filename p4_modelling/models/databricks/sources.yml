@@ -1,6 +1,6 @@
 version: 2
 
-# The only tables gold reads. The gold principal gets table-level SELECT on these two and nothing else
+# The only tables gold reads. The gold principal gets table-level SELECT on these three and nothing else
 # (no quarantine, no bronze, no secret scope `packsense`).
 sources:
   - name: silver
@@ -11,3 +11,5 @@ sources:
         description: One row per product version (contract v4, 81 columns). Insert-only; gold history is derived from it.
       - name: silver_manifest
         description: One row per processed bronze file; gold uses it as a freshness guard.
+      - name: silver_taxonomy_tag
+        description: One row per (taxonomy, snapshot, tag) of OFF's taxonomies (contract taxonomy.yml, public vocabulary, no personal data); gold takes the newest snapshot of each taxonomy it uses.

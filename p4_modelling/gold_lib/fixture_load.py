@@ -9,6 +9,7 @@ from pathlib import Path
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 TABLE = "fixture_stg_silver_versions"
+TAXONOMY_TABLE = "fixture_taxonomy_tag"
 
 SCALARS = {
     "string": "VARCHAR", "double": "DOUBLE", "bigint": "BIGINT", "int": "INTEGER", "boolean": "BOOLEAN", "timestamp": "TIMESTAMP",
@@ -49,23 +50,33 @@ def duckdb_type(spark_type: str) -> str:
     raise ValueError(f"no DuckDB mapping for the Spark type {spark_type!r}")
 
 
-def load(con, schema: str = "main", fixtures: Path = FIXTURES, reverse: bool = False) -> int:
-    """(Re)create the fixture table in `schema` from the committed JSONL and manifest. Returns the row count.
-    reverse=True stores the rows in the opposite physical order (the idempotence check: gold must not depend on arrival order)."""
-    manifest = json.loads((fixtures / "manifest.json").read_text(encoding="utf-8"))
+def _load_table(con, schema, table, jsonl, manifest, reverse, order_cols):
     columns = manifest["columns"]
     types = {name: duckdb_type(t) for name, t in columns.items()}
     col_ddl = ", ".join(f'"{n}" {t}' for n, t in types.items())
     reader_cols = ", ".join(f"'{n}': '{t}'" for n, t in types.items())
-    path = (fixtures / "stg_silver_versions.jsonl").as_posix().replace("'", "''")
-    con.execute(f'create schema if not exists "{schema}"')
-    con.execute(f'drop table if exists "{schema}"."{TABLE}"')
-    con.execute(f'create table "{schema}"."{TABLE}" ({col_ddl})')
-    order = ' order by "code" desc, "last_modified_t" desc' if reverse else ""
-    con.execute(f"insert into \"{schema}\".\"{TABLE}\" select * from read_json('{path}', format='newline_delimited', columns={{{reader_cols}}}){order}")
-    n = con.execute(f'select count(*) from "{schema}"."{TABLE}"').fetchone()[0]
+    path = jsonl.as_posix().replace("'", "''")
+    con.execute(f'drop table if exists "{schema}"."{table}"')
+    con.execute(f'create table "{schema}"."{table}" ({col_ddl})')
+    order = " order by " + ", ".join(f'"{c}" desc' for c in order_cols) if reverse else ""
+    con.execute(f"insert into \"{schema}\".\"{table}\" select * from read_json('{path}', format='newline_delimited', columns={{{reader_cols}}}){order}")
+    n = con.execute(f'select count(*) from "{schema}"."{table}"').fetchone()[0]
     if n != manifest["version_rows"]:
-        raise RuntimeError(f"loaded {n} rows, the manifest says {manifest['version_rows']}")
+        raise RuntimeError(f"{table}: loaded {n} rows, the manifest says {manifest['version_rows']}")
+    return n
+
+
+def load(con, schema: str = "main", fixtures: Path = FIXTURES, reverse: bool = False) -> int:
+    """(Re)create the fixture tables in `schema` from the committed JSONL and manifests. Returns the product row count.
+    The taxonomy table (fixture_taxonomy_tag) is loaded too when its files are there.
+    reverse=True stores the rows in the opposite physical order (the idempotence check: gold must not depend on arrival order)."""
+    con.execute(f'create schema if not exists "{schema}"')
+    manifest = json.loads((fixtures / "manifest.json").read_text(encoding="utf-8"))
+    n = _load_table(con, schema, TABLE, fixtures / "stg_silver_versions.jsonl", manifest, reverse, ["code", "last_modified_t"])
+    tax_manifest = fixtures / "taxonomy_manifest.json"
+    if tax_manifest.exists():
+        _load_table(con, schema, TAXONOMY_TABLE, fixtures / "taxonomy_tag.jsonl", json.loads(tax_manifest.read_text(encoding="utf-8")),
+                    reverse, ["taxonomy", "tag", "valid_from"])
     return n
 
 

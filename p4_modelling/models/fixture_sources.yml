@@ -9,3 +9,4 @@ sources:
     schema: "{{ target.schema }}"
     tables:
       - name: fixture_stg_silver_versions
+      - name: fixture_taxonomy_tag

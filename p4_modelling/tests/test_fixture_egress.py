@@ -73,3 +73,52 @@ def test_committed_fixture_matches_its_manifest():
     assert len({r["code"] for r in rows}) == manifest["products"]
     assert set(rows[0]) == set(manifest["columns"])
     assert not any(c.endswith("_hmac") for c in manifest["columns"]), "a hashed column name in the fixture's columns"
+
+
+# ---- the taxonomy half of the fixture ------------------------------------------------------------------------------------------
+
+import pytest  # noqa: E402
+
+TAX_NOTEBOOK = ROOT / "p4_modelling" / "notebooks" / "export_taxonomy_fixture.py"
+TAX_FIXTURE = ROOT / "p4_modelling" / "fixtures" / "taxonomy_tag.jsonl"
+TAX_MANIFEST = ROOT / "p4_modelling" / "fixtures" / "taxonomy_manifest.json"
+
+
+def tax_notebook_code():
+    return "\n".join(line for line in TAX_NOTEBOOK.read_text(encoding="utf-8").splitlines() if not line.lstrip().startswith("#"))
+
+
+def test_taxonomy_notebook_calls_the_vocabulary_exit_before_writing_anything():
+    code = tax_notebook_code()
+    call = code.find("egress.prepare_vocabulary_for_export(")
+    assert call != -1, "the taxonomy export notebook must call egress.prepare_vocabulary_for_export"
+    # write-mode opens only: the notebook also READS the committed fixture and dbt_project.yml before the exit, which is fine
+    writes = [m.start() for m in re.finditer(r'open\([^\n]*"w"|\.write\(|json\.dump\(', code)]
+    assert writes and min(writes) > call, "something is written before the exit function has run"
+
+
+def test_taxonomy_notebook_writes_only_the_cleaned_rows():
+    code = tax_notebook_code()
+    assert re.search(r"for r in sorted\(clean,", code)
+    assert not re.search(r"for r in sorted\(rows,", code)
+
+
+def test_every_taxonomy_gold_uses_has_a_product_column_in_the_export_notebook():
+    import yaml
+    used = yaml.safe_load((ROOT / "p4_modelling" / "dbt_project.yml").read_text(encoding="utf-8"))["vars"]["gold_taxonomies"]
+    for name in used:
+        assert f'"{name}":' in TAX_NOTEBOOK.read_text(encoding="utf-8"), f"export_taxonomy_fixture.py has no USED_BY entry for {name}"
+
+
+@pytest.mark.skipif(not TAX_FIXTURE.exists(), reason="the taxonomy fixture has not been exported yet; remove this skip once it is committed")
+def test_committed_taxonomy_fixture_is_clean_and_matches_its_manifest():
+    manifest = json.loads(TAX_MANIFEST.read_text(encoding="utf-8"))
+    rows = [json.loads(line) for line in TAX_FIXTURE.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == manifest["version_rows"] and set(rows[0]) == set(manifest["columns"])
+    patterns = personal.compile_patterns(C)
+    replacement = C["scrub"]["replacement"]
+    for row in rows:
+        assert not (egress.never_columns(C) & set(row))
+        for text in egress._all_strings(list(row.values())):
+            assert not personal.has_pattern(text.replace(replacement, ""), patterns), f"scrub pattern left in {row['taxonomy']} {row['tag']}"
+    assert not any(k in manifest["columns"] for k in ("loaded_at", "job_run_id")), "run-specific lineage columns must stay out of the fixture"

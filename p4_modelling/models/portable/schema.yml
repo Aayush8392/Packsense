@@ -75,6 +75,40 @@ models:
         data_tests: [unique, not_null]
       - name: is_target_market
         data_tests: [not_null]
+      - name: market_name
+        description: English name from OFF's countries taxonomy (newest snapshot), else the tag itself.
+        data_tests: [not_null]
+      - name: country_code_2
+        description: OFF's two-letter code from the countries taxonomy (mostly ISO 3166-1 alpha-2; OFF uses UK for the United Kingdom, ISO says GB); NULL when the taxonomy has none.
+      - name: taxonomy_matched
+        description: 1 when the countries taxonomy knows the tag.
+        data_tests: [not_null]
+
+  - name: dim_flag
+    description: >
+      One row per distinct quality flag in the flag spans, with its family from OFF's data_quality taxonomy. A flag the taxonomy does not
+      list (OFF generates many in code, such as the per-source nutrition checks) is 'unmapped' and gets no family: nothing is guessed.
+    columns:
+      - name: flag
+        data_tests: [unique, not_null]
+      - name: family_source
+        description: taxonomy (has a parent), root (top-level tag) or unmapped (not in the taxonomy).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['taxonomy', 'root', 'unmapped']
+      - name: in_taxonomy
+        data_tests: [not_null]
+      - name: n_severities
+        description: How many severities the flag appears under in the spans. A flag is not one severity (OFF files the same tag under different severities).
+        data_tests: [not_null]
+
+  - name: taxonomy_tag_latest
+    description: The newest snapshot of each taxonomy gold uses (var gold_taxonomies), one row per tag.
+    columns:
+      - name: tag
+        data_tests: [not_null]
 
   - name: dim_date
     description: Calendar from 2012-01-01 to 2035-12-31 (weekday added later through a per-engine macro).

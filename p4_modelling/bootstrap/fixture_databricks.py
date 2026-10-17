@@ -20,6 +20,7 @@ P4 = Path(__file__).resolve().parents[1]
 FIXTURES = P4 / "fixtures"
 SCHEMA = "workspace.packsense_fixture"
 TABLE = f"{SCHEMA}.fixture_stg_silver_versions"
+TAXONOMY_TABLE = f"{SCHEMA}.fixture_taxonomy_tag"
 REMOTE_DIR = "/Volumes/workspace/packsense_dev/landing/_fixture_check"
 REMOTE_FILE = f"{REMOTE_DIR}/stg_silver_versions.jsonl"
 DEFAULT_HTTP_PATH = "/sql/1.0/warehouses/c9e35ecf0a03295d"   # the Serverless Starter 2X-Small: an address, not a secret
@@ -49,23 +50,29 @@ def run_sql(w, statement: str):
     return r
 
 
-def load() -> None:
-    manifest = json.loads((FIXTURES / "manifest.json").read_text(encoding="utf-8"))
+def load_one(w, jsonl_name, manifest_name, table, volume_file) -> None:
+    manifest = json.loads((FIXTURES / manifest_name).read_text(encoding="utf-8"))
     columns = manifest["columns"]
     # timestamps are read as text and cast, so the parsing does not depend on a reader option
     read_schema = ", ".join(f"`{n}` {'string' if t == 'timestamp' else t}" for n, t in columns.items())
     select = ", ".join(f"cast(`{n}` as timestamp) as `{n}`" if t == "timestamp" else f"`{n}`" for n, t in columns.items())
-    w = client()
-    body = (FIXTURES / "stg_silver_versions.jsonl").read_bytes()
-    w.files.create_directory(REMOTE_DIR)
-    w.files.upload(REMOTE_FILE, io.BytesIO(body), overwrite=True)
-    print(f"uploaded {len(body)} bytes")
-    run_sql(w, f"create schema if not exists {SCHEMA}")
-    run_sql(w, f"create or replace table {TABLE} as select {select} from read_files('{REMOTE_FILE}', format => 'json', schema => '{read_schema}')")
-    n = int(run_sql(w, f"select count(*) from {TABLE}").result.data_array[0][0])
+    body = (FIXTURES / jsonl_name).read_bytes()
+    w.files.upload(volume_file, io.BytesIO(body), overwrite=True)
+    print(f"uploaded {jsonl_name}: {len(body)} bytes")
+    run_sql(w, f"create or replace table {table} as select {select} from read_files('{volume_file}', format => 'json', schema => '{read_schema}')")
+    n = int(run_sql(w, f"select count(*) from {table}").result.data_array[0][0])
     if n != manifest["version_rows"]:
-        sys.exit(f"loaded {n} rows, the manifest says {manifest['version_rows']}")
-    print(f"loaded {n} rows into {TABLE}")
+        sys.exit(f"{table}: loaded {n} rows, the manifest says {manifest['version_rows']}")
+    print(f"loaded {n} rows into {table}")
+
+
+def load() -> None:
+    w = client()
+    w.files.create_directory(REMOTE_DIR)
+    run_sql(w, f"create schema if not exists {SCHEMA}")
+    load_one(w, "stg_silver_versions.jsonl", "manifest.json", TABLE, REMOTE_FILE)
+    if (FIXTURES / "taxonomy_manifest.json").exists():
+        load_one(w, "taxonomy_tag.jsonl", "taxonomy_manifest.json", TAXONOMY_TABLE, f"{REMOTE_DIR}/taxonomy_tag.jsonl")
 
 
 def dbt() -> int:

@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 REMOTE_DIR = "/Volumes/workspace/packsense_dev/landing/_fixture"
-FILES = ("stg_silver_versions.jsonl", "manifest.json")
+FILES = ("stg_silver_versions.jsonl", "manifest.json", "taxonomy_tag.jsonl", "taxonomy_manifest.json")
 LOCAL_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 
 
@@ -36,22 +36,35 @@ def main() -> int:
     from databricks.sdk import WorkspaceClient
     w = WorkspaceClient(host=os.environ["DATABRICKS_HOST"], token=os.environ["DATABRICKS_TOKEN"], auth_type="pat")
     LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+    present = {e.name for e in w.files.list_directory_contents(args.remote_dir)}
+    got = []
     for name in FILES:
-        remote = f"{args.remote_dir}/{name}"
-        body = w.files.download(remote).contents.read()
+        if name not in present:
+            continue
+        body = w.files.download(f"{args.remote_dir}/{name}").contents.read()
         (LOCAL_DIR / name).write_bytes(body)
+        got.append(name)
         print(f"downloaded {name}: {len(body)} bytes")
+    if not got:
+        sys.exit(f"nothing to fetch in {args.remote_dir}")
 
-    manifest = json.loads((LOCAL_DIR / "manifest.json").read_text(encoding="utf-8"))
-    lines = (LOCAL_DIR / "stg_silver_versions.jsonl").read_text(encoding="utf-8").splitlines()
-    if len(lines) != manifest["version_rows"]:
-        sys.exit(f"line count {len(lines)} differs from the manifest's {manifest['version_rows']}: remote copy kept")
-    print(f"verified: {len(lines)} version rows, {manifest['products']} products")
+    # each data file comes with a manifest that names its row count
+    for data, manifest_name, what in (("stg_silver_versions.jsonl", "manifest.json", "products"),
+                                      ("taxonomy_tag.jsonl", "taxonomy_manifest.json", "taxonomy rows")):
+        if data in got or manifest_name in got:
+            if not (data in got and manifest_name in got):
+                sys.exit(f"{data} and {manifest_name} must come together: remote copy kept")
+            manifest = json.loads((LOCAL_DIR / manifest_name).read_text(encoding="utf-8"))
+            lines = (LOCAL_DIR / data).read_text(encoding="utf-8").splitlines()
+            if len(lines) != manifest["version_rows"]:
+                sys.exit(f"{data}: line count {len(lines)} differs from the manifest's {manifest['version_rows']}: remote copy kept")
+            print(f"verified {what}: {len(lines)} rows")
 
     if not args.keep_remote:
-        for name in FILES:
+        for name in got:
             w.files.delete(f"{args.remote_dir}/{name}")
-        w.files.delete_directory(args.remote_dir)
+        if not {e.name for e in w.files.list_directory_contents(args.remote_dir)}:
+            w.files.delete_directory(args.remote_dir)
         print("removed the remote copy")
     return 0
 
