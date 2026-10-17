@@ -16,6 +16,7 @@ sync:
   exclude:
     - "**/tests/**"
     - "**/bootstrap/**"
+    - "**/fixtures/**"    # the DuckDB comparison fixture is real data and has no job here: keep it out of the principal's workspace folder
     - target/**
     - logs/**
     - .user.yml
