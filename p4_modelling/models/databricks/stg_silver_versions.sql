@@ -25,7 +25,9 @@ parsed as (
         case
             when code_kind in ('gtin8', 'gtin12', 'gtin13', 'gtin14') and code rlike '^[0-9]+$' then lpad(code, 14, '0')
         end as gtin14,
-        case when code_kind in ('gtin12', 'gtin13') then left(lpad(code, 13, '0'), 3) end as gs1_prefix
+        case when code_kind in ('gtin12', 'gtin13') then left(lpad(code, 13, '0'), 3) end as gs1_prefix,
+        -- the brand dimension groups by the first brand of the free-text list, trimmed and lower-cased (about 7% of versions list several)
+        nullif(lower(trim(split(brands, ',')[0])), '') as first_brand
     from src
 )
 

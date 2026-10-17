@@ -18,6 +18,7 @@ with ordered as (
         distinct_editors,
         is_seed,
         source_file,
+        first_brand,
         {%- for c in tracked %}
         {{ c }},
         {%- endfor %}
@@ -75,6 +76,7 @@ periods as (
         o.is_seed as opened_by_seed,
         o.source_file as opened_by_file,
         o.tracked_hash,
+        o.first_brand,
         {%- for c in tracked %}
         o.{{ c }},
         {%- endfor %}
@@ -89,6 +91,7 @@ periods as (
 select
     {{ dbt.hash(dbt.concat(['code', "'|'", dbt.safe_cast('valid_from_t', dbt.type_string())])) }} as history_key,
     p.*,
+    {{ dbt.hash('first_brand') }} as brand_key,
     lead(valid_from_t) over (partition by code order by period_no) as valid_to_t,
     lead(valid_from) over (partition by code order by period_no) as valid_to,
     case when lead(valid_from_t) over (partition by code order by period_no) is null then 1 else 0 end as is_latest_observed

@@ -50,6 +50,41 @@ models:
       - name: vanished_with_tracked_change
         description: 1 when the version that dropped the flag also changed the tracked set; NULL while the span is open.
 
+  - name: dim_brand
+    description: One row per distinct first brand (free text, trimmed, lower-cased); spelling variants stay separate.
+    columns:
+      - name: brand_key
+        data_tests: [unique, not_null]
+      - name: brand_name
+        data_tests: [unique, not_null]
+
+  - name: bridge_product_market
+    description: One row per history period and country tag.
+    columns:
+      - name: history_key
+        data_tests: [not_null]
+      - name: market_code
+        data_tests: [not_null]
+
+  - name: dim_market
+    description: >
+      One row per country tag seen in the history. India has the seed plus all daily deltas; other markets only the daily deltas,
+      so non-India coverage is partial and must not back a global-catalogue claim.
+    columns:
+      - name: market_code
+        data_tests: [unique, not_null]
+      - name: is_target_market
+        data_tests: [not_null]
+
+  - name: dim_date
+    description: Calendar from 2012-01-01 to 2035-12-31 (weekday added later through a per-engine macro).
+    columns:
+      - name: date_key
+        description: yyyymmdd as an integer.
+        data_tests: [unique, not_null]
+      - name: calendar_date
+        data_tests: [unique, not_null]
+
   - name: product_status
     description: >
       Existence status per product. Created now, every product `unverified`; filled by the monthly reconciliation (P9).
