@@ -24,6 +24,7 @@ import os
 import sys
 
 import requests
+from pyspark.sql import functions as F
 
 
 def find_p2_lakehouse():
@@ -122,8 +123,7 @@ for entry in todo:
                  r["children"], r["props"], now, RUN_ID) for r in rows]
         for i in range(0, len(data), BATCH):                                       # 2. rows
             merge_insert_only(spark.createDataFrame(data[i:i + BATCH], schema=DDL), "incoming_taxonomy")
-        stored = spark.table(C["table"]).where((spark.table(C["table"]).taxonomy == entry["taxonomy"]) &
-                                               (spark.table(C["table"]).snapshot == key)).count()
+        stored = spark.table(C["table"]).where((F.col("taxonomy") == entry["taxonomy"]) & (F.col("snapshot") == key)).count()
         if stored != len(rows):                                                    # 3. hand-off check
             raise RuntimeError(f"stored rows do not add up: {stored} stored, {len(rows)} parsed")
         spark.createDataFrame([(key, entry["taxonomy"], entry["sha256"], stats["tags_in"], stats["tags_silver"], stats["tags_skipped"],

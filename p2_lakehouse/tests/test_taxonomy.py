@@ -226,3 +226,12 @@ def test_the_notebook_never_pings_success_only_failure():
     notebook = (ROOT / "p2_lakehouse" / "notebooks" / "taxonomy_load.py").read_text(encoding="utf-8")
     assert '"/fail"' in notebook and '"/start"' not in notebook
     assert "ping_url +" in notebook and notebook.count("ping_url + ") == 1
+
+
+def test_the_notebook_never_refers_to_the_same_table_twice_in_one_expression():
+    # Spark Connect refuses `spark.table(t).where(spark.table(t).col == ...)` ("illegal reference"); a first dev run failed on exactly that
+    import re
+    code = "\n".join(line for line in (ROOT / "p2_lakehouse" / "notebooks" / "taxonomy_load.py").read_text(encoding="utf-8").splitlines()
+                     if not line.lstrip().startswith("#"))
+    assert not re.search(r"spark\.table\([^)]*\)\.[A-Za-z_]+\s*==", code)
+    assert not re.search(r"spark\.table\([^)]*\)\.where\([^\n]*spark\.table\(", code)
