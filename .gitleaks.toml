@@ -1,0 +1,13 @@
+# gitleaks configuration (the security workflow's gitleaks job reads this file from the repo root).
+# Start from gitleaks' default rules; everything below is an exception to them.
+[extend]
+useDefault = true
+
+# p4_modelling/fixtures/golden.json holds one md5 hash per row of each gold model, keyed by "<model>|<row key>" where the row key is a public
+# Open Food Facts tag or product name. The generic-api-key rule reads a key followed by a 32-character high-entropy value as a credential
+# (entropy 3.5 on `"categories|<product category>": "<md5>"`). It is a false positive on public data and a derived hash, not a secret.
+# Scoped to this one rule and this one file: a real secret anywhere else, or any other rule matching here, still fails the scan.
+[[allowlists]]
+description = "md5 row hashes of the DuckDB comparison golden file"
+targetRules = ["generic-api-key"]
+paths = ['''p4_modelling/fixtures/golden\.json''']
