@@ -1,0 +1,52 @@
+# PackSense gold bundle: the scheduled gold job, deployed by the gold principals as a fixed copy of the dbt project.
+# A separate bundle from the repo-root one on purpose (single-writer rule): the bronze principal never writes gold, and the gold
+# principal never reads bronze, quarantine or the secret scope `packsense`.
+#
+# dev  : `packsense-gold-dev`; reads packsense_dev_silver, writes packsense_dev_gold; schedule paused (development mode); no pings.
+# prod : `packsense-gold`; reads packsense_silver, writes packsense_gold; scheduled; pings its own healthchecks check.
+# The identity that deploys also runs the job (Free Edition has no run_as), so each principal needs exactly the grants listed in
+# p4_modelling/README.md. Schemas are created beforehand by an admin; scopes by p4_modelling/bootstrap/gold_scope.py.
+bundle:
+  name: packsense-gold
+
+include:
+  - resources/*.yml
+
+sync:
+  exclude:
+    - "**/tests/**"
+    - "**/bootstrap/**"
+    - target/**
+    - logs/**
+    - .user.yml
+
+variables:
+  dbt_target:
+    default: dev
+  silver_schema:
+    description: silver schema name (the catalog is workspace)
+    default: packsense_dev_silver
+  secret_scope:
+    default: packsense_gold_dev
+  http_path:
+    description: the SQL warehouse dbt connects through (an address, not a secret)
+    default: /sql/1.0/warehouses/c9e35ecf0a03295d
+  ping:
+    description: whether the notebook pings healthchecks.io ("true" or "false")
+    default: "false"
+  gold_cron:
+    description: quartz cron (UTC) of the gold build; one value so the 21 Oct capture-trigger decision changes it in one place
+    default: "0 30 9 * * ?"
+
+targets:
+  dev:
+    default: true
+    mode: development
+  prod:
+    # No custom root_path: only the prod principal deploys prod, so its own private home folder holds the files and state.
+    default: false
+    variables:
+      dbt_target: prod
+      silver_schema: packsense_silver
+      secret_scope: packsense_gold
+      ping: "true"
