@@ -26,8 +26,8 @@ import sys
 from pyspark.sql import functions as F
 
 
-def find_p2_lakehouse():
-    """The folder that holds silver_lib, wherever the git checkout of this run lives."""
+def find_repo_root():
+    """The folder that holds p2_lakehouse/silver_lib and p4_modelling, wherever the git checkout of this run lives."""
     starts = [os.getcwd()]
     try:
         nb = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()
@@ -37,14 +37,17 @@ def find_p2_lakehouse():
     for start in starts:
         p = start
         for _ in range(6):
-            if os.path.isdir(os.path.join(p, "p2_lakehouse", "silver_lib")):
-                return os.path.join(p, "p2_lakehouse")
+            if os.path.isdir(os.path.join(p, "p2_lakehouse", "silver_lib")) and os.path.isdir(os.path.join(p, "p4_modelling", "gold_lib")):
+                return p
             p = os.path.dirname(p)
-    raise RuntimeError("cannot find p2_lakehouse/silver_lib; looked from " + repr(starts))
+    raise RuntimeError("cannot find p2_lakehouse/silver_lib and p4_modelling/gold_lib; looked from " + repr(starts))
 
 
-sys.path.insert(0, find_p2_lakehouse())
+REPO_ROOT = find_repo_root()
+sys.path.insert(0, os.path.join(REPO_ROOT, "p2_lakehouse"))
+sys.path.insert(0, os.path.join(REPO_ROOT, "p4_modelling"))
 from silver_lib import contract, egress, personal  # noqa: E402
+from gold_lib import fixture as fixture_lib  # noqa: E402
 
 dbutils.widgets.text("run_id", "manual")
 dbutils.widgets.text("gold_schema", "workspace.packsense_gold")        # production gold: staging view, history, flag spans
@@ -148,6 +151,8 @@ print("exported versions with a bronze record:", len(own), "of", len(wanted))
 
 # COMMAND ----------
 # 4. THE EXIT. Nothing is written before this returns; it raises EgressRefused if anything that must not leave is still present.
+handles = fixture_lib.narrow_handles(rows, C, handles)   # only names that occur in the exported text (see gold_lib/fixture.py)
+print("of which occur in the exported text:", len(handles))
 clean, report = egress.prepare_for_export(rows, C, handles, brand_exempt=own)
 print("exit report:", dict(report))
 for k in ("product_name", "brands"):
