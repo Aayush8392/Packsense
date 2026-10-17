@@ -1,0 +1,2051 @@
+{
+ "allergens": {
+  "en:apple": {
+   "name": {
+    "en": "apple",
+    "ja": "りんご"
+   }
+  },
+  "en:banana": {
+   "name": {
+    "en": "banana",
+    "ja": "バナナ"
+   }
+  },
+  "en:beef": {
+   "name": {
+    "en": "beef",
+    "ja": "牛肉"
+   }
+  },
+  "en:celery": {
+   "name": {
+    "ar": "كرفس",
+    "bg": "целина",
+    "ca": "api",
+    "cs": "celer",
+    "da": "selleri",
+    "de": "Sellerie",
+    "el": "σέλινο",
+    "en": "celery",
+    "es": "apio",
+    "et": "seller",
+    "fi": "selleri",
+    "fr": "céleri",
+    "ga": "soilire",
+    "he": "סלרי",
+    "hr": "celer",
+    "hu": "zeller",
+    "it": "sedano",
+    "ja": "セロリ",
+    "lt": "salierai",
+    "lv": "selerijas",
+    "mt": "karfus",
+    "nb": "selleri",
+    "nl": "selderij",
+    "nn": "selleri",
+    "pl": "seler",
+    "pt": "aipo",
+    "ro": "țelină",
+    "ru": "сельдерей",
+    "sk": "zeler",
+    "sl": "listna zelena",
+    "sr": "celer",
+    "sv": "selleri",
+    "th": "ขึ้นฉ่าย",
+    "zh": "旱芹"
+   },
+   "wikidata": {
+    "en": "Q28298"
+   }
+  },
+  "en:chicken": {
+   "name": {
+    "en": "chicken",
+    "ja": "鶏肉"
+   }
+  },
+  "en:crustaceans": {
+   "name": {
+    "ar": "قشريات",
+    "bg": "ракообразни",
+    "ca": "crustacis",
+    "cs": "korýši",
+    "da": "krebsdyr",
+    "de": "Krebstiere",
+    "el": "καρκινοειδή",
+    "en": "crustaceans",
+    "es": "crustáceos",
+    "et": "koorikloomad",
+    "fi": "äyriäiset",
+    "fr": "crustacés",
+    "ga": "crústach",
+    "hr": "rakova",
+    "hu": "rákfélék",
+    "it": "crostacei",
+    "ja": "えび/かに",
+    "lt": "vėžiagyviai",
+    "lv": "vēžveidīgie",
+    "mt": "krustaċej",
+    "nl": "schaaldieren",
+    "pl": "skorupiaki",
+    "pt": "crustáceos",
+    "ro": "crustacee",
+    "ru": "ракообразные",
+    "sk": "kôrovce",
+    "sl": "raki",
+    "sv": "kräftdjur",
+    "th": "ครัสเตเชียน",
+    "zh": "甲壳亚门"
+   }
+  },
+  "en:eggs": {
+   "name": {
+    "ar": "بيض",
+    "bg": "яйца",
+    "bs": "jaja",
+    "ca": "ous",
+    "cs": "vejce",
+    "da": "æg",
+    "de": "Eier",
+    "el": "αυγά",
+    "en": "eggs",
+    "es": "huevos",
+    "et": "munad",
+    "fi": "munat",
+    "fr": "œufs",
+    "ga": "uibheacha",
+    "he": "ביצים",
+    "hr": "jaja",
+    "hu": "tojás",
+    "it": "uova",
+    "ja": "卵",
+    "lt": "kiaušiniai",
+    "lv": "olas",
+    "mt": "bajd",
+    "nb": "egg",
+    "nl": "eieren",
+    "pl": "jaja",
+    "pt": "ovos",
+    "ro": "ouă",
+    "ru": "яйца",
+    "sk": "vajcia",
+    "sl": "jajca",
+    "sr": "jaja",
+    "sv": "ägg",
+    "th": "ไข่",
+    "zh": "雞蛋"
+   },
+   "wikidata": {
+    "en": "Q93189"
+   }
+  },
+  "en:fish": {
+   "name": {
+    "ar": "سمك",
+    "bg": "риба",
+    "ca": "peixos",
+    "cs": "ryby",
+    "da": "fisk",
+    "de": "Fisch",
+    "el": "ψάρια",
+    "en": "fish",
+    "es": "pescado",
+    "et": "kala",
+    "fi": "kala",
+    "fr": "poisson",
+    "ga": "éisc",
+    "he": "דג",
+    "hr": "riba",
+    "hu": "hal",
+    "it": "pesce",
+    "ja": "さけ/さば",
+    "lt": "žuvis",
+    "lv": "zivis",
+    "mt": "ħut",
+    "nb": "fisk",
+    "nl": "vis",
+    "pl": "ryba",
+    "pt": "peixe",
+    "ro": "pește",
+    "ru": "рыба",
+    "sk": "ryby",
+    "sl": "ribe",
+    "sr": "riba",
+    "sv": "fisk",
+    "th": "ปลา",
+    "zh": "魚"
+   },
+   "wikidata": {
+    "en": "Q600396"
+   }
+  },
+  "en:gelatin": {
+   "name": {
+    "en": "gelatin",
+    "ja": "ゼラチン"
+   }
+  },
+  "en:gluten": {
+   "name": {
+    "ar": "غلوتين",
+    "bg": "глутен",
+    "bs": "gluten",
+    "cs": "lepek",
+    "da": "gluten",
+    "de": "Gluten",
+    "ee": "nisu",
+    "el": "γλουτένη",
+    "en": "gluten",
+    "es": "gluten",
+    "et": "gluteen",
+    "fi": "gluteeni",
+    "fr": "gluten",
+    "ga": "glútan",
+    "he": "גלוטן",
+    "hr": "gluten",
+    "hu": "glutén",
+    "is": "glúten",
+    "it": "glutine",
+    "ja": "小麦/そば",
+    "lt": "avižos",
+    "lv": "auzas",
+    "mt": "glutina",
+    "nb": "gluten",
+    "nl": "gluten",
+    "pl": "gluten",
+    "pt": "glúten",
+    "ro": "gluten",
+    "ru": "глютен",
+    "sk": "pšenica",
+    "sl": "gluten",
+    "sr": "pšenica",
+    "sv": "gluten",
+    "th": "กลูเต็น",
+    "zh": "麸质"
+   },
+   "wikidata": {
+    "en": "Q188251"
+   }
+  },
+  "en:kiwi": {
+   "name": {
+    "en": "kiwi",
+    "ja": "キウイフルーツ"
+   }
+  },
+  "en:lupin": {
+   "name": {
+    "ar": "ترمس",
+    "bg": "лупина",
+    "ca": "tramús",
+    "cs": "vlčí bob",
+    "da": "lupin",
+    "de": "Lupine",
+    "el": "λούπινο",
+    "en": "lupin",
+    "es": "altramuces",
+    "et": "lupiin",
+    "fi": "lupiinit",
+    "fr": "lupin",
+    "ga": "lúipín",
+    "hr": "lupin",
+    "hu": "csillagfürt",
+    "it": "lupini",
+    "ja": "ルピナス属",
+    "lt": "lubinai",
+    "lv": "lupīna",
+    "mt": "lupina",
+    "nl": "lupine",
+    "pl": "łubin",
+    "pt": "tremoço",
+    "ro": "lupin",
+    "ru": "люпин",
+    "sk": "vlčí bôb",
+    "sl": "volčji",
+    "sv": "lupin",
+    "th": "ลูพิน",
+    "zh": "羽扇豆"
+   },
+   "wikidata": {
+    "en": "Q156811"
+   }
+  },
+  "en:matsutake": {
+   "name": {
+    "en": "matsutake",
+    "ja": "まつたけ"
+   }
+  },
+  "en:milk": {
+   "name": {
+    "ar": "حليبب",
+    "bg": "суроватка",
+    "ca": "llet",
+    "cs": "mléko",
+    "da": "mælk",
+    "de": "Milch",
+    "el": "γάλα",
+    "en": "milk",
+    "es": "leche",
+    "et": "laktoos",
+    "fi": "maito",
+    "fr": "lait",
+    "ga": "bainne",
+    "he": "חלב",
+    "hr": "laktoza",
+    "hu": "tej",
+    "is": "mjólk",
+    "it": "latte",
+    "ja": "乳",
+    "lt": "išrūgų",
+    "lv": "laktozi",
+    "mt": "ħalib",
+    "nb": "melk",
+    "nl": "melk",
+    "pl": "mleko",
+    "pt": "leite",
+    "ro": "lapte",
+    "ru": "молоко",
+    "sk": "mlieko",
+    "sl": "mleko",
+    "sr": "mleko",
+    "sv": "mjölk",
+    "th": "นม",
+    "zh": "乳"
+   }
+  },
+  "en:molluscs": {
+   "name": {
+    "ar": "رخويات",
+    "bg": "мекотели",
+    "ca": "mol·lusc",
+    "cs": "měkkýši",
+    "da": "bløddyr",
+    "de": "Weichtiere",
+    "el": "μαλάκια",
+    "en": "molluscs",
+    "es": "moluscos",
+    "et": "molluskid",
+    "fi": "nilviäiset",
+    "fr": "mollusques",
+    "ga": "moilisc",
+    "hr": "mekušac",
+    "hu": "puhatestűek",
+    "it": "molluschi",
+    "ja": "あわび/いか",
+    "lt": "moliuskai",
+    "lv": "gliemji",
+    "mt": "molluski",
+    "nl": "weekdieren",
+    "pl": "mięczaki",
+    "pt": "moluscos",
+    "ro": "moluște",
+    "ru": "моллюск",
+    "sk": "mäkkýše",
+    "sl": "mehkužci",
+    "sv": "blötdjur",
+    "th": "มอลลัสกา",
+    "zh": "软体动物"
+   },
+   "wikidata": {
+    "en": "Q1275863"
+   }
+  },
+  "en:mustard": {
+   "name": {
+    "ar": "خردل",
+    "bg": "синап",
+    "ca": "mostassa",
+    "cs": "hořčice",
+    "da": "sennep",
+    "de": "Senf",
+    "el": "σινάπι",
+    "en": "mustard",
+    "es": "mostaza",
+    "et": "sinep",
+    "fi": "sinappi",
+    "fr": "moutarde",
+    "ga": "mustard",
+    "he": "חרדל",
+    "hr": "gorušice",
+    "hu": "mustár",
+    "it": "senape",
+    "ja": "マスタード",
+    "lt": "garstyčios",
+    "lv": "sinepes",
+    "mt": "mustarda",
+    "nb": "sennep",
+    "nl": "mosterd",
+    "pl": "gorczyca",
+    "pt": "mostarda",
+    "ro": "muștar",
+    "ru": "горчица",
+    "sk": "horčica",
+    "sl": "gorčice",
+    "sr": "senf",
+    "sv": "senap",
+    "th": "มัสตาร์ด",
+    "zh": "芥末醬"
+   },
+   "wikidata": {
+    "en": "Q1937700"
+   }
+  },
+  "en:none": {
+   "name": {
+    "ar": "لا أحد",
+    "bg": "няма",
+    "cs": "žádný",
+    "da": "ingen",
+    "de": "keine",
+    "el": "κανένα",
+    "en": "none",
+    "es": "ninguno",
+    "et": "puudub",
+    "fi": "ei mitään",
+    "fr": "aucun",
+    "ga": "aon",
+    "hr": "bez alergena",
+    "hu": "nincs",
+    "it": "nessuno",
+    "ja": "なし",
+    "ko": "없음",
+    "lt": "be alergenų",
+    "lv": "nav",
+    "mt": "xejn",
+    "nl": "Geen",
+    "pl": "brak",
+    "pt": "nenhum",
+    "ro": "niciunul",
+    "ru": "нет",
+    "sk": "žiadne",
+    "sl": "nobene",
+    "sr": "ništa",
+    "sv": "ingen",
+    "th": "ไม่มี",
+    "zh": "无"
+   }
+  },
+  "en:nuts": {
+   "name": {
+    "ar": "بندقة",
+    "bg": "ядки",
+    "bs": "bademe",
+    "ca": "fruits de closca",
+    "cs": "skořápkové plody",
+    "da": "nødder",
+    "de": "Schalenfrüchte",
+    "el": "καρποί με κέλυφος",
+    "en": "nuts",
+    "es": "frutos de cáscara",
+    "et": "pähklid",
+    "fi": "pähkinät",
+    "fr": "fruits à coque",
+    "ga": "cnónna",
+    "he": "אגוזים",
+    "hr": "orašaste plodove",
+    "hu": "diófélék",
+    "is": "hnetur",
+    "it": "frutta a guscio",
+    "ja": "くるみ/アーモンド",
+    "lt": "riešutai",
+    "lv": "rieksti",
+    "mt": "ġewż",
+    "nb": "nøtter",
+    "nl": "noten",
+    "pl": "orzechy",
+    "pt": "nozes",
+    "ro": "fructe cu coajă lemnoasă",
+    "ru": "орехи",
+    "sk": "orechy",
+    "sl": "oreški",
+    "sr": "jezgrasto voće",
+    "sv": "nötter",
+    "th": "อัลมอนด์",
+    "zh": "坚果"
+   }
+  },
+  "en:orange": {
+   "name": {
+    "en": "orange",
+    "ja": "オレンジ"
+   }
+  },
+  "en:peach": {
+   "name": {
+    "en": "peach",
+    "ja": "もも"
+   }
+  },
+  "en:peanuts": {
+   "name": {
+    "ar": "فول سوداني",
+    "bg": "фъстъци",
+    "ca": "cacauets",
+    "cs": "jádra podzemnice olejné",
+    "da": "jordnødder",
+    "de": "Erdnüsse",
+    "el": "αραχίδες",
+    "en": "peanuts",
+    "es": "cacahuetes",
+    "et": "maapähklid",
+    "fi": "maapähkinät",
+    "fr": "arachides",
+    "ga": "piseanna",
+    "he": "בוטנים",
+    "hr": "kikiriki",
+    "hu": "földimogyoró",
+    "it": "arachidi",
+    "ja": "落花生",
+    "lt": "žemės riešutai",
+    "lv": "zemesrieksti",
+    "mt": "karawett",
+    "nb": "peanøtt",
+    "nl": "pinda",
+    "pl": "orzeszki ziemne",
+    "pt": "amendoins",
+    "ro": "arahide",
+    "ru": "арахис",
+    "sk": "arašidy",
+    "sl": "arašidi",
+    "sr": "kikiriki",
+    "sv": "jordnöt",
+    "th": "ถั่วลิสง",
+    "zh": "花生"
+   },
+   "wikidata": {
+    "en": "Q7157933"
+   }
+  },
+  "en:pork": {
+   "name": {
+    "en": "pork",
+    "ja": "豚肉"
+   }
+  },
+  "en:red-caviar": {
+   "name": {
+    "en": "red caviar",
+    "ja": "いくら"
+   }
+  },
+  "en:sesame-seeds": {
+   "name": {
+    "ar": "سمسم",
+    "bg": "сусамово семе",
+    "ca": "sèsam",
+    "cs": "sezamová semena",
+    "da": "sesamfrø",
+    "de": "Sesam",
+    "el": "σπόροι σησαμιού",
+    "en": "sesame seeds",
+    "es": "granos de sésamo",
+    "et": "seesamiseemned",
+    "fi": "seesaminsiemenet",
+    "fr": "graines de sésame",
+    "ga": "síolta seasamain",
+    "he": "שומשום",
+    "hr": "sezam",
+    "hu": "szezámmag",
+    "it": "semi di sesamo",
+    "ja": "ごま",
+    "lt": "sezamo sėklos",
+    "lv": "sezama sēklas",
+    "mt": "ġulġlien",
+    "nb": "sesamfrø",
+    "nl": "sesamzaad",
+    "pl": "nasiona sezamu",
+    "pt": "sementes de sésamo",
+    "ro": "semințe de susan",
+    "ru": "сезам",
+    "sk": "sezamové semeno",
+    "sl": "sezamovo seme",
+    "sr": "susam",
+    "sv": "sesamfrön",
+    "th": "งา",
+    "zh": "芝麻"
+   },
+   "wikidata": {
+    "en": "Q20026786"
+   }
+  },
+  "en:soybeans": {
+   "name": {
+    "ar": "فول الصويا",
+    "bg": "соя",
+    "ca": "soia",
+    "cs": "sójové boby",
+    "da": "soja",
+    "de": "Soja",
+    "el": "σόγια",
+    "en": "soybeans",
+    "es": "soja",
+    "et": "soja",
+    "fi": "soija",
+    "fr": "soja",
+    "ga": "pónairí soighe",
+    "he": "סויה",
+    "hr": "soja",
+    "hu": "szója",
+    "is": "soja",
+    "it": "soia",
+    "ja": "大豆",
+    "lt": "sojų pupelės",
+    "lv": "sojas pupas",
+    "mt": "soybeans",
+    "nb": "soya",
+    "nl": "soja",
+    "pl": "soja",
+    "pt": "soja",
+    "ro": "soia",
+    "ru": "соя",
+    "sk": "sójové bôby",
+    "sl": "zrnja soje",
+    "sr": "soja",
+    "sv": "soja",
+    "th": "ถั่วเหลือง",
+    "zh": "大豆类制品"
+   }
+  },
+  "en:sulphur-dioxide-and-sulphites": {
+   "name": {
+    "ar": "ثاني أكسيد الكبريت والكبريتات",
+    "bg": "серен диоксид и сулфити",
+    "cs": "oxid siřičitý a siřičitany",
+    "da": "svovldioxid og sulfitter",
+    "de": "Schwefeldioxid und Sulfite",
+    "el": "διοξείδιο του θείου και θειώδεις",
+    "en": "sulphur dioxide and sulphites",
+    "es": "dióxido de azufre y sulfitos",
+    "et": "vääveldioksiid ja sulfitid",
+    "fi": "rikkioksidi ja sulfiitit",
+    "fr": "anhydride sulfureux et sulfites",
+    "ga": "dé-ocsaíd sulfair agus suilfítí",
+    "hr": "sulfita",
+    "hu": "kén-dioxid és szulfitok",
+    "it": "anidride solforosa e solfiti",
+    "ja": "二酸化硫黄および亜硫酸塩",
+    "lt": "sieros dioksidas ir sulfitai",
+    "lv": "sēra dioksīds un sulfīt",
+    "mt": "dijossidu tal-kubrit u sulfiti",
+    "nb": "svovedioxide en sulfieten",
+    "nl": "zwaveldioxide en sulfieten",
+    "pl": "dwutlenek siarki i siarczyny",
+    "pt": "dióxido de enxofre e sulfitos",
+    "ro": "dioxidul de sulf și sulfiții",
+    "ru": "диоксид и сульфит серы",
+    "sk": "oxid siričitý a siričitany",
+    "sl": "žveplov dioksid in sulfiti",
+    "sr": "sumpor dioksid i sulfiti",
+    "sv": "svaveldioxid och sulfit",
+    "th": "ซัลเฟอร์ไดออกไซด์และซัลไฟต์",
+    "zh": "二氧化硫和亚硫酸盐"
+   }
+  },
+  "en:yamaimo": {
+   "name": {
+    "en": "yamaimo",
+    "ja": "やまいも"
+   }
+  }
+ },
+ "categories": {
+  "en:greek-style-non-dairy-yogurts": {
+   "children": [
+    "en:greek-style-oat-milk-yogurts"
+   ],
+   "name": {
+    "en": "Greek-style non-dairy yogurts"
+   },
+   "opposite": {
+    "en": "en:greek-style-yogurts"
+   },
+   "parents": [
+    "en:non-dairy-yogurts"
+   ]
+  },
+  "en:pancetta": {
+   "agribalyse_food_code": {
+    "en": "28858"
+   },
+   "children": [
+    "en:arrotolata-pancetta",
+    "en:coppata-pancetta",
+    "en:steccata-pancetta",
+    "en:stufata-pancetta",
+    "en:tesa-pancetta",
+    "it:pancetta-di-calabria",
+    "it:pancetta-piacentina"
+   ],
+   "ciqual_food_code": {
+    "en": "28858"
+   },
+   "ciqual_food_name": {
+    "en": "Pancetta, dried",
+    "fr": "Pancetta ou Poitrine roulée sèche"
+   },
+   "name": {
+    "de": "Pancetta",
+    "en": "Pancetta",
+    "fr": "Pancetta",
+    "hr": "Panceta",
+    "it": "Pancetta essiccata",
+    "ja": "パンチェッタ"
+   },
+   "parents": [
+    "en:pork"
+   ]
+  },
+  "en:partially-skimmed-chocolate-flavoured-milk-with-sugar-fortified-with-vitamins-and-chemicals-elements": {
+   "agribalyse_food_code": {
+    "en": "19122"
+   },
+   "ciqual_food_code": {
+    "en": "19122"
+   },
+   "ciqual_food_name": {
+    "en": "Chocolate flavoured milk, with sugar, partially skimmed, fortified with vitamins and chemicals elements",
+    "fr": "Boisson lactée aromatisée au chocolat, sucrée, au lait partiellement écrémé, enrichie et/ou restaurée en vitamines et/ou minéraux"
+   },
+   "name": {
+    "en": "Partially skimmed chocolate flavoured milk with sugar fortified with vitamins and chemicals elements",
+    "fr": "Boisson lactée aromatisée au chocolat sucrée au lait partiellement écrémé enrichie en vitamines et minéraux"
+   },
+   "parents": [
+    "en:partially-skimmed-chocolate-milks"
+   ]
+  },
+  "en:plant-based-foods": {
+   "children": [
+    "en:bran",
+    "en:canned-plant-based-foods",
+    "en:cereals-and-potatoes",
+    "en:cheese-substitutes",
+    "en:coffees",
+    "en:coriander-products",
+    "en:culinary-plants",
+    "en:dried-fruit-and-seed-mixes",
+    "en:dried-plant-based-foods",
+    "en:egg-substitutes",
+    "en:elderberry-products",
+    "en:fennel",
+    "en:fenugreek-products",
+    "en:flakes",
+    "en:flours",
+    "en:freeze-dried-plant-based-foods",
+    "en:fresh-chervil",
+    "en:fresh-plant-based-foods",
+    "en:fried-plant-based-foods",
+    "en:frozen-plant-based-foods",
+    "en:fruits-and-vegetables-based-foods",
+    "en:fruits-nuts-seed-variety-packs",
+    "en:herbs-spices-extracts-variety-packs",
+    "en:legumes-and-their-products",
+    "en:liquorice-roots",
+    "en:mix-of-cereals-and-legumes",
+    "en:mix-of-grains-and-dried-fruit",
+    "en:mixed-nuts-and-dried-fruits",
+    "en:nut-and-seed-mixes",
+    "en:nutmeg-tree-products",
+    "en:nuts-and-their-products",
+    "en:olive-tree-products",
+    "en:pan-fried-vegetables",
+    "en:pastas",
+    "en:pickles",
+    "en:plant-based-creams",
+    "en:plant-based-meals",
+    "en:plant-based-pickles",
+    "en:plant-based-spreads",
+    "en:potted-plants",
+    "en:powdered-plant-milks",
+    "en:prepared-vegetables",
+    "en:psyllium",
+    "en:puffed-grains",
+    "en:pumpkin-and-squash-plant-products",
+    "en:refrigerated-plant-based-foods",
+    "en:seaweeds-and-their-products",
+    "en:seeds",
+    "en:shelf-stable-prepared-fruit-nuts-and-seeds-mixes",
+    "en:spices",
+    "en:sprouts",
+    "en:starches",
+    "en:stevia-and-their-products",
+    "en:sugarcanes",
+    "en:sunflower-seeds-and-their-products",
+    "en:tiger-nuts",
+    "en:vegetable-broths",
+    "en:vegetable-fats",
+    "fr:cenelles",
+    "fr:cerfeuil-tubereux",
+    "nl:seroendeng"
+   ],
+   "name": {
+    "ar": "الأطعمة النباتية",
+    "az": "Bitki mənşəli qidalar",
+    "bg": "Растителни храни",
+    "ca": "Aliments amb base vegetal",
+    "cs": "Rostlinné potraviny",
+    "da": "Plantebaserede fødevarer",
+    "de": "Pflanzliche Lebensmittel",
+    "el": "Τρόφιμα φυτικής προέλευσης",
+    "en": "Plant-based foods",
+    "eo": "Plant-bazitaj manĝaĵoj",
+    "es": "Alimentos de origen vegetal",
+    "et": "Taimsed toidud",
+    "fa": "غذاهای گیاهی",
+    "fi": "Kasvipohjaiset ruoat",
+    "fr": "Aliments d'origine végétale",
+    "he": "מזונות מהצומח",
+    "hi": "पौधे आधारित खाद्य पदार्थ",
+    "hr": "Hranu biljnog podrijetla",
+    "hu": "Növényialapú élelmiszerek",
+    "id": "Makanan nabati",
+    "it": "Cibi a base vegetale",
+    "ja": "植物性食品",
+    "ko": "식물성 식품",
+    "lt": "Augalinės kilmės maisto produktai",
+    "mk": "Храна од растително потекло",
+    "ms": "Makanan berasaskan tumbuhan",
+    "nl": "Plantaardige levensmiddelen",
+    "no": "Plantebasert mat",
+    "pl": "Żywność na bazie roślin",
+    "pt": "Alimentos à base de plantas",
+    "ro": "Alimente pe bază de plante",
+    "ru": "Еда из растительного сырья",
+    "sk": "Rastlinné potraviny",
+    "sl": "Rastlinska hrana",
+    "sv": "Växtbaserad mat",
+    "th": "ผลิตภัณฑ์จากพืชทั้งหมด",
+    "tr": "Bitkisel yiyecekler",
+    "uk": "Їжа на рослинній основі",
+    "zh": "植物性食物"
+   },
+   "parents": [
+    "en:plant-based-foods-and-beverages"
+   ]
+  },
+  "es:bizkaiko-txakolina": {
+   "name": {
+    "es": "Bizkaiko Txakolina"
+   },
+   "origins": {
+    "en": "en:spain"
+   },
+   "parents": [
+    "en:wines-from-spain"
+   ],
+   "protected_name_file_number": {
+    "en": "PDO-ES-A0746"
+   },
+   "protected_name_type": {
+    "en": "pdo"
+   },
+   "wikidata": {
+    "en": "Q4919429"
+   }
+  },
+  "fr:bourgogne-vezelay": {
+   "name": {
+    "fr": "bourgogne-vézelay"
+   },
+   "origins": {
+    "en": "en:france, en:burgundy"
+   },
+   "parents": [
+    "en:burgundy-wines"
+   ],
+   "protected_name_file_number": {
+    "en": "PDO-FR-02406"
+   },
+   "protected_name_type": {
+    "en": "pdo"
+   },
+   "wikidata": {
+    "en": "Q2922340"
+   }
+  },
+  "fr:volnay-premier-cru-clos-des-60-ouvrees": {
+   "name": {
+    "fr": "Volnay premier cru Clos des 60 Ouvrées"
+   },
+   "origins": {
+    "en": "en:france, en:burgundy"
+   },
+   "parents": [
+    "fr:volnay"
+   ],
+   "protected_name_type": {
+    "en": "pdo"
+   },
+   "wikidata": {
+    "en": "Q42303098"
+   }
+  }
+ },
+ "countries": {
+  "en:france": {
+   "country_code_2": {
+    "en": "FR"
+   },
+   "country_code_3": {
+    "en": "FRA"
+   },
+   "ecobalyse_is_part_of_eu": {
+    "en": "yes"
+   },
+   "language_codes": {
+    "en": "fr"
+   },
+   "name": {
+    "af": "Frankryk",
+    "ak": "France",
+    "am": "ፈረንሣይ",
+    "an": "Francia",
+    "ar": "فرنسا",
+    "as": "ফ্ৰান্স",
+    "ay": "Phransiya",
+    "az": "Fransa",
+    "ba": "Франция",
+    "be": "Францыя",
+    "bg": "Франция",
+    "bi": "Franis",
+    "bm": "France",
+    "bn": "ফ্রান্স",
+    "bo": "ཧྥ་རན་སི།",
+    "br": "Bro-C'hall",
+    "bs": "Francuska",
+    "ca": "França",
+    "ce": "Франци",
+    "co": "Francia",
+    "cs": "Francie",
+    "cu": "Франкїꙗ",
+    "cv": "Франци",
+    "cy": "Ffrainc",
+    "da": "Frankrig",
+    "de": "Frankreich",
+    "dv": "ފަރަންސޭސިވިލާތް",
+    "dz": "ཕརཱནསི་",
+    "ee": "France",
+    "el": "Γαλλία",
+    "en": "France",
+    "eo": "Francio",
+    "es": "Francia",
+    "et": "Prantsusmaa",
+    "eu": "Frantzia",
+    "fa": "فرانسه",
+    "ff": "Faransi",
+    "fi": "Ranska",
+    "fo": "Frakland",
+    "fr": "France",
+    "fy": "Frankryk",
+    "ga": "An Fhrainc",
+    "gd": "An Fhraing",
+    "gl": "Francia",
+    "gn": "Hyãsia",
+    "gu": "ફ્રાન્સ",
+    "gv": "Yn Rank",
+    "ha": "Faransa",
+    "he": "צרפת",
+    "hi": "फ़्रान्स",
+    "hr": "Francuska",
+    "ht": "Frans",
+    "hu": "Franciaország",
+    "hy": "Ֆրանսիա",
+    "ia": "Francia",
+    "id": "Perancis",
+    "ie": "Francia",
+    "io": "Francia",
+    "is": "Frakkland",
+    "it": "Francia",
+    "ja": "フランス",
+    "jv": "Prancis",
+    "ka": "საფრანგეთი",
+    "kg": "Fwalansa",
+    "kk": "Франция",
+    "kl": "Franskit Nunaat",
+    "km": "បារាំង",
+    "kn": "ಫ್ರಾನ್ಸ್",
+    "ko": "프랑스",
+    "ku": "Fransa",
+    "kv": "Франция",
+    "kw": "Pow Frynk",
+    "ky": "Франция",
+    "la": "Francia",
+    "lb": "Frankräich",
+    "li": "Frankriek",
+    "ln": "Falansia",
+    "lo": "ປະເທດຝະລັ່ງ",
+    "lt": "Prancūzija",
+    "lv": "Francija",
+    "mg": "Frantsa",
+    "mi": "Wīwī",
+    "mk": "Франција",
+    "ml": "ഫ്രാൻസ്",
+    "mn": "Франц",
+    "mr": "फ्रान्स",
+    "ms": "Perancis",
+    "mt": "Franza",
+    "my": "ပြင်သစ်နိုင်ငံ",
+    "na": "Prant",
+    "nb": "Frankrike",
+    "ne": "फ्रान्स",
+    "nl": "Frankrijk",
+    "nn": "Frankrike",
+    "nv": "Dáághahii Dinéʼiʼ Bikéyah",
+    "oc": "França",
+    "or": "ଫ୍ରାନ୍ସ",
+    "os": "Франц",
+    "pa": "ਫ਼੍ਰਾਂਸ",
+    "pl": "Francja",
+    "ps": "فرانسه",
+    "pt": "França",
+    "qu": "Ransiya",
+    "rm": "Frantscha",
+    "rn": "Francia",
+    "ro": "Franța",
+    "ru": "Франция",
+    "rw": "Ubufaransa",
+    "sa": "फ्रांस",
+    "sc": "Frantza",
+    "se": "Frankriika",
+    "sh": "Francuska",
+    "si": "ප් රංශය",
+    "sk": "Francúzsko",
+    "sl": "Francija",
+    "sm": "Farani",
+    "so": "Faransiiska",
+    "sq": "Franca",
+    "sr": "Француска",
+    "ss": "IFulansi",
+    "st": "Fora",
+    "su": "Perancis",
+    "sv": "Frankrike",
+    "sw": "Ufaransa",
+    "ta": "பிரான்சு",
+    "te": "ఫ్రాన్స్",
+    "tg": "Фаронса",
+    "th": "ประเทศฝรั่งเศส",
+    "tk": "Fransiýa",
+    "tl": "Pransiya",
+    "tr": "Fransa",
+    "tt": "Франция",
+    "ty": "Farāni",
+    "ug": "فرانسىيە",
+    "uk": "Франція",
+    "ur": "فرانس",
+    "uz": "Fransiya",
+    "vi": "Pháp",
+    "vo": "Fransän",
+    "wa": "France",
+    "wo": "Faraas",
+    "yi": "פראנקרייך",
+    "yo": "Fránsì",
+    "za": "Fazgoz",
+    "zh": "法国",
+    "zu": "IFulansi"
+   },
+   "osm_relation": {
+    "en": "2202162"
+   },
+   "regional_entity": {
+    "en": "european-union"
+   }
+  },
+  "en:india": {
+   "country_code_2": {
+    "en": "IN"
+   },
+   "country_code_3": {
+    "en": "IND"
+   },
+   "language_codes": {
+    "en": "en,hi"
+   },
+   "name": {
+    "af": "Indië",
+    "am": "ህንድ",
+    "an": "India",
+    "ar": "الهند",
+    "as": "ভাৰত",
+    "av": "Хиндистан",
+    "ay": "Indya",
+    "az": "Hindistan",
+    "ba": "Һиндостан",
+    "be": "Індыя",
+    "bg": "Индия",
+    "bh": "भारत",
+    "bi": "India",
+    "bn": "ভারত",
+    "bo": "རྒྱ་གར།",
+    "br": "India",
+    "bs": "Indija",
+    "ca": "Índia",
+    "ce": "Инди",
+    "co": "India",
+    "cs": "Indie",
+    "cv": "Инди",
+    "cy": "India",
+    "da": "Indien",
+    "de": "Indien",
+    "dv": "އިންޑިޔާ",
+    "dz": "རྒྱ་གར་",
+    "ee": "India",
+    "el": "Ινδία",
+    "en": "India",
+    "eo": "Barato",
+    "es": "India",
+    "et": "India",
+    "eu": "India",
+    "fa": "هند",
+    "fi": "Intia",
+    "fo": "India",
+    "fr": "Inde",
+    "fy": "Yndia",
+    "ga": "An India",
+    "gd": "Na h-Innseachan",
+    "gl": "India - भारत",
+    "gn": "India",
+    "gu": "ભારત",
+    "gv": "Yn Injey",
+    "ha": "Indiya",
+    "he": "הודו",
+    "hi": "भारत",
+    "hr": "Indija",
+    "ht": "End",
+    "hu": "India",
+    "hy": "Հնդկաստան",
+    "ia": "India",
+    "id": "India",
+    "ie": "India",
+    "ig": "Ndia",
+    "io": "India",
+    "is": "Indland",
+    "it": "India",
+    "iu": "ᐃᓐᑎᐊ",
+    "ja": "インド",
+    "jv": "India",
+    "ka": "ინდოეთი",
+    "kg": "India",
+    "kk": "Үндістан",
+    "kl": "India",
+    "km": "ឥណ្ឌា",
+    "kn": "ಭಾರತ",
+    "ko": "인도",
+    "ks": "بًارت",
+    "ku": "Hindistan",
+    "kv": "Индия",
+    "kw": "Eynda",
+    "ky": "Индия",
+    "la": "India",
+    "lb": "Indien",
+    "li": "India",
+    "ln": "India",
+    "lt": "Indija",
+    "lv": "Indija",
+    "mg": "India",
+    "mi": "Īnia",
+    "mk": "Индија",
+    "ml": "ഇന്ത്യ",
+    "mn": "Энэтхэг",
+    "mr": "भारत",
+    "ms": "India",
+    "mt": "Indja",
+    "my": "အိန္ဒိယနိုင်ငံ",
+    "na": "Indjiya",
+    "nb": "India",
+    "ne": "भारत",
+    "nl": "India",
+    "nn": "India",
+    "nv": "Tó Wónaanídę́ę́ʼ Bitsįʼ Yishtłizhii Bikéyah",
+    "oc": "Índia",
+    "om": "Indiyaa",
+    "or": "ଭାରତ",
+    "os": "Инди",
+    "pa": "ਭਾਰਤ",
+    "pi": "भारत",
+    "pl": "Indie",
+    "ps": "هند",
+    "pt": "Índia",
+    "qu": "Indya",
+    "rm": "India",
+    "rn": "Ubuhindi",
+    "ro": "India",
+    "ru": "Индия",
+    "rw": "Ubuhinde",
+    "sa": "भारतम्",
+    "sc": "Ìndia",
+    "sd": "ڀارت",
+    "se": "India",
+    "sh": "Indija",
+    "si": "භාරත ජනරජය",
+    "sk": "India",
+    "sl": "Indija",
+    "sm": "Igitia",
+    "so": "Hindiya",
+    "sq": "India",
+    "sr": "Индија",
+    "ss": "INdiya",
+    "su": "India",
+    "sv": "Indien",
+    "sw": "Uhindi",
+    "ta": "இந்தியா",
+    "te": "భారత దేశము",
+    "tg": "Ҳиндустон",
+    "th": "ประเทศอินเดีย",
+    "tk": "Hindistan",
+    "tl": "Indiya",
+    "to": "ʻInitia",
+    "tr": "Hindistan",
+    "ts": "India",
+    "tt": "Һиндстан",
+    "ty": "'Inītia",
+    "ug": "ھىندىستان",
+    "uk": "Індія",
+    "ur": "بھارت",
+    "uz": "Hindiston",
+    "vi": "Ấn Độ",
+    "vo": "Lindän",
+    "wa": "Inde",
+    "wo": "End",
+    "yi": "אינדיע",
+    "yo": "Índíà",
+    "za": "Yindu",
+    "zh": "印度",
+    "zu": "INdiya"
+   },
+   "osm_relation": {
+    "en": "304716"
+   }
+  },
+  "en:jan-mayen": {
+   "language_codes": {
+    "en": ""
+   },
+   "name": {
+    "af": "Jan Mayen",
+    "ar": "جان ماين",
+    "be": "Востраў Ян-Маен",
+    "bg": "Ян Майен",
+    "br": "Jan Mayen",
+    "bs": "Jan Majen",
+    "ca": "Jan Mayen",
+    "cs": "Jan Mayen",
+    "cy": "Jan Mayen",
+    "da": "Jan Mayen",
+    "de": "Jan Mayen",
+    "el": "Γιαν Μαγιέν",
+    "en": "Jan Mayen",
+    "eo": "Janmajeno",
+    "es": "Jan Mayen",
+    "et": "Jan Mayen",
+    "eu": "Jan Mayen",
+    "fa": "یان ماین",
+    "fi": "Jan Mayen",
+    "fo": "Jan Mayen",
+    "fr": "Jan Mayen",
+    "fy": "Jan Mayen",
+    "ga": "Jan Mayen",
+    "gl": "Jan Mayen",
+    "he": "יאן מאיין",
+    "hi": "यान मायेन",
+    "hr": "Jan Mayen",
+    "hu": "Jan Mayen-sziget",
+    "id": "Jan Mayen",
+    "is": "Jan Mayen",
+    "it": "Jan Mayen",
+    "ja": "ヤンマイエン島",
+    "jv": "Jan Mayen",
+    "ka": "იან-მაიენი",
+    "ko": "얀마옌 섬",
+    "kw": "Jan Mayen",
+    "lb": "Jan Mayen",
+    "li": "Jan Mayen",
+    "lt": "Jan Majenas",
+    "lv": "Jana Majena sala",
+    "mr": "यान मायेन",
+    "ms": "Jan Mayen",
+    "nb": "Jan Mayen",
+    "nl": "Jan Mayen",
+    "nn": "Jan Mayen",
+    "oc": "Jan Mayen",
+    "os": "Ян-Майен",
+    "pl": "Jan Mayen",
+    "pt": "Jan Mayen",
+    "ro": "Insula Jan Mayen",
+    "ru": "Ян-Майен",
+    "se": "Jan Mayen",
+    "sh": "Jan Mayen",
+    "sk": "Jan Mayen",
+    "sl": "Jan Mayen",
+    "sq": "Jan Mayen",
+    "sr": "Јан Мајен",
+    "su": "Jan Mayen",
+    "sv": "Jan Mayen",
+    "sw": "Jan Mayen",
+    "th": "ยานไมเอน",
+    "tr": "Jan Mayen",
+    "uk": "Ян-Маєн",
+    "ur": "جان ماین",
+    "vi": "Jan Mayen",
+    "yo": "Jan Mayen",
+    "zh": "揚馬延島"
+   }
+  },
+  "en:luxembourg": {
+   "country_code_2": {
+    "en": "LU"
+   },
+   "country_code_3": {
+    "en": "LUX"
+   },
+   "ecobalyse_is_part_of_eu": {
+    "en": "yes"
+   },
+   "language_codes": {
+    "en": "fr,de,lb,en"
+   },
+   "name": {
+    "af": "Luxemburg",
+    "am": "ሉክሰምበርግ",
+    "an": "Luxemburgo",
+    "ar": "لوكسمبورغ",
+    "az": "Lüksemburq",
+    "ba": "Люксембург",
+    "be": "Люксембург",
+    "bg": "Люксембург",
+    "bi": "Luxembourg",
+    "bn": "লুক্সেমবুর্গ",
+    "bo": "ལུ་སེམ་བའུརག",
+    "br": "Luksembourg",
+    "bs": "Luksemburg",
+    "ca": "Luxemburg",
+    "ce": "Люксембург",
+    "co": "Lussemburgu",
+    "cs": "Lucembursko",
+    "cu": "Люѯємбоургъ",
+    "cv": "Люксембург",
+    "cy": "Lwcsembwrg",
+    "da": "Luxembourg",
+    "de": "Luxemburg",
+    "ee": "Luxembourg",
+    "el": "Λουξεμβούργο",
+    "en": "Luxembourg",
+    "eo": "Luksemburgo",
+    "es": "Luxemburgo",
+    "et": "Luksemburg",
+    "eu": "Luxenburgo",
+    "fa": "لوکزامبورگ",
+    "fi": "Luxemburg",
+    "fo": "Luksemburg",
+    "fr": "Luxembourg",
+    "fy": "Lúksemboarch",
+    "ga": "Lucsamburg",
+    "gd": "Lucsamburg",
+    "gl": "Luxemburgo",
+    "gn": "Luxemburgo",
+    "gu": "લક્ઝેમ્બર્ગ",
+    "gv": "Lucsemburg",
+    "he": "לוקסמבורג",
+    "hi": "लक्ज़मबर्ग",
+    "hr": "Luksemburg",
+    "ht": "Liksanbou",
+    "hu": "Luxemburg",
+    "hy": "Լյուքսեմբուրգ",
+    "ia": "Luxemburg",
+    "id": "Luksemburg",
+    "ie": "Luxemburgia",
+    "io": "Luxemburgia",
+    "is": "Lúxemborg",
+    "it": "Lussemburgo",
+    "ja": "ルクセンブルク",
+    "jv": "Luksemburg",
+    "ka": "ლუქსემბურგი",
+    "kg": "Luxembourg",
+    "kk": "Люксембург",
+    "kl": "Luxembourg",
+    "ko": "룩셈부르크",
+    "ku": "Lûksembûrg",
+    "kv": "Люксембург",
+    "kw": "Lushaborg",
+    "ky": "Люксембург",
+    "la": "Luxemburgum",
+    "lb": "Lëtzebuerg (Land)",
+    "li": "Luxemburg",
+    "ln": "Luksamburg",
+    "lo": "ປະເທດລູກຊຳບວກ",
+    "lt": "Liuksemburgas",
+    "lv": "Luksemburga",
+    "mg": "Loksemborga",
+    "mi": "Rakapuō",
+    "mk": "Луксембург",
+    "ml": "ലക്സംബർഗ്",
+    "mn": "Люксембург",
+    "mr": "लक्झेंबर्ग",
+    "ms": "Luxembourg",
+    "mt": "Lussemburgu",
+    "my": "လူဇင်ဘတ်နိုင်ငံ",
+    "na": "Ruketemburg",
+    "nb": "Luxembourg",
+    "ne": "लक्जेम्बर्ग",
+    "nl": "Luxemburg",
+    "nn": "Luxembourg",
+    "nv": "Látsębooʼ",
+    "oc": "Luxemborg",
+    "or": "ଲକ୍ସମବର୍ଗ",
+    "os": "Люксембург",
+    "pa": "ਲਕਸਮਬਰਗ",
+    "pl": "Luksemburg",
+    "ps": "لوګزامبورګ",
+    "pt": "Luxemburgo",
+    "qu": "Luksimbur",
+    "rm": "Luxemburg",
+    "ro": "Luxemburg",
+    "ru": "Люксембург",
+    "rw": "Lugizamburu",
+    "sa": "लक्सम्बर्ग",
+    "sc": "Lussemburgu",
+    "se": "Luxemburg",
+    "sh": "Luksemburg",
+    "sk": "Luxembursko",
+    "sl": "Luksemburg",
+    "so": "Luksemburg",
+    "sq": "Luksemburgu",
+    "sr": "Луксембург",
+    "ss": "Lusembogu",
+    "su": "Luksemburg",
+    "sv": "Luxemburg",
+    "sw": "Luxemburg",
+    "ta": "லக்சம்பர்க்",
+    "tg": "Люксембург",
+    "th": "ประเทศลักเซมเบิร์ก",
+    "tk": "Lýuksemburg",
+    "tl": "Luxembourg",
+    "tr": "Lüksemburg",
+    "tt": "Люксембург",
+    "ug": "ليۇكسېمبۇرگ",
+    "uk": "Люксембург",
+    "ur": "لکسمبرگ",
+    "uz": "Luksemburg",
+    "vi": "Luxembourg",
+    "vo": "Luxämburgän",
+    "wa": "Grande-Dutcheye do Lussimbork",
+    "wo": "Luksambuur",
+    "yi": "לוקסעמבורג",
+    "yo": "Lúksẹ́mbọ̀rg",
+    "zh": "卢森堡"
+   },
+   "osm_relation": {
+    "en": "2171347"
+   },
+   "regional_entity": {
+    "en": "european-union"
+   }
+  },
+  "en:united-kingdom": {
+   "country_code_2": {
+    "en": "UK"
+   },
+   "country_code_3": {
+    "en": "GBR"
+   },
+   "ecobalyse_is_part_of_eu": {
+    "en": "yes"
+   },
+   "language_codes": {
+    "en": "en,cy,ga,gd"
+   },
+   "name": {
+    "ab": "Британиа Ду",
+    "af": "Verenigde Koninkryk",
+    "ak": "United Kingdom",
+    "am": "ዩናይትድ ኪንግደም",
+    "an": "Reino Unito",
+    "ar": "المملكة المتحدة",
+    "az": "Böyük Britaniya",
+    "ba": "Бөйөк Британия",
+    "be": "Вялікабрытанія",
+    "bg": "Обединено кралство Великобритания и Северна Ирландия",
+    "bi": "Unaeted Kingdom",
+    "bn": "যুক্তরাজ্য",
+    "bo": "དབྱིན་ཇི་མཉམ་འབྲེལ།",
+    "br": "Rouantelezh-Unanet",
+    "bs": "Ujedinjeno Kraljevstvo Velike Britanije i Sjeverne Irske",
+    "ca": "Regne Unit",
+    "ce": "Лакхарабритани",
+    "co": "Regnu Unitu",
+    "cs": "Spojené království",
+    "cu": "Вєлика Британїꙗ",
+    "cv": "Аслă Британи",
+    "cy": "Y Deyrnas Unedig",
+    "da": "Storbritannien",
+    "de": "Vereinigtes Königreich",
+    "dv": "ޔުނައިޓެޑް ކިންގްޑަމް",
+    "dz": "ཡུ་ནའི་ཊེཊ་ཀིང་ཌམ",
+    "ee": "United Kingdom",
+    "el": "Ηνωμένο Βασίλειο",
+    "en": "United Kingdom",
+    "eo": "Unuiĝinta Reĝlando",
+    "es": "Reino Unido",
+    "et": "Suurbritannia",
+    "eu": "Erresuma Batua",
+    "fa": "بریتانیا",
+    "fi": "Yhdistynyt kuningaskunta",
+    "fo": "Stóra Bretland",
+    "fr": "Royaume-Uni",
+    "fy": "Grut-Brittanje",
+    "ga": "An Ríocht Aontaithe",
+    "gd": "An Rìoghachd Aonaichte",
+    "gl": "Reino Unido",
+    "gn": "Tetã Joaju",
+    "gu": "યુનાઇટેડ કિંગડમ",
+    "gv": "Reeriaght Unnaneysit",
+    "ha": "Birtaniya",
+    "he": "הממלכה המאוחדת",
+    "hi": "यूनाइटेड किंगडम",
+    "hr": "Ujedinjeno Kraljevstvo",
+    "ht": "Wayòm Ini",
+    "hu": "Nagy-Britannia",
+    "hy": "Միացյալ Թագավորություն",
+    "ia": "Regno Unite",
+    "id": "Britania Raya",
+    "ie": "Reyatu Unit",
+    "ig": "Obodoézè Nà Ofú",
+    "io": "Unionita Rejio",
+    "is": "Bretland",
+    "it": "Regno Unito",
+    "ja": "イギリス",
+    "jv": "Britania Raya",
+    "ka": "გაერთიანებული სამეფო",
+    "kg": "Royaume-Uni",
+    "kk": "Ұлыбритания",
+    "kl": "Tuluit Nunaat",
+    "km": "រាជាណាចក្ររួម",
+    "kn": "ಯುನೈಟೆಡ್ ಕಿಂಗ್ ಡಂ",
+    "ko": "영국",
+    "ku": "Keyaniya Yekbûyî",
+    "kv": "Ыджыд Британия",
+    "kw": "Ruwvaneth Unys",
+    "ky": "Улуу Британия жана Түндүк Ирландия",
+    "la": "Britanniarum Regnum",
+    "lb": "Groussbritannien an Nordirland",
+    "li": "Vereineg Keuninkriek",
+    "ln": "Ingɛlɛ́tɛlɛ",
+    "lt": "Jungtinė Karalystė",
+    "lv": "Apvienotā Karaliste",
+    "mg": "Fanjakana Mitambatra",
+    "mi": "Kīngitanga Kotahi",
+    "mk": "Обединето Кралство",
+    "ml": "യുണൈറ്റഡ് കിങ്ഡം",
+    "mn": "Нэгдсэн Вант Улс",
+    "mr": "युनायटेड किंग्डम",
+    "ms": "United Kingdom",
+    "mt": "Renju Unit",
+    "my": "ယူနိုက်တက် ကင်းဒမ်း",
+    "na": "Ingerand",
+    "nb": "Storbritannia",
+    "ne": "संयुक्त अधिराज्य",
+    "nl": "Verenigd Koninkrijk",
+    "nn": "Storbritannia",
+    "nv": "Tó Táʼ Dinéʼiʼ Bikéyah",
+    "oc": "Reialme Unit",
+    "or": "ଯୁକ୍ତରାଜ୍ୟ",
+    "os": "Стыр Британи",
+    "pa": "ਯੂਨਾਈਟਡ ਕਿੰਗਡਮ",
+    "pl": "Zjednoczone Królestwo",
+    "ps": "بريتانيا",
+    "pt": "Reino Unido",
+    "qu": "Hukllachasqa Qhapaq Suyu",
+    "rm": "Reginavel Unì",
+    "ro": "Regatul Unit al Marii Britanii și al Irlandei de Nord",
+    "ru": "Великобритания",
+    "rw": "Ubwongereza",
+    "sa": "संयुक्त अधिराज्य",
+    "sc": "Rennu Auniadu",
+    "se": "Ovttastuvvan gonagasriika",
+    "sh": "Ujedinjeno Kraljevstvo",
+    "si": "එක්සත් රාජධානිය",
+    "sk": "Spojené kráľovstvo",
+    "sl": "Združeno kraljestvo Velike Britanije in Severne Irske",
+    "sn": "United Kingdom",
+    "so": "Midowga boqortooyada Britan",
+    "sq": "Britania e Madhe",
+    "sr": "Уједињено Краљевство",
+    "ss": "United Kingdom",
+    "su": "Britania",
+    "sv": "Storbritannien",
+    "sw": "Ufalme wa Muungano",
+    "ta": "ஐக்கிய இராச்சியம்",
+    "te": "యునైటెడ్ కింగ్ డమ్",
+    "tg": "Подшоҳии Муттаҳида",
+    "th": "สหราชอาณาจักร",
+    "tl": "United Kingdom",
+    "tr": "Birleşik Krallık",
+    "tt": "Бөекбритания",
+    "tw": "United Kingdom",
+    "ty": "Paratāne",
+    "ug": "بۈيۈك بېرىتانىيە",
+    "uk": "Велика Британія",
+    "ur": "برطانیہ",
+    "uz": "Birlashgan Qirollik",
+    "vi": "Vương quốc Liên hiệp Anh và Bắc Ireland",
+    "vo": "Regän Pebalöl",
+    "wo": "Nguur-Yu-Bennoo",
+    "yi": "פאראייניגטע קעניגרייך",
+    "yo": "Ilẹ̀ọba Aṣọ̀kan",
+    "za": "Yinghgoz",
+    "zh": "英国",
+    "zu": "Umbuso Ohlangeneyo"
+   },
+   "official_country_code_2": {
+    "en": "GB"
+   },
+   "osm_relation": {
+    "en": "62149"
+   }
+  }
+ },
+ "data_quality": {
+  "en:carbon-footprint-warnings": {
+   "children": [
+    "en:carbon-footprint-from-known-ingredients-but-not-from-meat-or-fish",
+    "en:carbon-footprint-from-known-ingredients-less-than-from-meat-or-fish",
+    "en:carbon-footprint-from-known-ingredients-more-than-from-meat-or-fish"
+   ],
+   "name": {
+    "de": "Warnungen zum CO2-Fußabdruck",
+    "en": "Carbon footprint warnings",
+    "es": "Advertencias sobre la huella de carbono",
+    "fr": "Avertissements sur l'empreinte carbone",
+    "it": "Avvertenze sull'impronta di carbonio",
+    "nl": "Waarschuwingen over de koolstofvoetafdruk",
+    "pt": "Avisos sobre la pegada de carbono"
+   },
+   "parents": [
+    "en:data-quality-warnings"
+   ]
+  },
+  "en:data-quality-warnings": {
+   "children": [
+    "en:calcium-source-label-claim-but-calcium-below-0-8",
+    "en:carbon-footprint-warnings",
+    "en:categories-warnings",
+    "en:energy-free-label-claim-but-energy-above-limitation",
+    "en:environmental-score-quality-warnings",
+    "en:fibers-warnings",
+    "en:food-groups-warnings",
+    "en:gs1-warnings",
+    "en:high-fibres-label-claim-but-fibre-below-limitation",
+    "en:high-in-biotin-label-claim-but-biotin-below-0-0003",
+    "en:high-in-calcium-label-claim-but-calcium-below-1-6",
+    "en:high-in-iodine-label-claim-but-iodine-below-0-0003",
+    "en:high-in-iron-label-claim-but-iron-below-0-028",
+    "en:high-in-magnesium-label-claim-but-magnesium-below-0-6",
+    "en:high-in-omega-3-label-claim-but-ala-or-sum-of-epa-and-dha-below-limitation",
+    "en:high-in-pantothenic-acid-label-claim-but-pantothenic-acid-below-0-012",
+    "en:high-in-phosphore-label-claim-but-phosphorus-below-1-6",
+    "en:high-in-zinc-label-claim-but-zinc-below-0-03",
+    "en:high-monounsaturated-fat-label-claim-but-monounsaturated-fat-under-limitation",
+    "en:high-proteins-label-claim-but-proteins-below-limitation",
+    "en:ingredients-warnings",
+    "en:iodine-source-label-claim-but-iodine-below-0-00015",
+    "en:iron-source-label-claim-but-iron-below-0-014",
+    "en:low-energy-label-claim-but-energy-above-limitation",
+    "en:low-fat-label-claim-but-fat-above-limitation",
+    "en:low-saturated-fat-label-claim-but-fat-above-limitation",
+    "en:low-sodium-or-low-salt-label-claim-but-sodium-or-salt-above-limitation",
+    "en:low-sugar-label-claim-but-sugar-above-limitation",
+    "en:magnesium-source-label-claim-but-magnesium-below-0-3",
+    "en:no-added-sodium-or-no-added-salt-label-claim-but-sodium-or-salt-above-limitation",
+    "en:no-added-sugar-label-claim-but-contains-added-sugar",
+    "en:no-fat-label-claim-but-fat-above-0-5",
+    "en:nutri-score-warnings",
+    "en:nutrition-warnings",
+    "en:packaging-warnings",
+    "en:phosphore-source-label-claim-but-phosphorus-below-0-8",
+    "en:quantity-and-serving-warnings",
+    "en:rich-in-polyunsaturated-fatty-acids-label-claim-but-polyunsaturated-fat-under-limitation",
+    "en:rich-in-unsaturated-fatty-acids-label-claim-but-unsaturated-fat-under-limitation",
+    "en:rich-in-vitamin-a-label-claim-but-vitamin-a-below-0-0016",
+    "en:rich-in-vitamin-b1-label-claim-but-vitamin-b1-below-0-0028",
+    "en:rich-in-vitamin-b12-label-claim-but-vitamin-b12-below-2e-06",
+    "en:rich-in-vitamin-b2-label-claim-but-vitamin-b2-below-0-0032",
+    "en:rich-in-vitamin-b3-label-claim-but-vitamin-b3-below-0-036",
+    "en:rich-in-vitamin-b6-label-claim-but-vitamin-b6-below-0-004",
+    "en:rich-in-vitamin-b9-label-claim-but-vitamin-b9-below-0-0004",
+    "en:rich-in-vitamin-c-label-claim-but-vitamin-c-below-0-12",
+    "en:rich-in-vitamin-d-label-claim-but-vitamin-d-below-1e-05",
+    "en:rich-in-vitamin-e-label-claim-but-vitamin-e-below-0-02",
+    "en:saturated-fat-free-label-claim-but-fat-above-0-1",
+    "en:serving-quantity-defined-but-quantity-undefined",
+    "en:source-of-biotin-label-claim-but-biotin-below-0-00015",
+    "en:source-of-fibre-label-claim-but-fibre-below-limitation",
+    "en:source-of-omega-3-label-claim-but-ala-or-sum-of-epa-and-dha-below-limitation",
+    "en:source-of-pantothenic-acid-label-claim-but-pantothenic-acid-below-0-006",
+    "en:source-of-proteins-label-claim-but-proteins-below-limitation",
+    "en:sugar-free-label-claim-but-sugar-above-limitation",
+    "en:vegan-label-but-could-not-confirm-for-all-ingredients",
+    "en:vegetarian-label-but-could-not-confirm-for-all-ingredients",
+    "en:very-low-sodium-or-very-low-salt-label-claim-but-sodium-or-salt-above-limitation",
+    "en:vitamin-a-source-label-claim-but-vitamin-a-below-0-0008",
+    "en:vitamin-b1-source-label-claim-but-vitamin-b1-below-0-0014",
+    "en:vitamin-b12-source-label-claim-but-vitamin-b12-below-1e-06",
+    "en:vitamin-b2-source-label-claim-but-vitamin-b2-below-0-0016",
+    "en:vitamin-b3-source-label-claim-but-vitamin-b3-below-0-018",
+    "en:vitamin-b6-source-label-claim-but-vitamin-b6-below-0-002",
+    "en:vitamin-b9-source-label-claim-but-vitamin-b9-below-0-0002",
+    "en:vitamin-c-source-label-claim-but-vitamin-c-below-0-06",
+    "en:vitamin-d-source-label-claim-but-vitamin-d-below-5e-06",
+    "en:vitamin-e-source-label-claim-but-vitamin-e-below-0-01",
+    "en:zinc-source-label-claim-but-zinc-below-0-015"
+   ],
+   "description": {
+    "de": "Möglicher Datenfehler erkannt. Könnte ein falscher Alarm sein.",
+    "en": "Possible error on data detected. Might be a false alert.",
+    "es": "Posible error en los datos detectado. Podría ser una alerta falsa.",
+    "fr": "Erreur possible sur les données détectée. Pourrait être une fausse alerte.",
+    "it": "Possibile errore sui dati rilevato. Potrebbe essere un falso allarme.",
+    "pt": "Possível erro nos dados detectado. Pode ser um alerta falso."
+   },
+   "marker_type": {
+    "en": "warning"
+   },
+   "name": {
+    "da": "Datakvalitetsadvarsler",
+    "en": "Data quality warnings"
+   }
+  },
+  "en:ingredients-language-mismatch-lt-contains-it": {
+   "description": {
+    "en": "The ingredients language is set to Lithuanian, but the ingredients text appears to contain Italian."
+   },
+   "fix_action": {
+    "en": "add_ingredients_text"
+   },
+   "name": {
+    "en": "Ingredients language mismatch lt contains it"
+   },
+   "parents": [
+    "en:ingredients-warnings"
+   ]
+  },
+  "en:ingredients-language-mismatch-tl-contains-en": {
+   "description": {
+    "en": "The ingredients language is set to Tagalog, but the ingredients text appears to contain English."
+   },
+   "fix_action": {
+    "en": "add_ingredients_text"
+   },
+   "name": {
+    "en": "Ingredients language mismatch tl contains en"
+   },
+   "parents": [
+    "en:ingredients-warnings"
+   ]
+  },
+  "en:ingredients-no-photo-to-be-selected": {
+   "description": {
+    "en": "A photo for the ingredients list needs to be selected."
+   },
+   "fix_action": {
+    "en": "add_ingredients_image"
+   },
+   "name": {
+    "en": "Ingredients NO photo to be selected"
+   },
+   "parents": [
+    "en:data-quality-completeness-ingredients"
+   ]
+  }
+ },
+ "labels": {
+  "en:bf-bio-151": {
+   "auth_address": {
+    "en": "Mündener Straße 19, 37218 , Witzenhausen, Germany"
+   },
+   "auth_name": {
+    "en": "Agreco R.F. Göderz GmbH"
+   },
+   "auth_url": {
+    "en": "http://agrecogmbh.de"
+   },
+   "country": {
+    "en": "Burkina Faso"
+   },
+   "eu_groups": {
+    "en": "en:EU Group A: unprocessed plant products,en:EU Group B: live animals or unprocessed animal products,en:EU Group D: processed agricultural products for use as food -*-,"
+   },
+   "exceptions": {
+    "en": "en:except products covered by Annex III,en:in conversion products"
+   },
+   "name": {
+    "en": "BF-BIO-151"
+   },
+   "parents": [
+    "en:eu-organic"
+   ]
+  },
+  "en:certified-by-ocacia": {
+   "label_categories": {
+    "en": "en:Certification"
+   },
+   "name": {
+    "ca": "Certificat per Ocacia",
+    "en": "Certified by Ocacia",
+    "fi": "Ocacian sertifioima",
+    "fr": "Certifié par Ocacia",
+    "he": "באישור Ocacia",
+    "it": "Certificato da Ocacia"
+   }
+  },
+  "en:ge-bio-166": {
+   "auth_address": {
+    "en": "Prof. Dr Ahmet Taner Kislali Mah.2842 Sok.No: 4, 06810, Cayyolu, Cankaya-Ankara, Turkey"
+   },
+   "auth_name": {
+    "en": "ORSER"
+   },
+   "auth_url": {
+    "en": "http://orser.com.tr"
+   },
+   "country": {
+    "en": "en:Georgia"
+   },
+   "eu_groups": {
+    "en": "en:EU Group A: unprocessed plant products,en:EU Group D: processed agricultural products for use as food -*-,"
+   },
+   "exceptions": {
+    "en": "en:in-conversion products,en:"
+   },
+   "name": {
+    "en": "GE-BIO-166"
+   },
+   "parents": [
+    "en:eu-organic"
+   ]
+  },
+  "en:organic": {
+   "children": [
+    "de:bio-7-initiative",
+    "en:austria-bio-garantie",
+    "en:bio-austria",
+    "en:bio-suisse",
+    "en:biodynamic-agriculture",
+    "en:biogarantie",
+    "en:biokreis",
+    "en:bioland",
+    "en:canada-organic",
+    "en:catalan-council-of-organic-production",
+    "en:danish-state-controlled-organic",
+    "en:debio-organic",
+    "en:ecoveg",
+    "en:eu-organic",
+    "en:fair-trade-organic",
+    "en:farm-verified-organic",
+    "en:finnish-organic-association",
+    "en:india-organic",
+    "en:luomu-controlled-organic-production",
+    "en:migros-bio",
+    "en:naturaplan",
+    "en:naturland",
+    "en:soil-association-organic",
+    "en:tun-certified-organic",
+    "en:usda-organic",
+    "es:comite-aragones-de-agricultura-ecologica",
+    "es:comite-de-agricultura-ecologica",
+    "es:comite-de-agricultura-ecologica-de-la-comunidad-de-madrid",
+    "es:comite-de-agricultura-ecologica-de-la-comunitat-valenciana",
+    "es:consejo-de-agricultura-ecologica-de-la-region-de-murcia",
+    "es:organico-argentina",
+    "fr:bio-coherence",
+    "fr:bio-equitable",
+    "fr:bio-equitable-en-france",
+    "fr:bio-solidaire",
+    "fr:biopartenaire",
+    "fr:nature-et-progres",
+    "it:icea-bio-vegan",
+    "it:icea-bio-vegetariano",
+    "it:icea-biologico",
+    "pt:produto-organico-brasil",
+    "sv:krav"
+   ],
+   "description": {
+    "ar": "الطعام العضوي هو الطعام الذي يتم إنتاجه بواسطة طرق تتوافق مع معايير الزراعة العضوية وتتميز بممارسات تعيد تدوير الموارد وتعزز التوازن البيئي وتحافظ على التنوع البيولوجي.",
+    "cs": "Organické potraviny jsou potraviny produkované metodami, které splňují standardy ekologického zemědělství a zahrnují postupy, které cyklují zdroje, podporují ekologickou rovnováhu a zachovávají biodiverzitu.",
+    "da": "Økologisk mad er mad, der produceres ved hjælp af metoder, der overholder økologisk landbrugsstandarder og omfatter praksis, der cykler ressourcer, fremmer økologisk balance og bevarer biodiversitet.",
+    "de": "Bio-Lebensmittel müssen aus ökologisch kontrolliertem Anbau stammen, dürfen nicht gentechnisch verändert sein und werden ohne Einsatz von chemisch-synthetischen Pflanzenschutzmitteln, Kunstdünger oder Klärschlamm angebaut.",
+    "el": "Οργανικά τρόφιμα είναι τρόφιμα που παράγονται με μεθόδους που συμμορφώνονται με τα πρότυπα της βιολογικής γεωργίας και περιλαμβάνουν πρακτικές που κυκλοφορούν πόρους, προωθούν την οικολογική ισορροπία και διατηρούν τη βιοποικιλότητα.",
+    "en": "Organic food is food produced by methods complying with the standards of organic farming and features practices that cycle resources, promote ecological balance, and conserve biodiversity.",
+    "es": "Se denomina alimento orgánico, alimento ecológico o alimento biológico al producto agrícola o agroindustrial que se produce bajo un conjunto de procedimientos denominados “ecológicos”: evitan el uso de productos sintéticos, como pesticidas, herbicidas y fertilizantes artificiales.",
+    "et": "Ökoloogiline toit on toit, mis on toodetud meetoditega, mis vastavad ökoloogilise põllumajanduse standarditele ja hõlmavad tavasid, mis tsüklivad ressursse, soodustavad ökoloogilist tasakaalu ja säilitavad bioloogilist mitmekesisust.",
+    "fi": "Luomuruoka on ruokaa, joka on tuotettu noudattaen luomuviljelyn standardeja ja joka sisältää käytäntöjä, jotka kierrättävät resursseja, edistävät ekologista tasapainoa ja säilyttävät biodiversiteettiä.",
+    "fr": "Un aliment biologique est un aliment produit suivant les principes de l'agriculture biologique. L'agriculture biologique est une méthode de production agricole qui exclut le recours à la plupart des produits chimiques de synthèse, les organismes génétiquement modifiés par transgénèse et la conservation des cultures par irradiation.",
+    "hr": "Organska hrana je hrana koja se proizvodi metodom koja se pridržava standarda organske poljoprivrede i uključuje prakse koje recikliraju resurse, promiču ekološku ravnotežu i očuvaju biološku raznolikost.",
+    "hu": "Az organikus élelmiszer olyan élelmiszer, amelyet az organikus gazdálkodás szabványainak megfelelő módszerekkel állítanak elő, és olyan gyakorlatokat alkalmaz, amelyek elősegítik az erőforrások ciklikus használatát, ökológiai egyensúlyt és a biológiai sokféleség megőrzését.",
+    "it": "Il cibo biologico è prodotto mediante metodi che rispettano gli standard dell'agricoltura biologica e promuove pratiche che favoriscono il riciclo delle risorse, il bilancio ecologico e la conservazione della biodiversità.",
+    "ja": "有機食品は、有機農業の基準に準拠した方法で生産され、資源の循環、生態バランスの促進、生物多様性の保護を特徴としています。",
+    "ko": "유기농 식품은 유기농 방식을 준수하여 생산되며, 자원 순환, 생태 균형 유지, 생물 다양성 보존을 장려하는 실천 방법을 갖추고 있습니다。",
+    "lt": "Ekologiška maistas yra maistas, gaminamas naudojant metodiką, atitinkančią ekologiško žemės ūkio standartus, ir apima praktikas, kurios cikliškai naudoja išteklius, skatina ekologinį pusiausvyrą ir išlaiko biologinę įvairovę.",
+    "lv": "Bioloģiskā pārtika ir pārtika, kas tiek ražota, ievērojot bioloģiskās lauksaimniecības standartus un ietver prakses, kas cirkulē resursus, veicina ekoloģisko līdzsvaru un saglabā bioloģisko daudzveidību.",
+    "nl": "Biologische voeding is voedsel dat wordt geproduceerd met methoden die voldoen aan de normen van de biologische landbouw, welke een ecologisch evenwicht en het behoud van biodiversiteit nastreeft.",
+    "pl": "Żywność organiczna to żywność produkowana zgodnie z zasadami rolnictwa ekologicznego, cechująca się praktykami, które cyklizują zasoby, promują równowagę ekologiczną i zachowują różnorodność biologiczną.",
+    "pt": "Os alimentos orgânicos são produzidos com métodos que cumprem normas da agricultura orgânica, utilizando práticas que promovem o equilíbrio ambiental e conservam a biodiversidade.",
+    "ro": "Alimentele organice sunt alimente produse prin metode care respectă standardele agriculturii organice și includ practici care ciclizează resursele, promovează echilibrul ecologic și conservă biodiversitatea.",
+    "ru": "Органическая пища производится с использованием методов, соответствующих стандартам органического земледелия, и включает практики, способствующие циклическому использованию ресурсов, поддержанию экологического баланса и сохранению биоразнообразия.",
+    "sk": "Organické potraviny sú potraviny, ktoré sa vyrábajú metódami, ktoré spĺňajú štandardy ekologickej poľnohospodárskej výroby a zahŕňajú postupy, ktoré cyklizujú zdroje, podporujú ekologickú rovnováhu a zachovávajú biodiverzitu.",
+    "sl": "Ekološka hrana je hrana, ki je pridelana z metodami, ki se skladajo s standardi ekološkega kmetovanja in vključujejo prakse, ki krožijo vire, spodbujajo ekološko ravnovesje in ohranjajo biotsko raznovrstnost.",
+    "sv": "Ekologisk mat är mat som produceras enligt ekologiskt jordbruk och har metoder som främjar resurshantering, ekologisk balans och bevarande av biologisk mångfald.",
+    "tr": "Organik gıda, organik tarım standartlarına uygun yöntemlerle üretilen ve kaynak döngüsü, ekolojik dengeyi teşvik etme ve biyolojik çeşitliliği koruma uygulamalarını içeren gıdalardır.",
+    "zh": "有机食品是按照有机农业标准生产的食品，采用循环资源、促进生态平衡和保护生物多样性的做法。"
+   },
+   "environmental_benefits": {
+    "ar": "الزراعة العضوية تساهم في الحفاظ على التنوع البيولوجي والمناخ وجودة المياه وخصوبة التربة.",
+    "cs": "Ekologické zemědělství přispívá k ochraně biodiverzity, klimatu, kvality vody a úrodnosti půdy.",
+    "da": "Økologisk landbrug bidrager til at bevare biodiversitet, klima, vandkvalitet og jordfrugtbarhed.",
+    "de": "Die ökologische Landwirtschaft trägt zur Erhaltung der Artenvielfalt, des Klimas, der Wasserqualität und der Bodenfruchtbarkeit bei.",
+    "el": "Η βιολογική γεωργία συμβάλλει στη διατήρηση της βιοποικιλότητας, του κλίματος, της ποιότητας του νερού και της γονιμότητας του εδάφους.",
+    "en": "Organic agriculture contributes to preserve biodiversity, climate, water quality and soil fertility.",
+    "es": "La agricultura orgánica contribuye a preservar la biodiversidad, el clima, la calidad del agua y la fertilidad del suelo.",
+    "fi": "Luomuviljely edistää biodiversiteetin, ilmaston, veden laadun ja maaperän hedelmällisyyden säilymistä.",
+    "fr": "L'agriculture biologique contribue à préserver la biodiversité, le climat, la qualité de l'eau et la fertilité des sols.",
+    "hr": "Organska poljoprivreda doprinosi očuvanju biološke raznolikosti, klime, kvalitete vode i plodnosti tla.",
+    "hu": "A bio mezőgazdaság hozzájárul a biodiverzitás, az éghajlat, a vízminőség és a talaj termékenységének megőrzéséhez.",
+    "it": "L'agricoltura biologica contribuisce a preservare la biodiversità, il clima, la qualità dell'acqua e la fertilità del suolo.",
+    "ja": "有機農業は生物多様性、気候、水質、土壌の肥沃さの保護に貢献します。",
+    "ko": "유기농은 생물 다양성, 기후, 수질 및 토양의 비옥성 보존에 기여합니다.",
+    "lv": "Bioloģiskā lauksaimniecība veicina bioloģiskās daudzveidības, klimata, ūdens kvalitātes un augsnes auglības saglabāšanu.",
+    "nl": "Biologische landbouw draagt bij aan het behoud van biodiversiteit, klimaat, waterkwaliteit en bodemvruchtbaarheid.",
+    "pl": "Rolnictwo ekologiczne przyczynia się do ochrony bioróżnorodności, klimatu, jakości wody i żyzności gleby.",
+    "pt": "A agricultura orgânica contribui para preservar a biodiversidade, o clima, a qualidade da água e a fertilidade do solo.",
+    "ro": "Agricultura organică contribuie la conservarea biodiversității, a climei, a calității apei și a fertilității solului.",
+    "ru": "Органическое земледелие способствует сохранению биоразнообразия, климата, качества воды и плодородия почвы.",
+    "sk": "Ekologické poľnohospodárstvo prispieva k zachovaniu biodiverzity, klímy, kvality vody a pôdnej úrodnosti.",
+    "sl": "Ekološko kmetijstvo prispeva k ohranjanju biotske raznovrstnosti, podnebja, kakovosti vode in rodovitnosti tal.",
+    "sv": "Ekologiskt jordbruk bidrar till att bevara biologisk mångfald, klimat, vattenkvalitet och markfruktbarhet.",
+    "tr": "Organik tarım, biyolojik çeşitlilik, iklim, su kalitesi ve toprak verimliliğini korumaya katkıda bulunur.",
+    "zh": "有机农业有助于保护生物多样性、气候、水质和土壤肥力。"
+   },
+   "incompatible_with": {
+    "en": "labels:en:non-organic"
+   },
+   "label_categories": {
+    "en": "en:Environnement"
+   },
+   "name": {
+    "bg": "Био",
+    "ca": "Orgànic",
+    "cs": "Bio",
+    "cz": "z ekologického zemědělství",
+    "da": "Økologisk",
+    "de": "Bio",
+    "en": "Organic",
+    "es": "Ecológico",
+    "fi": "Luomu",
+    "fr": "Bio",
+    "he": "אורגני",
+    "hr": "ekološki uzgoj",
+    "hu": "Bio",
+    "it": "Biologico",
+    "ja": "有機",
+    "ko": "유기농",
+    "lt": "Ekologiškas",
+    "nb": "Økologisk",
+    "nl": "Biologisch",
+    "pl": "ekologiczny",
+    "pt": "Orgânico",
+    "ro": "din agricultură ecologică controlată",
+    "sk": "z kontrolovaného ekologického poľnohospodárstva",
+    "sl": "iz kontrolirane ekološke pridelave",
+    "sv": "Ekologisk",
+    "th": "ออร์แกนิค",
+    "tr": "Organik",
+    "zh": "有机"
+   },
+   "opposite": {
+    "en": "en:non-organic"
+   },
+   "wikidata": {
+    "en": "Q380778"
+   }
+  },
+  "en:pa-bio-141": {
+   "auth_address": {
+    "en": "Marientorgraben 3-5, 90402, Nürnberg, Germany"
+   },
+   "auth_name": {
+    "en": "Kiwa BCS Öko-Garantie GmbH"
+   },
+   "auth_url": {
+    "en": "http://www.kiwabcs-oeko.com"
+   },
+   "country": {
+    "en": "en:Panama"
+   },
+   "eu_groups": {
+    "en": "en:EU Group A: unprocessed plant products,en:EU Group D: processed agricultural products for use as food -*-,"
+   },
+   "exceptions": {
+    "en": "en:except products covered by Annex III,en:in-conversion products"
+   },
+   "name": {
+    "en": "PA-BIO-141"
+   },
+   "parents": [
+    "en:eu-organic"
+   ]
+  },
+  "en:welfair-certificate": {
+   "country": {
+    "en": "en:Spain"
+   },
+   "description": {
+    "en": "Evaluates and monitors animal welfare quality on farms, in rearing areas and in slaughterhouses for bovine, porcine and ovine species as well as for hens, chickens, rabbits and turkeys."
+   },
+   "image": {
+    "es": "bienestar-animal.62x90.png"
+   },
+   "label_categories": {
+    "en": "en:Animal welfare"
+   },
+   "name": {
+    "en": "Welfair certificate",
+    "es": "Certificado Welfair",
+    "pt": "Certificação Welfair"
+   },
+   "parents": [
+    "en:animal-welfare"
+   ],
+   "web": {
+    "en": "https://www.animalwelfair.com/"
+   }
+  },
+  "es:hecho-en-thailandia": {
+   "label_categories": {
+    "en": "en:Geographic label"
+   },
+   "name": {
+    "en": "Made in Thailand",
+    "es": "Hecho en Thailandia",
+    "fr": "Fabriqué en Thaïlande",
+    "pt": "Feito na Tailândia"
+   }
+  },
+  "fr:medaille-de-bronze-du-concours-general-agricole-2023": {
+   "name": {
+    "fr": "Médaille de bronze du concours général agricole 2023"
+   },
+   "parents": [
+    "fr:medaille-de-bronze-du-concours-general-agricole"
+   ]
+  },
+  "fr:tidy-man": {
+   "name": {
+    "fr": "Tidy man",
+    "xx": "Tidy man"
+   },
+   "wikidata": {
+    "en": "Q3528198"
+   }
+  }
+ }
+}

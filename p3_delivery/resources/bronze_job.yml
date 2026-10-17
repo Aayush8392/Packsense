@@ -1,5 +1,6 @@
-# Same job as p2_lakehouse/bootstrap/create_bronze_job.py (job `packsense-bronze-load`): bronze, then silver, then drift.
-# silver and drift run even if the task before them failed (run_if ALL_DONE); silver is told how bronze ended.
+# Same job as p2_lakehouse/bootstrap/create_bronze_job.py (job `packsense-bronze-load`): bronze, then silver, then drift, plus the taxonomy
+# load (added 2026-10-17, after silver so a /fail ping from it is the last word on the core check).
+# silver, drift and taxonomy run even if the task before them failed (run_if ALL_DONE); silver is told how bronze ended.
 resources:
   jobs:
     bronze_load:
@@ -44,6 +45,20 @@ resources:
             base_parameters:
               run_id: "{{job.run_id}}"
               bronze_schema: ${var.bronze_schema}
+              silver_schema: ${var.silver_schema}
+              secret_scope: ${var.secret_scope}
+              ping_healthchecks: ${var.ping}
+        - task_key: taxonomy
+          depends_on:
+            - task_key: silver
+          run_if: ALL_DONE
+          # Loads OFF's taxonomy snapshots from landing into silver_taxonomy_tag. Sends only a /fail ping (to the core check); the
+          # success signal for that check is silver's own ping, which has already come.
+          notebook_task:
+            notebook_path: ../../p2_lakehouse/notebooks/taxonomy_load.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              landing: ${var.landing}
               silver_schema: ${var.silver_schema}
               secret_scope: ${var.secret_scope}
               ping_healthchecks: ${var.ping}

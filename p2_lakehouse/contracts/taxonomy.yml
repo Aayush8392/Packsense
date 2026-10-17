@@ -1,0 +1,40 @@
+# Data contract for the taxonomy table in silver (version 1). Separate from silver.yml on purpose: a new table, not a change to
+# silver_product_versions, so no table swap and no change to the product contract's version.
+#
+# Source: the daily snapshots of OFF's taxonomies that the capture keeps in landing (taxonomies/<name>/<last-modified>_<sha12>.json.gz)
+# and the daily logs beside them (taxonomies/manifests/<stamp>.json). A snapshot file is the immutable raw copy (landing, B2 and the
+# Hugging Face archive hold it), so there is no bronze table for it: every silver row carries the snapshot key and its sha256.
+#
+# One row per (taxonomy, snapshot, tag). Every snapshot ever captured is kept (taxonomies change rarely), so "which taxonomy was in
+# force on day d" can be answered (the weak labels need it); gold takes the newest snapshot of each taxonomy for its dimensions.
+#
+# Allowlist, as for products: names, parents and children are kept; of the other properties ONLY the ones listed under props_allowlist.
+# Everything else is dropped on purpose. The labels taxonomy, for example, carries organisations' contact data (auth_name,
+# auth_address, auth_url, web) that must not enter silver. Text values (names and kept properties) go through the scrub patterns of
+# silver.yml (email, URL, social link, @handle, Aadhaar, PAN, GSTIN); contributor names are not involved (taxonomies hold no usernames).
+version: 1
+table: workspace.packsense_silver.silver_taxonomy_tag
+manifest_table: workspace.packsense_silver.silver_taxonomy_manifest
+landing_prefix: taxonomies
+
+# kept in `props`: the value in English, else the first language by code; list and nested values are skipped
+props_allowlist: [wikidata, country_code_2, country_code_3, language_codes, label_categories]
+
+# a tag is '<language>:<rest>' with no whitespace; anything else is skipped and counted
+tag_shape: '^[a-z]{2,3}:\S+$'
+
+columns:
+  - {name: taxonomy, type: string, nullable: false, note: "name of the taxonomy file, e.g. categories"}
+  - {name: tag, type: string, nullable: false, note: "OFF's canonical tag, e.g. en:milk; the join key to the product tag columns"}
+  - {name: snapshot, type: string, nullable: false, note: "snapshot key relative to taxonomies/, e.g. allergens/20260901T000000Z_abcdef123456.json.gz (lineage)"}
+  - {name: snapshot_sha256, type: string, nullable: false, note: "sha256 of the raw JSON the capture downloaded; verified against the landed file before loading (lineage)"}
+  - {name: valid_from, type: timestamp, nullable: false, note: "OFF's Last-Modified of the file, else the capture time; a snapshot holds until the next snapshot of the same taxonomy"}
+  - {name: name_en, type: string, nullable: true, note: "the English name; NULL when the tag has none (gold falls back to another language)"}
+  - {name: names, type: "map<string,string>", nullable: false, note: "language code to name, every language OFF provides (public vocabulary); empty map when none"}
+  - {name: parents, type: "array<string>", nullable: false, note: "parent tags, sorted; empty when none"}
+  - {name: children, type: "array<string>", nullable: false, note: "child tags, sorted; empty when none (OFF lists children for only some tags: the parents column is the complete hierarchy)"}
+  - {name: props, type: "map<string,string>", nullable: false, note: "allowlisted properties only (props_allowlist)"}
+  - {name: loaded_at, type: timestamp, nullable: false, note: "lineage"}
+  - {name: job_run_id, type: string, nullable: false, note: "lineage"}
+
+grain: "one row per (taxonomy, snapshot, tag); insert-only MERGE on that key"
