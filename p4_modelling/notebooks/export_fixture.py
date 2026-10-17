@@ -68,7 +68,7 @@ LIMITS = {
     "versions_1": 20, "versions_2": 30, "versions_3": 20, "versions_4": 5, "versions_5_plus": 25, "most_versions": 3,
     "seed_and_delta": 25, "legacy_nutrition": 15, "india_new_format": 15, "non_india": 15,
     "no_op_pair": 25, "rev_gap": 25, "flag_vanished_with_change": 20, "flag_vanished_untouched": 10,
-    "allergen_name_variants": 12, "market_name_variants": 12,
+    "allergen_name_variants": 12, "market_name_variants": 12, "category_name_variants": 12, "label_name_variants": 12,
 }
 
 # Real tags observed in production on 2026-10-17 (dim_allergen and dim_market) that are not canonical taxonomy tags but are exactly the
@@ -77,6 +77,10 @@ LIMITS = {
 ALLERGEN_VARIANTS = ["en:Milch", "en:lait", "en:Lait", "en:LAIT", "en:Senf", "en:Sellerie", "en:Sesam", "fr:Milch", "en:moutarde",
                      "en:leche", "en:Eier", "en:Œufs", "en:Erdnüsse", "en:céleri", "en:arachides"]
 MARKET_VARIANTS = ["en:Türkiye", "en:Nederland", "en:Magyarország", "en:日本", "en:Allemagne", "fr:Francia", "en:Maroc"]
+# The same for categories and labels (observed in production 2026-10-17, dim_category and dim_label estimate): Spanish, Dutch and German names
+# and singular/plural slips that equal exactly one taxonomy tag's name in some language.
+CATEGORY_VARIANTS = ["en:Bebidas", "en:Galletas", "en:Dulces", "en:Yogures", "en:Kaas", "en:Carnes", "en:Leches", "en:chewing-gum", "en:ravioli"]
+LABEL_VARIANTS = ["en:kascher", "en:Kascher", "de:Kascher", "en:bio", "de:Vegano", "de:Vegetariano"]
 
 per_code = f"""
 select code, count(*) as n,
@@ -110,6 +114,8 @@ parts = [
          f"arrays_overlap(allergens_tags, array({', '.join(repr(t) for t in ALLERGEN_VARIANTS)})) "
          f"or arrays_overlap(traces_tags, array({', '.join(repr(t) for t in ALLERGEN_VARIANTS)}))", source=STG),
     pick("market_name_variants", f"arrays_overlap(countries_tags, array({', '.join(repr(t) for t in MARKET_VARIANTS)}))", source=STG),
+    pick("category_name_variants", f"arrays_overlap(categories_tags, array({', '.join(repr(t) for t in CATEGORY_VARIANTS)}))", source=STG),
+    pick("label_name_variants", f"arrays_overlap(labels_tags, array({', '.join(repr(t) for t in LABEL_VARIANTS)}))", source=STG),
 ]
 chosen = spark.sql(" union all ".join(parts)).collect()
 cases = {}

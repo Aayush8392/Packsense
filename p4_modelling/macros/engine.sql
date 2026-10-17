@@ -41,3 +41,12 @@
   between them for 13 Turkish and Azerbaijani names. Every comparison of written names goes through this macro (a test enforces it).
 #}
 {% macro name_key(text_expr) %}replace(translate(lower(trim({{ text_expr }})), 'ς', 'σ'), '̇', ''){% endmacro %}
+
+{#
+  array_missing_count: how many elements of the first array are not in the second (0 when the first is NULL; the second must not be NULL).
+#}
+{% macro array_missing_count(first_expr, second_expr) %}{{ return(adapter.dispatch('array_missing_count', 'packsense')(first_expr, second_expr)) }}{% endmacro %}
+{% macro default__array_missing_count(first_expr, second_expr) %}coalesce(len(list_filter({{ first_expr }}, x -> not list_contains({{ second_expr }}, x))), 0){% endmacro %}
+{% macro databricks__array_missing_count(first_expr, second_expr) %}coalesce(size(array_except({{ first_expr }}, {{ second_expr }})), 0){% endmacro %}
+{% macro duckdb__array_missing_count(first_expr, second_expr) %}coalesce(len(list_filter({{ first_expr }}, x -> not list_contains({{ second_expr }}, x))), 0){% endmacro %}
+

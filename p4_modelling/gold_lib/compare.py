@@ -26,6 +26,10 @@ MODELS = {
     "dim_allergen": ["allergen_tag"],
     "taxonomy_name_lookup": ["taxonomy", "name_key"],
     "mart_allergen_change_log": ["change_key"],
+    "bridge_product_category": ["history_key", "category_tag"],
+    "dim_category": ["category_tag"],
+    "bridge_product_label": ["history_key", "label_tag"],
+    "dim_label": ["label_tag"],
 }
 
 _TS = re.compile(r"^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})")

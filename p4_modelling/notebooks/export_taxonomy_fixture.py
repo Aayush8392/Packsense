@@ -56,7 +56,7 @@ P4 = os.path.join(REPO_ROOT, "p4_modelling")
 GOLD_TAXONOMIES = yaml.safe_load(open(os.path.join(P4, "dbt_project.yml"), encoding="utf-8"))["vars"]["gold_taxonomies"]
 FLAG_COLUMNS = ["data_quality_errors_tags", "data_quality_warnings_tags", "data_quality_info_tags", "data_quality_bugs_tags"]
 USED_BY = {"countries": ["countries_tags"], "labels": ["labels_tags"], "data_quality": FLAG_COLUMNS,
-           "allergens": ["allergens_tags", "traces_tags"]}
+           "allergens": ["allergens_tags", "traces_tags"], "categories": ["categories_tags"]}
 print("taxonomies gold uses:", GOLD_TAXONOMIES)
 
 # COMMAND ----------
@@ -76,7 +76,7 @@ print({k: len(v) for k, v in wanted.items()}, "tags used by", len(fixture_rows),
 # Name matches: dim_allergen and dim_market also resolve a tag that is not canonical but equals, ignoring case, exactly one tag's name in some
 # language. The canonical tag's row must be in the fixture too, or the fixture could not show the match.
 import re  # noqa: E402
-for taxonomy in ("allergens", "countries"):
+for taxonomy in ("allergens", "countries", "categories", "labels"):
     if taxonomy not in wanted:
         continue
     newest = spark.table(TABLE).where(F.col("taxonomy") == taxonomy)

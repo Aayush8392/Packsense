@@ -158,6 +158,54 @@ models:
       - name: allergen_tag
         data_tests: [not_null]
 
+  - name: bridge_product_category
+    description: >
+      Which categories a history period carries: one row per period and category tag (raw, user-entered). OFF's list already holds the
+      ancestors of each category, so no closure table is needed.
+    columns:
+      - name: history_key
+        data_tests: [not_null]
+      - name: category_tag
+        data_tests: [not_null]
+
+  - name: bridge_product_label
+    description: Which labels (organic, vegan, fair trade, ...) a history period carries, one row per period and label tag (raw, user-entered).
+    columns:
+      - name: history_key
+        data_tests: [not_null]
+      - name: label_tag
+        data_tests: [not_null]
+
+  - name: dim_category
+    description: >
+      One row per category tag seen in the history, resolved against OFF's categories taxonomy (tag, name, ambiguous, none) with the hierarchy
+      (parents, n_children, is_root) from the taxonomy.
+    columns:
+      - name: category_tag
+        data_tests: [unique, not_null]
+      - name: match_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['tag', 'name', 'ambiguous', 'none']
+      - name: canonical_tag
+        description: The categories taxonomy tag this tag resolves to; set exactly for match_type tag or name.
+
+  - name: dim_label
+    description: One row per label tag seen in the history, resolved against OFF's labels taxonomy (tag, name, ambiguous, none).
+    columns:
+      - name: label_tag
+        data_tests: [unique, not_null]
+      - name: match_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['tag', 'name', 'ambiguous', 'none']
+      - name: canonical_tag
+        description: The labels taxonomy tag this tag resolves to; set exactly for match_type tag or name.
+
   - name: dim_allergen
     description: >
       One row per allergen tag seen in the history, named from OFF's allergens taxonomy. The tags are user-entered, so some are not in the
