@@ -1,7 +1,8 @@
 # P4 Modelling: the gold layer (dbt Core)
 
 Status: **first slice built and scheduled, 2026-10-17.** The gold job runs on dev and on production (daily 09:30 UTC, after the bronze job).
-The module's exit gate, the DuckDB comparison on a real fixture, is not done yet.
+The DuckDB comparison on a real fixture (the module's engine-portability check) was run on 2026-10-17: every portable model gives identical rows on
+Databricks and on DuckDB (see "The DuckDB comparison" below).
 
 Gold is built from silver only, by its own job and its own principals (`packsense-gold-dev`, `packsense-gold`), so the single-writer rule
 holds: the bronze principal never writes gold, and gold never reads bronze, quarantine or the secret scope `packsense`.
@@ -9,7 +10,7 @@ holds: the bronze principal never writes gold, and gold never reads bronze, quar
 ## What exists
 - **Project:** `dbt_project.yml`, `profiles.yml` (no secrets: host, warehouse path and credentials come from the environment), `requirements.txt` (pinned dbt).
   dbt lives in its own virtual environment (`.venv-dbt`): installing it next to the Databricks SDK in the main one downgrades the SDK.
-- **Databricks-only staging** (`models/databricks/`): `stg_silver_versions` (drops the 11 `egress: never` columns, keeps a count of distinct editors in
+- **Databricks-only staging** (`models/databricks/`, with DuckDB twins in `models/duckdb/`): `stg_silver_versions` (drops the 11 `egress: never` columns, keeps a count of distinct editors in
   their place, adds timestamps, the delta file's window, a GTIN-14 form, the GS1 prefix, a check-digit flag, the first brand and `tracked_hash`),
   `stg_flag_occurrences` and `stg_history_markets` (array explodes).
 - **Portable models** (`models/portable/`, plain ANSI SQL so they can run on DuckDB): `product_history` (SCD2 derived from silver's own versions, rebuilt in
@@ -30,9 +31,37 @@ counts 3,919 of them as changes). 8,443 unseen edits (OFF's `rev` jumps between 
 them together with a tracked change. 99.7% of spans (98.3% of the error spans) were never seen without the flag, so their first appearance is unknown;
 only 3,351 spans have a known first appearance.
 
+## The DuckDB comparison (design 6.6)
+The portable models must not depend on Databricks. The Databricks-only staging cannot run on DuckDB, so the comparison starts one step later:
+- **The fixture** (`fixtures/stg_silver_versions.jsonl` plus `manifest.json`): the output of `stg_silver_versions` for 185 real products (486 versions),
+  chosen by a deterministic query (`notebooks/export_fixture.py`, ordered by md5 of the barcode) to cover one version and many, a no-op pair, a `rev` gap,
+  legacy nutrition, seed-plus-delta overlap, vanishing flags, India and other markets. It carries the columns that need Databricks functions
+  (`tracked_hash`, `first_brand`, GTIN-14, check digit, `distinct_editors`), so those are **carried, not recomputed, on DuckDB**: the comparison tests the
+  portable models, not the hashing.
+- **It left through the exit function** (`silver_lib/egress.py`, its first real use): no hashed column, scrub patterns removed, known contributor names
+  replaced (19 rows), then written. Tests fail if the export notebook writes before the exit function ran or writes anything but its result, and if the
+  committed file holds a hashed column or a scrub pattern. **Limit found:** the exit function counts "ordinary words" (names used in 10 or more products)
+  over the exported rows only, so on a small export it over-redacts: one country tag (`en:<country>`) became `en:‹user›` in one product. A real public
+  export should pass a catalogue-wide list of ordinary words. The fixture is real Open Food Facts data (ODbL, attribution: Open Food Facts contributors,
+  <https://world.openfoodfacts.org>); it is the standing test asset, regenerated only when the staging shape changes or a new edge case is wanted (silver grows
+  daily, so a regeneration picks a different slice).
+- **Two engines, same models:** `models/databricks/` and `models/duckdb/` hold the staging views, exactly one folder enabled per engine (`dbt_project.yml`);
+  the DuckDB twins use `unnest` and `list_distinct`. Per-engine macros (`macros/engine.sql`: ISO weekday, weekday name, distinct array size) cover the rest.
+  On Databricks the fixture is loaded into a throwaway schema (`bootstrap/fixture_databricks.py load`, dbt target `fixture_admin`, var `fixture_mode`); on
+  DuckDB by `gold_lib/fixture_load.py`, with the manifest's exact column types.
+- **The comparison** (`bootstrap/compare_engines.py`): each row of seven models is reduced to a canonical form (integers by value, timestamps as UTC seconds,
+  maps by sorted key, arrays in order) and hashed; `fixtures/golden.json` holds one hash per row from the Databricks run. A DuckDB run must reproduce every
+  hash. **Result 2026-10-17:** product_history 300 rows, product_flag_spans 1,841, product_status 185, dim_brand 145, dim_market 57, bridge 487,
+  dim_date 8,766: identical, and all 52 dbt nodes (10 models, 42 tests) pass on both engines. The first attempt differed in `nutrients`: Databricks'
+  statement API returns numbers nested in a map as text, a defect of the comparison reader, fixed and tested, not of the models.
+- **Slim CI** (`engines` job in `ci.yml`, not a required check): parse the Databricks project in both modes, build the portable models on DuckDB, compare with
+  the golden file. **To regenerate** after a model change: `fixture_databricks.py load`, `dbt`, `compare_engines.py dump --engine databricks`, `drop` (all
+  with `--env-file .env`, run with `.venv-dbt`), then commit `golden.json`.
+- **Not covered:** `tracked_hash` and the Databricks staging logic themselves (tested by the Databricks-side dbt tests on real data), and the scheduled job.
+
 ## Still to do
-The DuckDB fixture and comparison (the exit gate) with slim CI, a deploy workflow for gold (today the principals deploy it by hand), the taxonomy loader
-and the category, allergen and label dimensions, the change and quality facts and the P4 marts, a rerun-idempotence test, and a weekday column for `dim_date`.
+A deploy workflow for gold (today the principals deploy it by hand), the taxonomy loader and the category, allergen and label dimensions, the change and
+quality facts and the P4 marts, a rerun-idempotence test.
 
 ## Gold principals and grants (set by an admin in the SQL editor, kept here so they can be re-created)
 Two principals, each with the **Workspace access** and **Databricks SQL access** entitlements, **Can use** on the SQL warehouse and nothing else.
@@ -64,3 +93,12 @@ dbt parse --project-dir p4_modelling --profiles-dir p4_modelling
 A real run needs `DATABRICKS_HOST`, `DBT_HTTP_PATH` and either `DATABRICKS_TOKEN` (target `dev_admin`) or the gold-dev client id and secret (target `dev`);
 production runs through the job as `packsense-gold`. Deploy: from `p4_modelling`, `databricks bundle validate|deploy|run gold_build -t dev|prod` as the matching principal.
 `dbt parse` works offline with dummy environment variables; `dbt compile` and `run` need a real warehouse.
+
+DuckDB check (no warehouse, no secrets), from the repo root:
+```
+.venv-dbt/Scripts/python -m pip install -r p4_modelling/requirements-duckdb.txt
+cd p4_modelling
+../.venv-dbt/Scripts/python -m gold_lib.fixture_load --db target/fixture.duckdb
+../.venv-dbt/Scripts/dbt build --target duckdb --profiles-dir .
+../.venv-dbt/Scripts/python bootstrap/compare_engines.py check
+```

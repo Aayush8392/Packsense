@@ -1,0 +1,4 @@
+# The DuckDB side of the engine comparison (design 6.6). Install together with requirements.txt (the same dbt-core pin).
+# Versions are at least two weeks old when pinned: dbt-duckdb 1.11.0 (2026-08-07), duckdb 1.5.6 (2026-09-28; the 2.0 line is still dev builds).
+dbt-duckdb==1.11.0
+duckdb==1.5.6

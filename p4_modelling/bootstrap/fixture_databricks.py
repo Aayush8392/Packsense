@@ -72,6 +72,9 @@ def dbt() -> int:
     exe = Path(sys.executable).parent / ("dbt.exe" if os.name == "nt" else "dbt")
     env = dict(os.environ)
     env.setdefault("DBT_HTTP_PATH", DEFAULT_HTTP_PATH)
+    # this run signs in with the admin token only: a principal's client id and secret left in the shell make the driver see two methods
+    for name in ("DATABRICKS_CLIENT_ID", "DATABRICKS_CLIENT_SECRET"):
+        env.pop(name, None)
     cmd = [str(exe), "build", "--target", "fixture_admin", "--vars", "{fixture_mode: true}", "--profiles-dir", str(P4)]
     return subprocess.run(cmd, cwd=str(P4), env=env).returncode
 

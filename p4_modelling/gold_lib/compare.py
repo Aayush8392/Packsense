@@ -48,7 +48,45 @@ def norm(value):
     raise TypeError(f"no canonical form for {type(value).__name__}")
 
 
-def from_databricks(text, type_name):
+def _split_top_level(text):
+    parts, depth, start = [], 0, 0
+    for i, ch in enumerate(text):
+        if ch == "<":
+            depth += 1
+        elif ch == ">":
+            depth -= 1
+        elif ch == "," and depth == 0:
+            parts.append(text[start:i])
+            start = i + 1
+    parts.append(text[start:])
+    return parts
+
+
+def coerce_nested(value, type_text):
+    """A value parsed from the JSON text of a Databricks ARRAY, MAP or STRUCT cell, typed by the manifest's `type_text`.
+    The statement API renders every number inside a nested value as text ('9.88'); this gives each leaf its declared type back."""
+    t = type_text.strip()
+    low = t.lower()
+    if value is None:
+        return None
+    if low.startswith("array<") and t.endswith(">"):
+        return [coerce_nested(v, t[6:-1]) for v in value]
+    if low.startswith("map<") and t.endswith(">"):
+        _, vt = _split_top_level(t[4:-1])
+        return {k: coerce_nested(v, vt) for k, v in value.items()}
+    if low.startswith("struct<") and t.endswith(">"):
+        types = {}
+        for f in _split_top_level(t[7:-1]):
+            name, ftype = f.split(":", 1)
+            types[name.strip()] = ftype
+        return {k: coerce_nested(v, types[k]) if k in types else v for k, v in value.items()}
+    if not isinstance(value, str):
+        return value    # already a JSON number or boolean
+    leaf = {"bigint": "LONG", "tinyint": "BYTE", "smallint": "SHORT"}.get(low, "DECIMAL" if low.startswith("decimal") else low.upper())
+    return from_databricks(value, leaf)
+
+
+def from_databricks(text, type_name, type_text=None):
     """One cell of a Databricks statement result (JSON strings, typed by the result manifest) -> a Python value."""
     if text is None:
         return None
@@ -69,7 +107,8 @@ def from_databricks(text, type_name):
     if t == "DATE":
         return text[:10]
     if t in ("ARRAY", "MAP", "STRUCT"):
-        return json.loads(text)
+        parsed = json.loads(text)
+        return coerce_nested(parsed, type_text) if type_text else parsed
     return text
 
 

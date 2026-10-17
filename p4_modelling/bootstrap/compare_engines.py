@@ -59,14 +59,14 @@ def databricks_models():
             r = w.statement_execution.get_statement(r.statement_id)
         if r.status.state.value != "SUCCEEDED":
             raise RuntimeError(f"{model}: {r.status.state.value} {r.status.error}")
-        cols = [(c.name, c.type_name.value if hasattr(c.type_name, "value") else str(c.type_name)) for c in r.manifest.schema.columns]
+        cols = [(c.name, c.type_name.value if hasattr(c.type_name, "value") else str(c.type_name), c.type_text) for c in r.manifest.schema.columns]
         rows, chunk = [], r.result
         while chunk is not None:
             for cells in chunk.data_array or []:
-                rows.append({name: compare.from_databricks(cell, tname) for (name, tname), cell in zip(cols, cells)})
+                rows.append({name: compare.from_databricks(cell, tname, ttext) for (name, tname, ttext), cell in zip(cols, cells)})
             nxt = getattr(chunk, "next_chunk_index", None)
             chunk = w.statement_execution.get_statement_result_chunk_n(r.statement_id, nxt) if nxt is not None else None
-        out[model] = compare.summarise(model, [c for c, _ in cols], rows)
+        out[model] = compare.summarise(model, [c for c, _, _ in cols], rows)
         rows_out[model] = {compare.key_of(x, compare.MODELS[model]): {k: compare.norm(v) for k, v in x.items()} for x in rows}
         print(f"{model}: {len(rows)} rows")
     return out, rows_out

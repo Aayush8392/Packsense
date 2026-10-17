@@ -34,6 +34,18 @@ def test_databricks_cells_are_read_by_their_declared_type():
     assert compare.from_databricks("true", "STRING") == "true"          # a string that looks like a boolean stays text
 
 
+def test_numbers_inside_nested_databricks_values_get_their_declared_type_back():
+    # the statement API renders every nested number as text; the manifest's type_text says which leaves are numbers
+    text = '{"fat":{"value":"9.88","unit":"g","modifier":null},"salt":{"value":"2","unit":"g","modifier":"~"}}'
+    got = compare.from_databricks(text, "MAP", "MAP<STRING,STRUCT<value:DOUBLE,unit:STRING,modifier:STRING>>")
+    assert got == {"fat": {"value": 9.88, "unit": "g", "modifier": None}, "salt": {"value": 2.0, "unit": "g", "modifier": "~"}}
+    assert isinstance(got["salt"]["value"], float)
+    assert compare.from_databricks('["1","2"]', "ARRAY", "ARRAY<BIGINT>") == [1, 2]
+    assert compare.from_databricks('["001","002"]', "ARRAY", "ARRAY<STRING>") == ["001", "002"]   # strings stay text
+    assert compare.row_hash({"n": got}) == compare.row_hash({"n": {"fat": {"value": 9.88, "unit": "g", "modifier": None},
+                                                                  "salt": {"value": 2.0, "unit": "g", "modifier": "~"}}})
+
+
 def test_map_key_order_does_not_matter_but_array_order_does():
     a = {"row": 1, "nutrients": {"fat": 1.0, "salt": 2.0}, "tags": ["a", "b"]}
     b = {"row": 1, "nutrients": {"salt": 2.0, "fat": 1.0}, "tags": ["a", "b"]}

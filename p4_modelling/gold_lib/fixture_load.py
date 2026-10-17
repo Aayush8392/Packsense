@@ -65,3 +65,18 @@ def load(con, schema: str = "main", fixtures: Path = FIXTURES) -> int:
     if n != manifest["version_rows"]:
         raise RuntimeError(f"loaded {n} rows, the manifest says {manifest['version_rows']}")
     return n
+
+
+if __name__ == "__main__":
+    # python -m gold_lib.fixture_load [--db target/fixture.duckdb]   (run from p4_modelling/)
+    import argparse
+
+    import duckdb
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--db", default="target/fixture.duckdb")
+    args = ap.parse_args()
+    Path(args.db).parent.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect(args.db)
+    print(f"loaded {load(con)} fixture rows into {args.db}")
+    con.close()

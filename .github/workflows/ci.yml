@@ -43,3 +43,35 @@ jobs:
       - run: pip install --no-cache-dir -r requirements-dev.txt
       - name: Lint (ruff; settings in ruff.toml)
         run: python -m ruff check .
+
+  # Slim CI for the gold models (design 6.6): the portable models must give the same rows on DuckDB as the Databricks run recorded in
+  # p4_modelling/fixtures/golden.json, and both Databricks projects (normal and fixture mode) must still parse. No secrets, no warehouse:
+  # the three variables below are dummies that only let the profile render.
+  engines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install --no-cache-dir -r p4_modelling/requirements.txt -r p4_modelling/requirements-duckdb.txt
+      - name: Parse the Databricks project (no connection)
+        working-directory: p4_modelling
+        env:
+          DATABRICKS_HOST: https://example.invalid
+          DBT_HTTP_PATH: /sql/1.0/warehouses/none
+          DATABRICKS_TOKEN: not-a-real-token
+        run: |
+          dbt parse --target dev_admin --profiles-dir .
+          dbt parse --target fixture_admin --vars '{fixture_mode: true}' --profiles-dir .
+      - name: Build the portable models on DuckDB (fixture, 52 nodes including the dbt tests)
+        working-directory: p4_modelling
+        run: |
+          python -m gold_lib.fixture_load --db target/fixture.duckdb
+          dbt build --target duckdb --profiles-dir .
+      - name: Compare with the Databricks run (golden)
+        working-directory: p4_modelling
+        run: python bootstrap/compare_engines.py check --duckdb target/fixture.duckdb
