@@ -14,12 +14,16 @@
  "exit_report": {
   "columns_dropped": 0,
   "patterns_removed": 0,
-  "rows": 432
+  "rows": 1236
  },
- "generated_at_utc": "2026-10-17 15:06:54",
+ "generated_at_utc": "2026-10-17 18:25:03",
  "snapshots_per_taxonomy": {
   "allergens": [
    "allergens/20261009T140152Z_ef91b9d6a4be.json.gz"
+  ],
+  "categories": [
+   "categories/20261009T140155Z_40663fb525c7.json.gz",
+   "categories/20261016T103207Z_1c073f075586.json.gz"
   ],
   "countries": [
    "countries/20261009T140154Z_fd82b1be810d.json.gz"
@@ -33,17 +37,19 @@
   ]
  },
  "tags_used_per_taxonomy": {
-  "allergens": 54,
-  "countries": 59,
-  "data_quality": 138,
-  "labels": 130
+  "allergens": 55,
+  "categories": 423,
+  "countries": 64,
+  "data_quality": 153,
+  "labels": 153
  },
  "taxonomies": [
   "countries",
   "data_quality",
   "labels",
-  "allergens"
+  "allergens",
+  "categories"
  ],
- "version_rows": 432,
+ "version_rows": 1236,
  "what": "rows of silver_taxonomy_tag for the tags the product fixture uses (countries, labels, quality flags) plus their parents, every snapshot"
 }
