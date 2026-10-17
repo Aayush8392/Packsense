@@ -34,6 +34,13 @@ def test_summary_is_ok_only_when_every_node_succeeded_or_passed():
     assert not bad["ok"] and bad["bad"] == ["b=skipped", "t1=fail"]
 
 
+def test_a_warn_severity_test_that_warns_is_reported_but_is_not_a_failure():
+    summary = dbt_run.summarise([("a", "success"), ("category_lists_hold_their_ancestors", "warn"), ("t1", "pass")])
+    assert summary["ok"] and summary["bad"] == [] and summary["warned"] == ["category_lists_hold_their_ancestors"]
+    assert "warned: category_lists_hold_their_ancestors" in dbt_run.result_text(summary)
+    assert not dbt_run.summarise([("a", "success"), ("x", "warn"), ("t1", "error")])["ok"]
+
+
 def test_an_empty_result_is_never_ok():
     assert dbt_run.summarise([])["ok"] is False
 

@@ -7,6 +7,7 @@ import json
 
 TARGETS = ("dev", "prod")
 OK_STATUSES = {"success", "pass"}
+WARN_STATUS = "warn"   # a test configured severity=warn (e.g. category_lists_hold_their_ancestors): reported, never a failure
 
 
 def check_target(target: str) -> str:
@@ -30,15 +31,19 @@ def build_args(project_dir: str, target: str, silver_schema: str, target_path: s
 
 
 def summarise(results) -> dict:
-    """results: (node name, status) pairs from dbt. A node counts as fine only when it succeeded or passed."""
+    """results: (node name, status) pairs from dbt. A node counts as fine when it succeeded or passed; a warn-severity test that warned is
+    fine too but is listed under "warned" (it must reach the log and the ping text, not turn the job red)."""
     counts = {}
     bad = []
+    warned = []
     for name, status in results:
         status = str(status).lower()
         counts[status] = counts.get(status, 0) + 1
-        if status not in OK_STATUSES:
+        if status == WARN_STATUS:
+            warned.append(name)
+        elif status not in OK_STATUSES:
             bad.append(f"{name}={status}")
-    return {"total": len(results), "counts": counts, "bad": sorted(bad), "ok": bool(results) and not bad}
+    return {"total": len(results), "counts": counts, "bad": sorted(bad), "warned": sorted(warned), "ok": bool(results) and not bad}
 
 
 def result_text(summary: dict) -> str:
@@ -46,6 +51,8 @@ def result_text(summary: dict) -> str:
     text = f"dbt build: {summary['total']} nodes ({counts})"
     if summary["bad"]:
         text += "; not ok: " + ", ".join(summary["bad"][:10])
+    if summary.get("warned"):
+        text += "; warned: " + ", ".join(summary["warned"][:10])
     return text
 
 
