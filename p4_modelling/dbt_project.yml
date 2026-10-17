@@ -10,7 +10,7 @@ clean-targets: ["target", "dbt_packages"]
 
 vars:
   silver_schema: packsense_dev_silver    # prod overrides this with --vars when the prod gold job exists
-  gold_taxonomies: [countries, data_quality, labels]   # the taxonomies gold takes the newest snapshot of (taxonomy_tag_latest)
+  gold_taxonomies: [countries, data_quality, labels, allergens]   # the taxonomies gold takes the newest snapshot of (taxonomy_tag_latest)
   fixture_mode: false                    # true only in the throwaway verification schema (target fixture_admin), see models/fixture_sources.yml
 
 models:

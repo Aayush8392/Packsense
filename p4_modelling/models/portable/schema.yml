@@ -132,3 +132,50 @@ models:
           - accepted_values:
               arguments:
                 values: ['unverified', 'exists', 'deleted_or_merged']
+
+  - name: bridge_product_allergen
+    description: >
+      Which allergens a history period declares: one row per period, allergen tag and relationship (contains = allergens_tags,
+      may_contain = traces_tags).
+    columns:
+      - name: history_key
+        data_tests: [not_null]
+      - name: relationship
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['contains', 'may_contain']
+      - name: allergen_tag
+        data_tests: [not_null]
+
+  - name: dim_allergen
+    description: >
+      One row per allergen tag seen in the history, named from OFF's allergens taxonomy. The tags are user-entered, so some are not in the
+      taxonomy: they keep the tag as their name and taxonomy_matched = 0.
+    columns:
+      - name: allergen_tag
+        data_tests: [unique, not_null]
+      - name: taxonomy_matched
+        data_tests: [not_null]
+
+  - name: mart_allergen_change_log
+    description: >
+      The allergen change log for food safety: for every product and every pair of consecutive history periods, the allergen tags that were
+      added or removed, per relationship. A product's first period is its starting state and gives no rows.
+    columns:
+      - name: change_key
+        description: Hash of (code, changed_at_t, relationship, allergen_tag, change_type); a rebuild reproduces the same keys.
+        data_tests: [unique, not_null]
+      - name: change_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['added', 'removed']
+      - name: relationship
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['contains', 'may_contain']

@@ -55,7 +55,8 @@ spark.conf.set("spark.sql.session.timeZone", "UTC")
 P4 = os.path.join(REPO_ROOT, "p4_modelling")
 GOLD_TAXONOMIES = yaml.safe_load(open(os.path.join(P4, "dbt_project.yml"), encoding="utf-8"))["vars"]["gold_taxonomies"]
 FLAG_COLUMNS = ["data_quality_errors_tags", "data_quality_warnings_tags", "data_quality_info_tags", "data_quality_bugs_tags"]
-USED_BY = {"countries": ["countries_tags"], "labels": ["labels_tags"], "data_quality": FLAG_COLUMNS}
+USED_BY = {"countries": ["countries_tags"], "labels": ["labels_tags"], "data_quality": FLAG_COLUMNS,
+           "allergens": ["allergens_tags", "traces_tags"]}
 print("taxonomies gold uses:", GOLD_TAXONOMIES)
 
 # COMMAND ----------

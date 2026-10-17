@@ -22,6 +22,9 @@ MODELS = {
     "dim_date": ["date_key"],
     "dim_flag": ["flag"],
     "taxonomy_tag_latest": ["taxonomy", "tag"],
+    "bridge_product_allergen": ["history_key", "relationship", "allergen_tag"],
+    "dim_allergen": ["allergen_tag"],
+    "mart_allergen_change_log": ["change_key"],
 }
 
 _TS = re.compile(r"^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})")
