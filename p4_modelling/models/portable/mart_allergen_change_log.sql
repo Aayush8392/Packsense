@@ -5,6 +5,8 @@
 -- changes, and allergens_tags and traces_tags are both in it, so an allergen change always starts a new period; periods that changed
 -- something else give no rows here (their allergen sets are equal). The first period of a product has no predecessor, so no rows: its
 -- allergens are the starting state, not a change. valid_to_t of one period equals valid_from_t of the next (a tested property of the history).
+-- allergen_tag is the tag as entered; canonical_allergen_tag and allergen_match_type say which recognised allergen it is (see dim_allergen): a
+-- food-safety reader filters on allergen_match_type in ('tag', 'name') and groups on canonical_allergen_tag; 'ambiguous' and 'none' are free text.
 with pairs as (
     select p.history_key as prev_key, c.history_key as curr_key, c.code, c.valid_from_t as changed_at_t, c.valid_from as changed_at
     from {{ ref('product_history') }} as p
@@ -28,11 +30,14 @@ changes as (
 )
 
 select
-    {{ dbt.hash(dbt.concat(['code', "'|'", dbt.safe_cast('changed_at_t', dbt.type_string()), "'|'", 'relationship', "'|'", 'allergen_tag', "'|'", 'change_type'])) }} as change_key,
-    code,
-    changed_at_t,
-    changed_at,
-    relationship,
-    allergen_tag,
-    change_type
-from changes
+    {{ dbt.hash(dbt.concat(['c.code', "'|'", dbt.safe_cast('c.changed_at_t', dbt.type_string()), "'|'", 'c.relationship', "'|'", 'c.allergen_tag', "'|'", 'c.change_type'])) }} as change_key,
+    c.code,
+    c.changed_at_t,
+    c.changed_at,
+    c.relationship,
+    c.allergen_tag,
+    c.change_type,
+    d.canonical_tag as canonical_allergen_tag,
+    d.match_type as allergen_match_type
+from changes as c
+inner join {{ ref('dim_allergen') }} as d on d.allergen_tag = c.allergen_tag

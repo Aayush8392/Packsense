@@ -24,6 +24,7 @@ MODELS = {
     "taxonomy_tag_latest": ["taxonomy", "tag"],
     "bridge_product_allergen": ["history_key", "relationship", "allergen_tag"],
     "dim_allergen": ["allergen_tag"],
+    "taxonomy_name_lookup": ["taxonomy", "name_key"],
     "mart_allergen_change_log": ["change_key"],
 }
 

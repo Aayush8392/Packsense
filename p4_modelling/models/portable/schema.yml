@@ -81,8 +81,17 @@ models:
       - name: country_code_2
         description: OFF's two-letter code from the countries taxonomy (mostly ISO 3166-1 alpha-2; OFF uses UK for the United Kingdom, ISO says GB); NULL when the taxonomy has none.
       - name: taxonomy_matched
-        description: 1 when the countries taxonomy knows the tag.
+        description: 1 when the tag IS a canonical tag of the countries taxonomy (exact match only).
         data_tests: [not_null]
+      - name: match_type
+        description: "tag (canonical), name (the text equals one country's name in some language, ignoring case), ambiguous (a name shared by several countries, nothing chosen) or none."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['tag', 'name', 'ambiguous', 'none']
+      - name: canonical_tag
+        description: The countries taxonomy tag this tag resolves to; set exactly for match_type tag or name.
 
   - name: dim_flag
     description: >
@@ -157,6 +166,26 @@ models:
       - name: allergen_tag
         data_tests: [unique, not_null]
       - name: taxonomy_matched
+        description: 1 when the tag IS a canonical tag of the allergens taxonomy (exact match only).
+        data_tests: [not_null]
+      - name: match_type
+        description: "tag (canonical), name (the text equals one allergen's name in some language, ignoring case: en:Milch, fr:Avoine), ambiguous (a name shared by several allergens, nothing chosen) or none."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['tag', 'name', 'ambiguous', 'none']
+      - name: canonical_tag
+        description: The allergens taxonomy tag this tag resolves to; set exactly for match_type tag or name.
+
+  - name: taxonomy_name_lookup
+    description: >
+      Which taxonomy tag a written name belongs to, across all languages of the taxonomy, lower-cased. n_tags is how many tags carry the name;
+      when it is not 1 the name is ambiguous.
+    columns:
+      - name: name_key
+        data_tests: [not_null]
+      - name: n_tags
         data_tests: [not_null]
 
   - name: mart_allergen_change_log
@@ -173,6 +202,15 @@ models:
           - accepted_values:
               arguments:
                 values: ['added', 'removed']
+      - name: canonical_allergen_tag
+        description: The recognised allergen the tag resolves to (see dim_allergen); NULL for ambiguous or unknown free text. Group on this.
+      - name: allergen_match_type
+        description: How the tag was resolved (tag, name, ambiguous, none); filter on tag and name for recognised allergens.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['tag', 'name', 'ambiguous', 'none']
       - name: relationship
         data_tests:
           - not_null
