@@ -77,4 +77,4 @@ it, so the admin needs a standing `GRANT SELECT ON SCHEMA <schema> TO <admin use
 1. Grant the prod principal as above; pause the old job's schedule in the Jobs UI.
 2. Deploy `-t prod` as the prod principal (a new job with the same name and the same schedule).
 3. Run the new job once by hand, then watch one scheduled run succeed.
-4. Delete the old job; retire `p2_lakehouse/bootstrap/create_bronze_job.py` and `p1_intake/bootstrap/create_archive_job.py`.
+4. Delete the old job; the old `create_bronze_job.py` and `create_archive_job.py` scripts were removed on 2026-10-17 (done for both jobs).

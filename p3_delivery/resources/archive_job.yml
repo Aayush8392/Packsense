@@ -1,4 +1,4 @@
-# Same job as p1_intake/bootstrap/create_archive_job.py (job `packsense-archive`): archive B2 to the HF repo, then the
+# The job `packsense-archive` (it replaced the old create_archive_job.py script): archive B2 to the HF repo, then the
 # B2 reconciliation (even if the archive failed) and the landing retention (only if the archive succeeded).
 # Do not run it from the dev target: it reads B2 and writes to the real HF repo whatever the other variables say.
 resources:

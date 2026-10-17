@@ -1,4 +1,4 @@
-# Same job as p2_lakehouse/bootstrap/create_bronze_job.py (job `packsense-bronze-load`): bronze, then silver, then drift, plus the taxonomy
+# The job `packsense-bronze-load` (it replaced the old create_bronze_job.py script): bronze, then silver, then drift, plus the taxonomy
 # load (added 2026-10-17, after silver so a /fail ping from it is the last word on the core check).
 # silver, drift and taxonomy run even if the task before them failed (run_if ALL_DONE); silver is told how bronze ended.
 resources:

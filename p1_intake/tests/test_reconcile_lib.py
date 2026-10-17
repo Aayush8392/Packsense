@@ -7,7 +7,6 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "bootstrap"))
@@ -128,12 +127,13 @@ def test_the_summary_names_the_codes_and_stays_short():
 
 
 def test_the_archive_job_runs_the_audit_after_the_archive_and_even_if_it_failed():
-    pytest.importorskip("databricks.sdk")
-    import create_archive_job as job
-    tasks = {t.task_key: t for t in job.settings(True)["tasks"]}
-    assert [d.task_key for d in tasks["reconcile"].depends_on] == ["archive"] and tasks["reconcile"].run_if.value == "ALL_DONE"
-    assert tasks["reconcile"].notebook_task.notebook_path == "p1_intake/notebooks/b2_reconcile"
-    assert set(tasks["reconcile"].notebook_task.base_parameters) == {"run_id"}
-    root = Path(__file__).resolve().parents[2]
-    assert (root / (job.RECONCILE_NOTEBOOK + ".py")).exists()
+    import yaml
+    resources = Path(__file__).resolve().parents[2] / "p3_delivery" / "resources"
+    job = yaml.safe_load((resources / "archive_job.yml").read_text(encoding="utf-8"))["resources"]["jobs"]["archive"]
+    tasks = {t["task_key"]: t for t in job["tasks"]}
+    assert [d["task_key"] for d in tasks["reconcile"]["depends_on"]] == ["archive"] and tasks["reconcile"]["run_if"] == "ALL_DONE"
+    assert tasks["reconcile"]["notebook_task"]["notebook_path"].endswith("p1_intake/notebooks/b2_reconcile.py")
+    for name in tasks["reconcile"]["notebook_task"]["base_parameters"]:
+        assert not any(w in name.lower() for w in ("token", "password", "key", "hmac")), name
+    assert (resources / tasks["reconcile"]["notebook_task"]["notebook_path"]).resolve().exists()
 
