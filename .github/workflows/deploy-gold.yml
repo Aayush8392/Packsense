@@ -1,0 +1,73 @@
+name: Deploy gold (Asset Bundle)
+
+# Deploys the gold job from the bundle in p4_modelling/databricks.yml: dev first, then prod after a manual approval.
+# Runs only for commits already on `main` (which requires CI) or when started by hand; never for pull requests.
+# A separate workflow from deploy.yml on purpose (single-writer rule): the gold principals have their own GitHub environments, each
+# holding only its own principal's client id and secret, so the bronze deploy never sees the gold credentials and the prod secret is
+# only available to the approved prod job. The deploy only ships the fixed copy and the job definition; the scheduled job builds.
+# Note: a deploy resets the schedule to the bundle file (variable gold_cron), the same as for the bronze bundle.
+on:
+  push:
+    branches: [main]
+    paths:
+      # only what changes the deployed bundle: not the README, the tests, the bootstrap scripts or the comparison fixture
+      - p4_modelling/databricks.yml
+      - p4_modelling/resources/**
+      - p4_modelling/notebooks/**
+      - p4_modelling/gold_lib/**
+      - p4_modelling/models/**
+      - p4_modelling/macros/**
+      - p4_modelling/data_tests/**
+      - p4_modelling/dbt_project.yml
+      - p4_modelling/profiles.yml
+      - .github/workflows/deploy-gold.yml
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-gold
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: p4_modelling
+
+jobs:
+  dev:
+    name: deploy gold dev
+    runs-on: ubuntu-latest
+    environment: dev-gold
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: databricks/setup-cli@9230f12203ef173d0b901846f62a55ce997efef7 # v1.19.0
+        with:
+          version: 1.19.0
+      - run: databricks bundle validate -t dev
+      - run: databricks bundle deploy -t dev
+
+  prod:
+    name: deploy gold prod
+    needs: dev
+    runs-on: ubuntu-latest
+    environment: prod-gold
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: databricks/setup-cli@9230f12203ef173d0b901846f62a55ce997efef7 # v1.19.0
+        with:
+          version: 1.19.0
+      - run: databricks bundle validate -t prod
+      - run: databricks bundle deploy -t prod

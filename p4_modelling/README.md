@@ -94,7 +94,16 @@ python -m venv .venv-dbt
 dbt parse --project-dir p4_modelling --profiles-dir p4_modelling
 ```
 A real run needs `DATABRICKS_HOST`, `DBT_HTTP_PATH` and either `DATABRICKS_TOKEN` (target `dev_admin`) or the gold-dev client id and secret (target `dev`);
-production runs through the job as `packsense-gold`. Deploy: from `p4_modelling`, `databricks bundle validate|deploy|run gold_build -t dev|prod` as the matching principal.
+production runs through the job as `packsense-gold`. Deploy by hand: from `p4_modelling`, `databricks bundle validate|deploy|run gold_build -t dev|prod` as the matching principal.
+
+## Deploy workflow (`.github/workflows/deploy-gold.yml`)
+On a push to `main` that changes the bundle (databricks.yml, resources, notebooks, gold_lib, models, macros, data_tests, dbt_project.yml, profiles.yml) or by hand:
+job `dev` (environment `dev-gold`, principal `packsense-gold-dev`), then job `prod` (environment `prod-gold`, principal `packsense-gold`, after the reviewer approves).
+It deploys the fixed copy and the job definition only; the scheduled job does the build (and a deploy resets the schedule to `gold_cron`). A separate workflow and
+separate environments from the bronze deploy on purpose: each environment holds only its own principal's `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET`
+(the host is the shared repo variable). `prod-gold`: deployment branch `main`, required reviewer, no administrator bypass; `dev-gold`: deployment branch `main`.
+**The principals' OAuth secrets last 30 days (made 2026-10-17, expiring about 2026-11-16): rotate them in Databricks, in the gold scope and in the matching environment.**
+A new workflow file can be run by hand only once it is on `main`.
 `dbt parse` works offline with dummy environment variables; `dbt compile` and `run` need a real warehouse.
 
 DuckDB check (no warehouse, no secrets), from the repo root:
