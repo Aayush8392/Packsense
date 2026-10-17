@@ -33,3 +33,11 @@
 {% macro default__map_get(map_expr, key) %}element_at({{ map_expr }}, '{{ key }}')[1]{% endmacro %}
 {% macro databricks__map_get(map_expr, key) %}try_element_at({{ map_expr }}, '{{ key }}'){% endmacro %}
 {% macro duckdb__map_get(map_expr, key) %}element_at({{ map_expr }}, '{{ key }}')[1]{% endmacro %}
+
+{#
+  name_key: the normal form two written names are compared in: lower-cased, trimmed, with the combining dot above (U+0307) removed and the Greek
+  final sigma folded to the ordinary one. The engines lower-case a few characters differently (Databricks turns the Turkish capital I with dot
+  into i plus U+0307, DuckDB into a plain i; Java lower-cases a final sigma by context, DuckDB does not), which made the name lookup differ
+  between them for 13 Turkish and Azerbaijani names. Every comparison of written names goes through this macro (a test enforces it).
+#}
+{% macro name_key(text_expr) %}replace(translate(lower(trim({{ text_expr }})), 'ς', 'σ'), '̇', ''){% endmacro %}

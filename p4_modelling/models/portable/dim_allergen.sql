@@ -11,7 +11,7 @@
 with raw as (
     select
         allergen_tag,
-        lower(trim(regexp_replace(allergen_tag, '^[^:]*:', ''))) as text_key,
+        {{ name_key("regexp_replace(allergen_tag, '^[^:]*:', '')") }} as text_key,
         count(distinct case when relationship = 'contains' then code end) as products_contains,
         count(distinct case when relationship = 'may_contain' then code end) as products_may_contain
     from {{ ref('bridge_product_allergen') }}

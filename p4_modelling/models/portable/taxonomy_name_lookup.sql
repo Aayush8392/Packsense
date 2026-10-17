@@ -10,7 +10,7 @@ select
     count(distinct tag) as n_tags,
     min(tag) as tag
 from (
-    select taxonomy, tag, lower(trim(name_text)) as name_key
+    select taxonomy, tag, {{ name_key("name_text") }} as name_key
     from {{ ref('stg_taxonomy_names') }}
     where name_text is not null
 ) as names

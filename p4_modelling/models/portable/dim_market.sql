@@ -10,7 +10,7 @@
 with raw as (
     select
         market_code,
-        lower(trim(regexp_replace(market_code, '^[^:]*:', ''))) as text_key
+        {{ name_key("regexp_replace(market_code, '^[^:]*:', '')") }} as text_key
     from (select distinct market_code from {{ ref('bridge_product_market') }}) as m
 ),
 

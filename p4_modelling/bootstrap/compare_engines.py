@@ -115,6 +115,7 @@ def idempotence(duckdb_path: str) -> list:
 
 
 def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")   # names in many scripts: a Windows console must not crash the report
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
     i = sub.add_parser("idempotence")
