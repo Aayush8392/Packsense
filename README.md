@@ -23,12 +23,12 @@ A daily-updated, cleaned and versioned copy of the [Open Food Facts](https://wor
 ## Where it stands (2026-10-17)
 | Built and running | Not started |
 |---|---|
-| Daily capture (GitHub Actions), landing volume, 34 taxonomy snapshots, freshness and delete-marker tripwires, healthchecks.io monitoring | Gold facts and marts, taxonomy-based dimensions, DuckDB comparison |
+| Daily capture (GitHub Actions), landing volume, 34 taxonomy snapshots, freshness and delete-marker tripwires, healthchecks.io monitoring | Gold category and label dimensions, daily facts, marts |
 | Verified second copy of the raw files in a private Hugging Face dataset (daily job), landing retention (30 days) and a B2 reconciliation audit | Dashboard, static score lookup, India data release |
 | Bronze (raw, append-only) and silver (typed, checked, scrubbed; data contract v4, 81 columns) as a scheduled Databricks job, deployed from an Asset Bundle | Triage model, steward agent, review queue |
 | India seed from the full dump: 24,875 distinct India barcodes in silver | Access control policies and CI checks, Terraform for Databricks |
 | Schema-drift monitor with its own alert | Airflow batch workloads, deletion reconciliation |
-| Gold (dbt Core, own principal and scheduled job): product history (SCD2 derived from silver's versions), OFF quality-flag spans, brand, market and date dimensions, product status; 42 dbt tests | Dashboard, static score lookup, India data release |
+| OFF's taxonomies in silver (59,340 tags in 44 snapshots, allowlist contract) and gold (dbt Core, own principal, scheduled job and deploy workflow): product history (SCD2 derived from silver's versions), quality-flag spans with families, brand, market (readable names) and date dimensions, allergen bridge, dimension and change log, 83 dbt tests; the portable models give identical rows on DuckDB and on Databricks, checked in CI | Dashboard, static score lookup, India data release |
 
 ## Known limitations (measured, not hoped)
 Each of these is a number from this project's own data, or marked as inferred.
@@ -36,9 +36,11 @@ Each of these is a number from this project's own data, or marked as inferred.
 - **Not everything parses.** Of the non-empty values, 89.1% of `quantity` and 94.9% of `serving_size` become a number and a unit; the rest become NULL. About 2.2% of the tags in the four user-entered tag columns (10,046 of 453,932) fail the shape check and are dropped from silver; bronze keeps them.
 - **India nutrition data is thin and mixed.** Of 24,795 India products in the dump (2026-10-13): 24.2% have the new nutrition format, 18.7% only the old format (mapped into the same columns, but without a per-100 g/ml basis or per-source breakdown), and 57.2% have no nutrition data at all, against roughly 77% across all of OFF (inferred from file statistics, not re-measured).
 - **The seed is a snapshot.** It is one read of the 2026-10-13 dump; later changes arrive only through the daily files. Deletions are not tracked yet: about 1.8% of recently changed products disappear within days (measured earlier), and nothing here removes them yet.
-- **Timing is not met yet.** GitHub's scheduler is best-effort: the three scheduled captures observed so far ran 5 h 27 min, 5 h 15 min and 5 h 5 min late with no skipped day (seven runs are being counted; the verdict is not in). The processing job runs at 09:00 UTC and, on the days observed so far (14-16 Oct), the capture had not landed by then, so each day's data is processed a day late until the schedules are aligned. A missed capture costs nothing inside OFF's 14-day window (the next run back-fills).
+- **Timing is not met yet.** GitHub's scheduler is best-effort: the four scheduled captures observed so far ran 5 h 27 min, 5 h 15 min, 5 h 5 min and 4 h 11 min late with no skipped day (seven runs are being counted; the verdict is not in). The processing job runs at 09:00 UTC and, on the days observed so far (14-16 Oct), the capture had not landed by then, so each day's data is processed a day late until the schedules are aligned. A missed capture costs nothing inside OFF's 14-day window (the next run back-fills).
 - **Free-tier dependencies.** Databricks Free Edition (non-commercial, unpublished storage and compute quotas), Backblaze B2 (the daily download cap was reached once during testing), Hugging Face. The 13 GB dump has no second copy. A restore from the archive has not been drilled yet.
 - **The drift monitor sees presence and shape, not meaning.** Its baseline is 14 days; it cannot notice a field that keeps its name but changes unit.
+- **Names typed by people are messy.** Of 1,727 distinct allergen tags only 25 are canonical OFF tags. A deterministic name match (case-insensitive equality with a taxonomy name in any language) resolves 310 more (`en:Milch` to milk), and 1,392 remain free text: the recognised share is 96.9% of the allergen bridge but 89.9% of the allergen change log. 39 of 259 market tags were not canonical; 12 resolve by name, 27 are malformed fragments.
+- **Quality-flag families are partial.** Of 779 distinct flags, 477 are in OFF's quality taxonomy (94% of the 1.09 million flag spans); OFF generates the rest in code, so they stay `unmapped` and no family is guessed. A flag can appear under several severities (24 of 779), so severity is a set of columns, not one value.
 - **CI covers the unit tests and lint, not the pipeline.** On every branch push CI runs the unit tests (real, sanitised records; nothing touches Databricks or the network) and `ruff`, and `main` accepts a commit only after both have passed on it (a ruleset managed by Terraform; its single exception is a deploy key used by the keep-alive workflow, which cannot delete `main` or force-push it). Security scans (gitleaks over the history, zizmor on the workflows, pip-audit) run too but are advisory. The bronze and archive jobs ship from an Asset Bundle (dev automatically after a push to `main`, production after a manual approval); the gold job has its own bundle that its principal deploys by hand until a workflow exists. CI does not run dbt against a warehouse; the DuckDB comparison of the portable gold models is not built yet.
 
 ## Data and licence
@@ -47,7 +49,9 @@ Code is Apache-2.0 (see [`LICENSE`](LICENSE)). Data comes from Open Food Facts u
 ## Layout (grows as the build progresses)
 ```
 p1_intake/       P1: daily capture, landing, taxonomy snapshots, tripwires
-p2_lakehouse/    P2: bronze, silver, India seed, drift monitor on Databricks
+p2_lakehouse/    P2: bronze, silver, taxonomy tables, India seed, drift monitor on Databricks
+p3_delivery/     P3: Asset Bundle job definitions, grants, rollout notes
+p4_modelling/    P4: the gold layer (dbt Core), the DuckDB comparison fixture
 infra/terraform/ shared infrastructure as code (B2 bucket, repository secrets)
 docs/            design and evidence
 .github/         workflows (they must live here), Dependabot, CODEOWNERS
