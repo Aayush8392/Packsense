@@ -10,7 +10,7 @@ Procedure (details and results in the runbook's "Drill" section):
   6. return to main and delete the drill branch (it is never merged).
 
 `run` does steps 4-6 of the runbook on a scratch copy of 6 real delta files (both quarantine files included): silver with hmac_key_v1
-(git main) -> drop the three derived tables -> silver with hmac_key_v2 (git branch rekey-drill) -> verify. Production tables are only read.
+(git main) -> drop the three derived tables -> silver with hmac_key_v2 (git branch rekey-drill) -> verify. Production tables are only read. It also checks that distinct_editors (the one value gold derives from the codes) is identical under both keys.
 Reads DATABRICKS_HOST and DATABRICKS_TOKEN from the file or the environment. Values are never printed.
 """
 import argparse
@@ -105,6 +105,14 @@ def cmd_run(w, q, args):
                      f"WHERE a.h IS NULL OR b.h IS NULL OR a.h <> b.h"))
     if diff:
         problems.append(f"{diff} rows differ in columns that must not change")
+    # gold carries no code, only distinct_editors = size(array_distinct(editors_hmac)) (stg_silver_versions): it must be the same under any key
+    de_sql = "SELECT code, last_modified_t, coalesce(size(array_distinct(editors_hmac)), 0) n FROM "
+    de_diff = int(q.one(f"SELECT count(*) FROM ({de_sql}{T}) a FULL OUTER JOIN ({de_sql}{V}) b "
+                        f"ON a.code <=> b.code AND a.last_modified_t <=> b.last_modified_t WHERE a.n IS NULL OR b.n IS NULL OR a.n <> b.n"))
+    de_rows = int(q.one(f"SELECT count(*) FROM ({de_sql}{V}) WHERE n > 0"))
+    if de_diff or de_rows == 0:
+        problems.append(f"distinct_editors: {de_diff} rows differ between v1 and v2; {de_rows} rows have editors (0 would make the check empty)")
+    print(f"distinct_editors identical under both keys on every row: {de_diff == 0} ({de_rows} of {n2} rows have at least one editor)")
     qd = int(q.one(f"SELECT count(*) FROM {SI}.silver_quarantine a JOIN {SI}.v1_quarantine b "
                    f"ON a.source_file = b.source_file AND a.record_sha256 = b.record_sha256 WHERE a.payload <> b.payload"))
     qm = int(q.one(f"SELECT count(*) FROM {SI}.silver_quarantine a FULL OUTER JOIN {SI}.v1_quarantine b "
