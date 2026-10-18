@@ -22,7 +22,7 @@ Nothing is approved on a normal day: the scheduled runs keep using the deployed 
 | Schemas | `workspace.packsense_dev_bronze`, `workspace.packsense_dev_silver` | `workspace.packsense_bronze`, `workspace.packsense_silver` |
 | Landing volume | `workspace.packsense_dev.landing` | `workspace.packsense.landing` |
 | Secret scope | `packsense_dev` (a throwaway HMAC key only) | `packsense` |
-| Schedules | paused (development mode) | 09:00 UTC (bronze), 16:00 UTC (archive) |
+| Schedules | paused (development mode) | 06:45 UTC (capture, bronze, silver, drift, taxonomy), 16:00 UTC (archive) |
 | Healthchecks pings | off | on |
 
 Why two principals: on Free Edition a job runs as whoever deployed it and cannot be bound to another identity, so the deploying

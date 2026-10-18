@@ -1,7 +1,7 @@
 # P4 Modelling: the gold layer (dbt Core)
 
 Status (2026-10-18): **P4 is closed.** The exit gate was met on 2026-10-17 and all seven slices are built: 27 models and 137 dbt tests (165 nodes) run in production, 137 pass and 1 warns (the ancestor test).
-The gold job runs on dev and on production (daily 09:30 UTC, after the bronze job), deployed by its own workflow. The 20 portable models give identical rows on Databricks and on DuckDB **on a
+The gold job runs on dev and on production (daily 08:15 UTC since 2026-10-18, after the 06:45 UTC load job; it was 09:30 UTC), deployed by its own workflow. The 20 portable models give identical rows on Databricks and on DuckDB **on a
 fixture of 233 real products (542 versions)**, not on the full data, and a rerun is idempotent; both run in CI (see "The DuckDB comparison" below). Moved on purpose: the per-market export
 and the public-site marts to P6 (they go through the exit function), the worklist mart to P7, filling `product_status` to P9.
 
@@ -148,7 +148,7 @@ passed), and a deliberate bug (Nutri-Score `e` left out) failed the coverage tes
 ## Volume and freshness checks (2026-10-18)
 The design asked for dbt-expectations. Gold's notebook runs dbt in process from a copied project and never runs `dbt deps`, so the package would have added a download
 to every run, CI and local build, and run third-party macros with the gold principal's OAuth credential (the reason A29 gave for keeping dbt out of the bronze job), for
-two small checks. They are written in the project instead (amendment A43). They run inside the nightly `dbt build` of `packsense-gold-build` (09:30 UTC), like every other
+two small checks. They are written in the project instead (amendment A43). They run inside the daily `dbt build` of `packsense-gold-build` (08:15 UTC), like every other
 test: no extra job or schedule. `every_model_has_rows` (error): each of the 20 portable models holds at least one row (a model that builds empty passes every shape test;
 `tests/test_checks.py` fails when a model is added to the comparison and not to this list). `quality_fact_has_every_group_every_day` (error): every day of the quality
 fact has the same number of rows, because the model builds a full grid, so a dropped day or group shows. `history_not_below_status` (warn): `product_status` is insert-only

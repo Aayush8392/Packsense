@@ -30,7 +30,7 @@ The old tables stay as the rollback until the new ones have been through at leas
 ## Steps (target = dev or prod; names below are for prod, dev uses the `packsense_dev_*` schemas)
 1. **Keep a scheduled run from landing in the middle.** A job deployed from the bundle cannot be paused in the Jobs UI (there was no pause control on 2026-10-17;
    inferred cause: bundle jobs are locked against UI edits), and `bundle deploy` sets the schedule back to what the bundle file says anyway, so a pause would not survive
-   step 5. Instead choose a window: start at least 4 hours before the next scheduled run (09:00 UTC), do the renames and the deploy back to back, and set a hard stop (07:30 UTC)
+   step 5. Instead choose a window: start at least 4 hours before the next scheduled run (06:45 UTC since 2026-10-18; it was 09:00 UTC when this was drilled), do the renames and the deploy back to back, and set a hard stop (07:30 UTC)
    after which you roll back. Dev: schedules are already paused.
 2. **Give the admin the right to rename and drop** (tables belong to the principal that created them, a schema owner does not get access):
    `GRANT ALL PRIVILEGES ON SCHEMA <silver schema> TO <admin user>`. Revoke it at the end (step 9).
