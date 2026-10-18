@@ -144,5 +144,46 @@ def record(manifest: dict, key: str, facts: dict, run_id: str, archived_at: str)
     }
 
 
+def rebuild_from_listing(manifest: dict, b2_objects: dict[str, int], hf_files: dict[str, dict], expected: dict[str, str],
+                         run_id: str, archived_at: str) -> tuple[list[str], list[str]]:
+    """Refill an EMPTY archive manifest from what the Hugging Face repo already holds, without downloading anything from B2.
+
+    Without this, a lost archive/manifest.json makes the job treat every B2 key as still to archive and re-download all of it,
+    which would exceed B2's free daily download cap once raw/ outgrows it (adoption A7, measured 2026-10-18: about 17 days away).
+    hf_files maps a repo path to {"size": bytes, "sha256": LFS sha256 or None}. A key is taken as already archived only when ALL hold:
+      * Hugging Face holds the same path with the same size B2 lists for the key;
+      * Hugging Face reports an LFS sha256 (a small file reports only a git blob id, which cannot be checked without the bytes: such files
+        are cheap and are simply archived again);
+      * a delta file has the sha256 the capture recorded and it equals Hugging Face's (a delta file with no capture entry is archived again,
+        as it would be on a normal run, where it is flagged);
+      * when the capture recorded a sha256 for any other key, it equals Hugging Face's.
+    Returns (rebuilt keys, keys left to archive again); the manifest is changed in place for the rebuilt keys only. A rebuilt entry says so
+    (`rebuilt_from_hf_listing`) and records the weaker check it passed (no B2 ETag, gzip or download was involved)."""
+    rebuilt, redo = [], []
+    for key in sorted(b2_objects):
+        if not is_archivable(key):
+            continue
+        hf = hf_files.get(key)
+        if not hf or hf.get("size") != b2_objects[key] or not hf.get("sha256"):
+            redo.append(key)
+            continue
+        if key in expected:
+            if expected[key] != hf["sha256"]:
+                redo.append(key)
+                continue
+            checks = ["hf_lfs_sha256", "capture_manifest_sha256"]
+        elif key.startswith("raw/deltas/"):
+            redo.append(key)
+            continue
+        else:
+            checks = ["hf_lfs_sha256"]
+        manifest["files"][key] = {
+            "bytes": hf["size"], "sha256": hf["sha256"], "checked_against": checks,
+            "archived_at": archived_at, "job_run_id": run_id, "rebuilt_from_hf_listing": True,
+        }
+        rebuilt.append(key)
+    return rebuilt, redo
+
+
 def batches(items: list, size: int) -> list[list]:
     return [items[i:i + size] for i in range(0, len(items), size)]

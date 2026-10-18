@@ -145,6 +145,56 @@ def test_git_blob_id_of_the_empty_file_is_gits_well_known_value():
     assert a.git_blob_sha1(b"") == "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
 
 
+SHA_A, SHA_B = "a" * 64, "b" * 64
+
+
+def test_a_lost_manifest_is_refilled_from_hf_for_files_that_match_without_any_download():
+    m = a.new_manifest()
+    b2 = {DELTA: 100, DELTA2: 200}
+    hf = {DELTA: {"size": 100, "sha256": SHA_A}, DELTA2: {"size": 200, "sha256": SHA_B}}
+    rebuilt, redo = a.rebuild_from_listing(m, b2, hf, {DELTA: SHA_A, DELTA2: SHA_B}, "run-1", "t")
+    assert rebuilt == sorted([DELTA, DELTA2]) and redo == []
+    assert m["files"][DELTA]["checked_against"] == ["hf_lfs_sha256", "capture_manifest_sha256"]
+    assert m["files"][DELTA]["rebuilt_from_hf_listing"] is True
+    assert a.plan(b2, m) == ([], [])   # nothing left to download
+
+
+def test_a_size_difference_or_a_missing_path_means_archive_again():
+    m = a.new_manifest()
+    b2 = {DELTA: 100, DELTA2: 200}
+    hf = {DELTA: {"size": 99, "sha256": SHA_A}}
+    rebuilt, redo = a.rebuild_from_listing(m, b2, hf, {DELTA: SHA_A, DELTA2: SHA_B}, "run-1", "t")
+    assert rebuilt == [] and redo == sorted([DELTA, DELTA2]) and m["files"] == {}
+
+
+def test_a_sha_that_differs_from_the_capture_record_is_never_rebuilt():
+    m = a.new_manifest()
+    rebuilt, redo = a.rebuild_from_listing(m, {DELTA: 100}, {DELTA: {"size": 100, "sha256": SHA_B}}, {DELTA: SHA_A}, "r", "t")
+    assert rebuilt == [] and redo == [DELTA]
+
+
+def test_a_small_hf_file_without_lfs_sha256_is_archived_again():
+    m = a.new_manifest()
+    rebuilt, redo = a.rebuild_from_listing(m, {CAPTURE_MANIFEST: 40}, {CAPTURE_MANIFEST: {"size": 40, "sha256": None}}, {}, "r", "t")
+    assert rebuilt == [] and redo == [CAPTURE_MANIFEST]
+
+
+def test_a_delta_without_a_capture_entry_is_archived_again_but_a_taxonomy_snapshot_is_rebuilt():
+    m = a.new_manifest()
+    b2 = {DELTA: 100, TAXONOMY: 7}
+    hf = {DELTA: {"size": 100, "sha256": SHA_A}, TAXONOMY: {"size": 7, "sha256": SHA_B}}
+    rebuilt, redo = a.rebuild_from_listing(m, b2, hf, {}, "r", "t")
+    assert rebuilt == [TAXONOMY] and redo == [DELTA]
+    assert m["files"][TAXONOMY]["checked_against"] == ["hf_lfs_sha256"]
+
+
+def test_scratch_keys_are_ignored_and_a_rebuilt_manifest_round_trips():
+    m = a.new_manifest()
+    rebuilt, redo = a.rebuild_from_listing(m, {SCRATCH: 1, DELTA: 100}, {DELTA: {"size": 100, "sha256": SHA_A}}, {DELTA: SHA_A}, "r", "t")
+    assert rebuilt == [DELTA] and redo == [] and SCRATCH not in m["files"]
+    assert a.load_manifest(a.dump_manifest(m)) == m
+
+
 def test_batches_split_in_order():
     assert a.batches([1, 2, 3, 4, 5], 2) == [[1, 2], [3, 4], [5]]
     assert a.batches([], 3) == []

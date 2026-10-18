@@ -63,6 +63,7 @@ dbutils.widgets.text("batch_size", "10")
 dbutils.widgets.text("ping_healthchecks", "true")      # tests set "false"
 dbutils.widgets.text("only_keys", "")                  # tests: comma-separated B2 keys; empty = everything pending
 dbutils.widgets.text("manifest_path", lib.MANIFEST_PATH)  # tests point this at a scratch path
+dbutils.widgets.text("dry_run", "false")               # "true": plan only (reads B2 listings and the small capture manifests, downloads and uploads nothing, writes no manifest)
 
 RUN_ID = dbutils.widgets.get("run_id")
 SCOPE = dbutils.widgets.get("secret_scope")
@@ -72,6 +73,7 @@ BATCH = int(dbutils.widgets.get("batch_size"))
 PING = dbutils.widgets.get("ping_healthchecks").strip().lower() == "true"
 ONLY = [x.strip() for x in dbutils.widgets.get("only_keys").split(",") if x.strip()]
 MANIFEST_PATH = dbutils.widgets.get("manifest_path")
+DRY_RUN = dbutils.widgets.get("dry_run").strip().lower() == "true"
 
 # COMMAND ----------
 ping_url = dbutils.secrets.get(SCOPE, "healthchecks_archive_ping_url") if PING else None
@@ -109,18 +111,13 @@ def setup():
                 b2[o["Key"]] = o["Size"]
     print(f"B2 lists {len(b2)} objects under {', '.join(lib.ARCHIVE_PREFIXES)}")
 
+    manifest_lost = False
     try:
         manifest = lib.load_manifest(open(hf_hub_download(HF_REPO, MANIFEST_PATH, repo_type="dataset", token=api.token, force_download=True), "rb").read())
     except EntryNotFoundError:
         manifest = lib.new_manifest()
-        print("no archive manifest yet: starting a new one")
-
-    todo, changed = lib.plan(b2, manifest)
-    if ONLY:
-        todo = [k for k in todo if k in ONLY]
-    for k in changed:
-        problems.append(f"{k}: size in B2 ({b2[k]}) no longer matches the archived copy ({manifest['files'][k]['bytes']}); not overwritten")
-    print(f"{len(manifest['files'])} already archived, {len(todo)} to archive, {len(changed)} changed in B2")
+        manifest_lost = True
+        print("no archive manifest found")
 
     # The sha256 the capture recorded for each delta file: from every capture manifest in B2 (they are archived too).
     capture_manifests = []
@@ -129,6 +126,26 @@ def setup():
             capture_manifests.append(json.loads(s3.get_object(Bucket=BUCKET, Key=k)["Body"].read()))
     expected = lib.expected_sha256(capture_manifests)
     print(f"{len(capture_manifests)} capture manifests read, {len(expected)} files with a recorded sha256")
+
+    if manifest_lost:
+        # Guard (adoption A7): without a manifest every B2 key would be downloaded again, which can exceed B2's free daily download cap.
+        # Refill the 'done' list from what Hugging Face already holds (path, size and LFS sha256 checked against B2 and the capture record);
+        # whatever does not match is archived again as usual. Nothing is downloaded here, and the run is reported as a problem once.
+        hf_files = {}
+        for item in api.list_repo_tree(HF_REPO, repo_type="dataset", recursive=True, expand=True):
+            if getattr(item, "size", None) is not None:
+                hf_files[item.path] = {"size": item.size, "sha256": getattr(getattr(item, "lfs", None), "sha256", None)}
+        now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+        rebuilt, redo = lib.rebuild_from_listing(manifest, b2, hf_files, expected, RUN_ID, now)
+        print(f"manifest rebuilt from the Hugging Face listing: {len(rebuilt)} files taken as archived, {len(redo)} to archive again")
+        problems.append(f"the archive manifest was missing: {len(rebuilt)} entries rebuilt from the Hugging Face listing, {len(redo)} files archived again")
+
+    todo, changed = lib.plan(b2, manifest)
+    if ONLY:
+        todo = [k for k in todo if k in ONLY]
+    for k in changed:
+        problems.append(f"{k}: size in B2 ({b2[k]}) no longer matches the archived copy ({manifest['files'][k]['bytes']}); not overwritten")
+    print(f"{len(manifest['files'])} already archived, {len(todo)} to archive, {len(changed)} changed in B2")
     return s3, api, b2, manifest, todo, changed, expected
 
 
@@ -137,6 +154,14 @@ try:
 except Exception as e:
     ping("/fail", f"archive setup failed: {type(e).__name__}: {str(e)[:120]}")
     raise
+
+# COMMAND ----------
+if DRY_RUN:
+    # Plan only: nothing is downloaded from B2, nothing is uploaded, no manifest is written (a pending ping_healthchecks would still /start).
+    plan_out = {"dry_run": True, "b2_objects": len(b2), "already_archived": len(manifest["files"]), "to_archive": len(todo),
+                "to_archive_mb": round(sum(b2[k] for k in todo) / 1e6, 1), "size_changed_in_b2": len(changed), "problems": problems}
+    print(json.dumps(plan_out))
+    dbutils.notebook.exit(json.dumps(plan_out))
 
 # COMMAND ----------
 archived, bytes_archived, unverified = 0, 0, 0
