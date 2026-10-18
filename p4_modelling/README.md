@@ -1,8 +1,9 @@
 # P4 Modelling: the gold layer (dbt Core)
 
-Status (2026-10-17): **the exit gate is met and about half of the planned models are built.** The gold job runs on dev and on production (daily 09:30 UTC, after the bronze job),
-deployed by its own workflow. All 13 portable models give identical rows on Databricks and on DuckDB on a real fixture, and a rerun is idempotent; both run in CI
-(see "The DuckDB comparison" below). Planned and not built: category and label dimensions with bridges, two daily facts and a brand scorecard.
+Status (2026-10-18): **P4 is closed.** The exit gate was met on 2026-10-17 and all seven slices are built: 27 models and 137 dbt tests (165 nodes) run in production, 137 pass and 1 warns (the ancestor test).
+The gold job runs on dev and on production (daily 09:30 UTC, after the bronze job), deployed by its own workflow. The 20 portable models give identical rows on Databricks and on DuckDB **on a
+fixture of 233 real products (542 versions)**, not on the full data, and a rerun is idempotent; both run in CI (see "The DuckDB comparison" below). Moved on purpose: the per-market export
+and the public-site marts to P6 (they go through the exit function), the worklist mart to P7, filling `product_status` to P9.
 
 Gold is built from silver only, by its own job and its own principals (`packsense-gold-dev`, `packsense-gold`), so the single-writer rule
 holds: the bronze principal never writes gold, and gold never reads bronze, quarantine or the secret scope `packsense`.
@@ -26,7 +27,7 @@ holds: the bronze principal never writes gold, and gold never reads bronze, quar
   The test `category_lists_hold_their_ancestors` (a warning, not a failure) checks it: 15 of 1,523 exact-category rows in the fixture (1%) miss a parent, and several are taxonomy renames under old
   periods (the lists say `en:fruits-based-foods`, the taxonomy now says `en:fruit-based-foods`), which is the stated reason it is a warning. Free text such as `en:Groceries` stays `none`.
 - **The tracked set** is one macro (`macros/tracked.sql`): tag arrays are sorted and the nutrients map is hashed by sorted entries, so a pure reordering is not a change.
-- **Tests:** 99 dbt tests (no duplicate periods, one open row per code, contiguous periods, versions merged equal silver rows, neighbouring periods differ,
+- **Tests:** 137 dbt tests in production (no duplicate periods, one open row per code, contiguous periods, versions merged equal silver rows, neighbouring periods differ,
   spans cover every occurrence, no overlap, bridge and dimension coverage) and Python tests that tie the staging view and the tracked set to the silver
   contract (run by CI with the other tests).
 - **The job:** a separate bundle (`databricks.yml`, `resources/gold_job.yml`): one serverless notebook (`notebooks/gold_run.py`) runs `dbt build` as the
@@ -79,7 +80,7 @@ The portable models must not depend on Databricks. The Databricks-only staging c
   DuckDB by `gold_lib/fixture_load.py`, with the manifest's exact column types.
 - **The comparison** (`bootstrap/compare_engines.py`): each row of twenty models is reduced to a canonical form (integers by value, timestamps as UTC seconds,
   maps by sorted key, arrays in order) and hashed; `fixtures/golden.json` holds one hash per row from the Databricks run. A DuckDB run must reproduce every
-  hash. **Result 2026-10-18 (fixture of 233 products, 542 versions and 1,236 taxonomy rows):** identical on all 18 models (fct_product_change_daily 153 rows, product_history 353 rows, product_flag_spans 2,293, product_status 233, dim_brand 187, dim_market 64, bridge_product_market 623,
+  hash. **Result 2026-10-18 (fixture of 233 products, 542 versions and 1,236 taxonomy rows):** identical on all 18 models then built (the 20 models compared today also include the quality fact and the brand scorecard, added in the same way; fct_product_change_daily 153 rows, product_history 353 rows, product_flag_spans 2,293, product_status 233, dim_brand 187, dim_market 64, bridge_product_market 623,
   dim_date 8,766, dim_flag 153, taxonomy_tag_latest 723, bridge_product_allergen 626, dim_allergen 55, taxonomy_name_lookup 13,846, mart_allergen_change_log 30, bridge_product_category 1,598, dim_category 420,
   bridge_product_label 824, dim_label 153), and all 134 dbt nodes (25 models, 109 tests; 133 pass, 1 warning) pass on both engines. The 2026-10-17 result was 13 models on 209 products. **The comparison found two defects:** (1) Databricks' statement API returns numbers nested in a map as text, a defect of the
   comparison reader, fixed and tested; (2) the engines lower-case a few characters differently (Databricks turns the Turkish dotted capital I into `i` plus a combining dot, DuckDB into a
@@ -159,9 +160,9 @@ fired on a deliberate fault (an emptied model, a dropped quality-fact row, a pro
 at 48 hours (the newest window was 28.3 hours old) and fired at a 0-hour threshold.
 
 ## Still to do
-The brand
-scorecard. The per-market export and the public-site marts belong with P6 (they go through the exit function), the worklist mart waits for P7. Parked: an allergen alias table and a rule
-table for the roughly 300 generated flags the taxonomy does not list.
+Nothing in P4 itself. The per-market export and the public-site marts belong with P6 (they go through the exit function), the worklist mart waits for P7, and `product_status` is filled by
+the P9 reconciliation. Parked: an allergen alias table, a rule table for the roughly 300 generated flags the taxonomy does not list, and fixture rows for two paths no real data reaches today
+(a change opened by the seed: none exists in production; an India new product and a root flag exist and can be added at the next fixture regeneration).
 
 ## Gold principals and grants (set by an admin in the SQL editor, kept here so they can be re-created)
 Two principals, each with the **Workspace access** and **Databricks SQL access** entitlements, **Can use** on the SQL warehouse and nothing else.
@@ -193,6 +194,8 @@ dbt parse --project-dir p4_modelling --profiles-dir p4_modelling
 ```
 A real run needs `DATABRICKS_HOST`, `DBT_HTTP_PATH` and either `DATABRICKS_TOKEN` (target `dev_admin`) or the gold-dev client id and secret (target `dev`);
 production runs through the job as `packsense-gold`. Deploy by hand: from `p4_modelling`, `databricks bundle validate|deploy|run gold_build -t dev|prod` as the matching principal.
+**A manual production build** (after a `deploy-gold` prod deploy has finished) needs no principal secret: `python p4_modelling/bootstrap/run_gold_prod.py --env-file .env` from the repo root starts the
+job with the admin token, follows it and prints the counts; the job runs as its owner, `packsense-gold` (checked 2026-10-18), and the helper refuses to start when the job is already running.
 
 ## Deploy workflow (`.github/workflows/deploy-gold.yml`)
 On a push to `main` that changes the bundle (databricks.yml, resources, notebooks, gold_lib, models, macros, data_tests, dbt_project.yml, profiles.yml) or by hand:
