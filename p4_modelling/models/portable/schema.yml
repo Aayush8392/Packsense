@@ -325,3 +325,31 @@ models:
         data_tests: [not_null]
       - name: n_products_held
         data_tests: [not_null]
+
+  - name: mart_brand_scorecard
+    description: >
+      Brand scorecard: one row per scope (all or india) and brand, over the products we hold as they stood at the end of the newest complete day
+      (as_of_date). Counts of products with each field filled, open flag spans and an is_ranked flag (30 or more products). A snapshot rebuilt in
+      full each night. It describes what we hold, not the brand's catalogue.
+    columns:
+      - name: scorecard_key
+        description: Hash of (scope, first brand); a rebuild reproduces the same keys.
+        data_tests: [unique, not_null]
+      - name: scope
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['all', 'india']
+      - name: brand_name
+        data_tests: [not_null]
+      - name: as_of_date
+        data_tests: [not_null]
+      - name: n_products
+        data_tests: [not_null]
+      - name: is_ranked
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]

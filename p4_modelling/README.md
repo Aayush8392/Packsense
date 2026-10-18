@@ -77,7 +77,7 @@ The portable models must not depend on Databricks. The Databricks-only staging c
   the DuckDB twins use `unnest` and `list_distinct`. Per-engine macros (`macros/engine.sql`: ISO weekday, weekday name, distinct array size, first element, map get, `name_key`) cover the rest.
   On Databricks the fixture is loaded into a throwaway schema (`bootstrap/fixture_databricks.py load`, dbt target `fixture_admin`, var `fixture_mode`); on
   DuckDB by `gold_lib/fixture_load.py`, with the manifest's exact column types.
-- **The comparison** (`bootstrap/compare_engines.py`): each row of seventeen models is reduced to a canonical form (integers by value, timestamps as UTC seconds,
+- **The comparison** (`bootstrap/compare_engines.py`): each row of twenty models is reduced to a canonical form (integers by value, timestamps as UTC seconds,
   maps by sorted key, arrays in order) and hashed; `fixtures/golden.json` holds one hash per row from the Databricks run. A DuckDB run must reproduce every
   hash. **Result 2026-10-18 (fixture of 233 products, 542 versions and 1,236 taxonomy rows):** identical on all 18 models (fct_product_change_daily 153 rows, product_history 353 rows, product_flag_spans 2,293, product_status 233, dim_brand 187, dim_market 64, bridge_product_market 623,
   dim_date 8,766, dim_flag 153, taxonomy_tag_latest 723, bridge_product_allergen 626, dim_allergen 55, taxonomy_name_lookup 13,846, mart_allergen_change_log 30, bridge_product_category 1,598, dim_category 420,
@@ -127,6 +127,22 @@ about 5,700 the day before). Both `fct_product_change_daily` and `fct_catalogue_
 instead of a timestamp cast, so neither fact depends on a session time zone. One test (`complete_days_match_the_window_arithmetic`) checks the macro against a second
 formulation of the rule and that the quality fact spans exactly those days; it caught a precedence slip of mine (the macro once ran to 2035 while every other test
 passed). The other two facts' tests now work over the complete days.
+
+## Brand scorecard (slice 7, 2026-10-18)
+`mart_brand_scorecard`: one row per scope (`all`, or `india` = the product ever had India in a period, the rule of the quality fact) and brand (the first free-text brand,
+lower-cased, as in `dim_brand`; products with no brand form one row, `(no brand)`, never ranked). A snapshot of the products we hold as they stood at the end of the newest
+complete day (`as_of_date`), rebuilt in full each night: we hold only a few weeks, so a monthly series starts when a second month exists. Columns are counts, no floats:
+`n_products`, `n_with_nutrition` (new or legacy format), `n_with_nutriscore` (a to e), `n_with_nova`, `n_with_quantity`, `n_with_ingredients` (the fingerprint),
+`n_with_categories`, `n_with_labels`, `coverage_points` (their sum; 7 times `n_products` would be full coverage), `open_error_spans` and `open_warning_spans` (spans open on
+that day, spans not products), `n_products_with_error_flag` and `is_ranked` (a named brand with at least `scorecard_min_products` = 30 products: a share on 30 products
+carries about plus or minus 18 points). The coverage is our own, from the fields of each product's period; OFF's completeness score is not used (it is volatile and not
+in `product_history`). **It describes what we hold, not the brand's catalogue:** non-India products arrive only when edited since the capture began, and about 22,000 India
+products come from the one-time seed. Measured on production before building (latest periods, 2026-10-18): 124,209 products, 95,736 with a brand, 31,449 brands, 28,609 of them
+with 1 to 4 products and 350 with 30 or more (a third of the branded products). Three data tests: the brand counts equal the products alive that day counted a second way
+(newest period per product, by row number), the internal rules (no count above the products, `coverage_points` is the sum, the ranked flag follows the floor, India never
+above all, the spans equal the open spans in `product_flag_spans`), and the coverage counts recomputed from `product_history` (categories and labels from the tag arrays, the
+model uses the bridges). No fixture brand reaches 30 products, so the ranked path was exercised by building with `scorecard_min_products` = 4 (3 brands ranked, all 13 nodes
+passed), and a deliberate bug (Nutri-Score `e` left out) failed the coverage test.
 
 ## Still to do
 The brand

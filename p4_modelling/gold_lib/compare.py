@@ -32,6 +32,7 @@ MODELS = {
     "dim_label": ["label_tag"],
     "fct_product_change_daily": ["fact_key"],
     "fct_catalogue_quality_daily": ["fact_key"],
+    "mart_brand_scorecard": ["scorecard_key"],
 }
 
 _TS = re.compile(r"^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})")
