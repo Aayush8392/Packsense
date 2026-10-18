@@ -2,8 +2,11 @@ name: Daily capture (Open Food Facts delta files)
 
 on:
   schedule:
-    # 07:30 UTC. OFF publishes its daily delta around 06:18-06:36 UTC. GitHub's cron is best-effort and can run late.
-    - cron: "30 7 * * *"
+    # 10:00 UTC (was 07:30 before 2026-10-18). This is now the SECOND path: the Databricks job captures first (06:45 UTC, capped at 07:45,
+    # whole job capped at 2 h = 08:45 at the latest). GitHub's cron runs at or after its nominal time, never before, so a 10:00 slot can
+    # never start while the Databricks capture is still running: no overlap, only a back-fill of whatever the first path missed.
+    # (A manual dispatch can still be started at any moment: do not start one while the 06:45 job is running.)
+    - cron: "0 10 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
