@@ -1,18 +1,36 @@
-# The job `packsense-bronze-load` (it replaced the old create_bronze_job.py script): bronze, then silver, then drift, plus the taxonomy
-# load (added 2026-10-17, after silver so a /fail ping from it is the last word on the core check).
-# silver, drift and taxonomy run even if the task before them failed (run_if ALL_DONE); silver is told how bronze ended.
+# The job `packsense-bronze-load` (it replaced the old create_bronze_job.py script): capture, then bronze, then silver, then drift, plus the
+# taxonomy load (added 2026-10-17, after silver so a /fail ping from it is the last word on the core check).
+# 2026-10-18 (decision O1 + T2 + G1 after external review 02): the capture is the FIRST task and the job starts at 06:45 UTC, so each day's
+# file is loaded the day it is published instead of a day later. The GitHub capture stays as the independent second path.
+# bronze, silver, drift and taxonomy run even if the task before them failed (run_if ALL_DONE): a failed capture never blocks loading files
+# that already landed; silver is told how bronze ended.
 resources:
   jobs:
     bronze_load:
       name: packsense-bronze-load
       max_concurrent_runs: 1
-      timeout_seconds: 3600
+      timeout_seconds: 7200   # capture may poll OFF for up to an hour (06:45 to 07:45 UTC), then the load takes 5 to 15 minutes
       schedule:
-        quartz_cron_expression: "0 0 9 * * ?"   # 09:00 UTC = 14:30 IST
+        quartz_cron_expression: "0 45 6 * * ?"   # 06:45 UTC = 12:15 IST (OFF publishes 06:19 to 06:33 UTC)
         timezone_id: UTC
         pause_status: UNPAUSED
       tasks:
+        - task_key: capture
+          # A failure must stay visible: no automatic retry (the GitHub capture is the second chance, and a retry that succeeds would
+          # turn the capture check green and hide the failure, as seen with drift on 2026-10-16).
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../../p1_intake/notebooks/capture_task.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              landing: ${var.landing}
+              secret_scope: ${var.secret_scope}
+              upload_to_b2: ${var.capture_b2}
+              ping_healthchecks: ${var.ping}
         - task_key: bronze
+          depends_on:
+            - task_key: capture
+          run_if: ALL_DONE
           notebook_task:
             notebook_path: ../../p2_lakehouse/notebooks/bronze_load.py
             base_parameters:

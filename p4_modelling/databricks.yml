@@ -36,8 +36,8 @@ variables:
     description: whether the notebook pings healthchecks.io ("true" or "false")
     default: "false"
   gold_cron:
-    description: quartz cron (UTC) of the gold build; one value so the 21 Oct capture-trigger decision changes it in one place
-    default: "0 30 9 * * ?"
+    description: quartz cron (UTC) of the gold build; one value so a schedule change is made in one place. 08:15 UTC since 2026-10-18 (the capture now starts the daily load at 06:45 UTC; the gold run needs about 30 minutes of margin after the poll cap at 07:45 and the load)
+    default: "0 15 8 * * ?"
 
 targets:
   dev:

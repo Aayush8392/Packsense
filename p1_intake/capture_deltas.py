@@ -17,6 +17,7 @@ Exit codes: 0 ok, 1 a step failed, 2 OFF's feed looks stale.
 """
 import argparse
 import datetime as dt
+import email.utils
 import gzip
 import hashlib
 import json
@@ -50,7 +51,60 @@ def list_index() -> list[str]:
     return sorted(names, key=lambda n: int(NAME_RE.match(n).group(1)))
 
 
-class Landing:
+class _LandingBase:
+    """What the capture needs from the landing volume: names, put, size, get. Two implementations below."""
+
+    def recorded_names(self) -> set[str]:
+        """Every file name that any capture manifest in landing records."""
+        recorded: set[str] = set()
+        for manifest in sorted(self.names("manifests")):
+            recorded |= {f["name"] for f in json.loads(self.get(f"manifests/{manifest}")).get("files", [])}
+        return recorded
+
+
+class LocalLanding(_LandingBase):
+    """The landing volume as a plain folder. The Databricks capture task runs next to the volume, so it needs no Files API and no token."""
+
+    def __init__(self, root: str = LANDING) -> None:
+        self.root = root
+
+    def _p(self, path: str) -> str:
+        return os.path.join(self.root, *path.split("/"))
+
+    def names(self, folder: str) -> set[str]:
+        d = self._p(folder)
+        if not os.path.isdir(d):
+            return set()
+        return {n for n in os.listdir(d) if os.path.isfile(os.path.join(d, n)) and not n.startswith(".tmp-")}
+
+    def put(self, path: str, data) -> None:
+        """Write to a hidden temp name in the same folder, then rename: a crash never leaves a half-written file under the real name."""
+        target = self._p(path)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        tmp = os.path.join(os.path.dirname(target), ".tmp-" + os.path.basename(target))
+        with open(tmp, "wb") as out:
+            if isinstance(data, (bytes, bytearray)):
+                out.write(data)
+            else:
+                for chunk in iter(lambda: data.read(1 << 20), b""):
+                    out.write(chunk)
+        os.replace(tmp, target)
+
+    def size(self, path: str) -> int:
+        return os.path.getsize(self._p(path))
+
+    def get(self, path: str) -> bytes:
+        with open(self._p(path), "rb") as fh:
+            return fh.read()
+
+
+def make_landing() -> "_LandingBase":
+    """LANDING_ROOT set (the Databricks capture task): the volume as a folder. Otherwise the Files API with the pipeline token (GitHub)."""
+    root = os.environ.get("LANDING_ROOT", "").strip()
+    return LocalLanding(root) if root else Landing()
+
+
+class Landing(_LandingBase):
     """Databricks Files API on the landing volume (pipeline-user token)."""
 
     def __init__(self) -> None:
@@ -86,12 +140,49 @@ class Landing:
         r.raise_for_status()
         return r.content
 
-    def recorded_names(self) -> set[str]:
-        """Every file name that any capture manifest in landing records."""
-        recorded: set[str] = set()
-        for manifest in sorted(self.names("manifests")):
-            recorded |= {f["name"] for f in json.loads(self.get(f"manifests/{manifest}")).get("files", [])}
-        return recorded
+
+def newest_published_today(names: list[str], now: dt.datetime) -> bool:
+    """True when OFF's newest delta file ended on today's UTC date, i.e. today's file is out.
+
+    OFF publishes the day's file around 06:20-06:35 UTC; before that the newest file ended yesterday (measured on 13 files, 6-18 Oct 2026)."""
+    if not names:
+        return False
+    ended = int(NAME_RE.match(names[-1]).group(2))
+    midnight = now.astimezone(dt.timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    return ended >= midnight
+
+
+def wait_for_publication(fetch_names, now_fn, sleep_fn, deadline: dt.datetime, poll_seconds: int = 300) -> tuple[bool, int, list[str]]:
+    """Poll OFF's index until today's file is listed or the deadline passes. Returns (published, polls made, the last index read).
+
+    No sleeping past the deadline: when it has already passed and the file is not out, it returns at once (a manual run at 20:00 UTC after a
+    missed publication must fail fast, not wait)."""
+    polls = 0
+    while True:
+        names = fetch_names()
+        polls += 1
+        if newest_published_today(names, now_fn()):
+            return True, polls, names
+        if now_fn() + dt.timedelta(seconds=poll_seconds) > deadline:
+            return False, polls, names
+        sleep_fn(poll_seconds)
+
+
+def lateness_minutes(manifest: dict) -> float | None:
+    """Minutes from OFF publishing the newest file this run captured (its Last-Modified) to the manifest's capture time.
+
+    None when the run captured nothing new or the files carry no Last-Modified (a recovered orphan). This is the capture's lateness series:
+    one value per run, read from the manifests, no extra table."""
+    stamps = [email.utils.parsedate_to_datetime(f["off_last_modified"]) for f in manifest.get("files", []) if f.get("off_last_modified")]
+    if not stamps:
+        return None
+    captured = dt.datetime.fromisoformat(manifest["captured_at"])
+    return round((captured - max(stamps)).total_seconds() / 60, 1)
+
+
+def b2_prefix() -> str:
+    """The first path part of the capture's B2 keys: `raw` in production; a scratch run sets B2_PREFIX (for example `tmp/a2-test`)."""
+    return os.environ.get("B2_PREFIX", "").strip().strip("/") or "raw"
 
 
 def find_orphans(landed: set[str], recorded: set[str]) -> list[str]:
@@ -135,22 +226,24 @@ def download(name: str, directory: str) -> dict:
     path = os.path.join(directory, name)
     with requests.get(OFF_DELTA + name, headers=USER_AGENT, stream=True, timeout=120) as r, open(path, "wb") as out:
         r.raise_for_status()
+        modified = r.headers.get("Last-Modified")  # when OFF published the file: capture time minus this is the capture's lateness
         for chunk in r.iter_content(1 << 20):
             out.write(chunk)
-    return inspect_local(path, name)
+    return inspect_local(path, name) | {"off_last_modified": modified}
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="list what would be captured, change nothing")
     ap.add_argument("--max-files", type=int, default=0, help="capture at most N files (0 = all)")
-    args = ap.parse_args()
+    ap.add_argument("--no-b2", action="store_true", help="do not upload to B2 (the dev target holds no B2 key); entries say b2_skipped")
+    args = ap.parse_args(argv)
 
     names = list_index()
     if not names:
         print("OFF index lists no delta files")
         return 1
-    landing = Landing()
+    landing = make_landing()
     have = landing.names("deltas")
     orphans = find_orphans(have, landing.recorded_names())
     refetch, from_landing = split_orphans(orphans, names)
@@ -166,25 +259,32 @@ def main() -> int:
     if args.dry_run:
         return 0
 
-    s3, bucket = b2_client(), need("B2_BUCKET")
+    s3, bucket = (None, None) if args.no_b2 else (b2_client(), need("B2_BUCKET"))
+    prefix = b2_prefix()
     entries, failed = [], False
     with tempfile.TemporaryDirectory() as tmp:
         for name in todo:
             try:
                 t0 = time.time()
                 info = download(name, tmp)
-                key = f"raw/deltas/{name}"
-                with open(info["path"], "rb") as fh:
-                    etag = s3.put_object(Bucket=bucket, Key=key, Body=fh)["ETag"].strip('"')
-                etag_is_md5 = bool(re.fullmatch(r"[0-9a-f]{32}", etag))
-                if etag_is_md5 and etag != info["md5"]:
-                    raise RuntimeError(f"{name}: B2 checksum differs from the local checksum")
+                key = f"{prefix}/deltas/{name}"
+                etag_is_md5 = False
+                if s3 is not None:
+                    with open(info["path"], "rb") as fh:
+                        etag = s3.put_object(Bucket=bucket, Key=key, Body=fh)["ETag"].strip('"')
+                    etag_is_md5 = bool(re.fullmatch(r"[0-9a-f]{32}", etag))
+                    if etag_is_md5 and etag != info["md5"]:
+                        raise RuntimeError(f"{name}: B2 checksum differs from the local checksum")
                 with open(info["path"], "rb") as fh:
                     landing.put(f"deltas/{name}", fh)
                 if landing.size(f"deltas/{name}") != info["bytes"]:
                     raise RuntimeError(f"{name}: landing size differs from the local size")
                 os.remove(info["path"])
                 entry = {k: info[k] for k in ("name", "bytes", "sha256", "lines")} | {"b2_key": key, "landing": f"deltas/{name}", "b2_etag_matched": etag_is_md5}
+                if info.get("off_last_modified"):
+                    entry["off_last_modified"] = info["off_last_modified"]
+                if s3 is None:
+                    entry["b2_skipped"] = True
                 if name in refetch:
                     entry["recovered"] = True
                 entries.append(entry)
@@ -201,7 +301,7 @@ def main() -> int:
                 info = inspect_local(path, name)
                 os.remove(path)
                 entries.append({k: info[k] for k in ("name", "bytes", "sha256", "lines")} | {
-                    "b2_key": f"raw/deltas/{name}", "landing": f"deltas/{name}", "b2_etag_matched": False, "recovered": True})
+                    "b2_key": f"{prefix}/deltas/{name}", "landing": f"deltas/{name}", "b2_etag_matched": False, "recovered": True})
                 print(f"  recorded from landing {name}: {info['bytes'] / 1e6:.1f} MB, {info['lines']:,} records (not re-verified against B2)")
             except Exception as exc:
                 failed = True
@@ -215,7 +315,8 @@ def main() -> int:
     }
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
     body = json.dumps(manifest, indent=1).encode()
-    s3.put_object(Bucket=bucket, Key=f"raw/manifests/{stamp}.json", Body=body)
+    if s3 is not None:
+        s3.put_object(Bucket=bucket, Key=f"{prefix}/manifests/{stamp}.json", Body=body)
     landing.put(f"manifests/{stamp}.json", body)
     print(f"manifest written: manifests/{stamp}.json ({len(entries)} new files)")
 

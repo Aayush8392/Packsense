@@ -28,7 +28,7 @@ import time
 
 import requests
 
-from capture_deltas import USER_AGENT, Landing, b2_client, need
+from capture_deltas import USER_AGENT, b2_client, make_landing, need
 
 BASE = "https://static.openfoodfacts.org/data/taxonomies/"
 PREFIX = "taxonomies"
@@ -71,19 +71,20 @@ def fetch(name: str) -> tuple[bytes, str | None]:
     raise RuntimeError(f"{name}: still HTTP 429 after 5 tries")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="download and compare, store nothing")
     ap.add_argument("--only", help="comma-separated taxonomy names (default: all)")
-    args = ap.parse_args()
+    ap.add_argument("--no-b2", action="store_true", help="do not upload to B2 (the dev target holds no B2 key)")
+    args = ap.parse_args(argv)
     names = [n.strip() for n in args.only.split(",")] if args.only else TAXONOMIES
     unknown = [n for n in names if n not in TAXONOMIES]
     if unknown:
         sys.exit(f"not in TAXONOMIES: {', '.join(unknown)}")
 
-    landing = Landing()
+    landing = make_landing()
     known = last_known([json.loads(landing.get(f"{PREFIX}/manifests/{m}")) for m in sorted(landing.names(f"{PREFIX}/manifests"))])
-    s3, bucket = (None, None) if args.dry_run else (b2_client(), need("B2_BUCKET"))
+    s3, bucket = (None, None) if (args.dry_run or args.no_b2) else (b2_client(), need("B2_BUCKET"))
     now = dt.datetime.now(dt.timezone.utc)
     print(f"{len(names)} taxonomies to check; {len(known)} already have a recorded version")
 
@@ -101,9 +102,10 @@ def main() -> int:
                 key = snapshot_key(name, modified, sha, now)
                 if not args.dry_run:
                     gz = gzip.compress(raw, mtime=0)
-                    etag = s3.put_object(Bucket=bucket, Key=f"{PREFIX}/{key}", Body=gz)["ETag"].strip('"')
-                    if len(etag) == 32 and etag != hashlib.md5(gz).hexdigest():
-                        raise RuntimeError(f"{name}: B2 checksum differs from the local checksum")
+                    if s3 is not None:
+                        etag = s3.put_object(Bucket=bucket, Key=f"{PREFIX}/{key}", Body=gz)["ETag"].strip('"')
+                        if len(etag) == 32 and etag != hashlib.md5(gz).hexdigest():
+                            raise RuntimeError(f"{name}: B2 checksum differs from the local checksum")
                     landing.put(f"{PREFIX}/{key}", gz)
             else:
                 key = prev["snapshot"]
@@ -121,7 +123,8 @@ def main() -> int:
         stamp = now.strftime("%Y%m%dT%H%M%SZ")
         body = json.dumps({"log_version": 1, "captured_at": now.isoformat(timespec="seconds"),
                            "github_run_id": os.environ.get("GITHUB_RUN_ID"), "entries": entries, "failed": failed}, indent=1).encode()
-        s3.put_object(Bucket=bucket, Key=f"{PREFIX}/_log/{stamp}.json", Body=body)
+        if s3 is not None:
+            s3.put_object(Bucket=bucket, Key=f"{PREFIX}/_log/{stamp}.json", Body=body)
         landing.put(f"{PREFIX}/manifests/{stamp}.json", body)
         print(f"log written: {PREFIX}/manifests/{stamp}.json")
     return 1 if failed else 0

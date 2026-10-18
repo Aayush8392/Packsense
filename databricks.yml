@@ -36,6 +36,9 @@ variables:
   ping:
     description: whether the notebooks ping healthchecks.io ("true" or "false")
     default: "true"
+  capture_b2:
+    description: whether the capture task uploads to B2 ("true" in prod; "false" in dev, whose scope holds no B2 key)
+    default: "true"
 
 targets:
   dev:
@@ -47,6 +50,7 @@ targets:
       landing: /Volumes/workspace/packsense_dev/landing   # its own volume: the dev principal has no rights on the real one
       secret_scope: packsense_dev                         # holds only a throwaway HMAC key: dev never sees the real secrets
       ping: "false"
+      capture_b2: "false"
   prod:
     # No custom root_path: only the deploy principal deploys prod, so its own home folder (private to it) holds the files and
     # the state. /Workspace/Shared would be writable by every workspace user, and these notebooks read the HMAC key.
