@@ -25,6 +25,15 @@ def test_the_freshness_check_is_a_warning_and_never_runs_on_the_fixture():
     assert "current_timestamp" in text
 
 
+def test_the_contiguity_check_is_a_warning_and_never_runs_on_the_fixture():
+    text = (TESTS / "delta_windows_are_contiguous.sql").read_text(encoding="utf-8")
+    config = text.split("}}", 1)[0]
+    assert "severity='warn'" in config
+    assert "target.type == 'databricks'" in config and "fixture_mode" in config
+    assert "current_timestamp" not in text and "current_date" not in text
+    assert "not is_seed" in text and "<> previous_end_t" in text
+
+
 def test_the_other_new_checks_do_not_read_the_clock():
     for name in ("every_model_has_rows", "quality_fact_has_every_group_every_day", "history_not_below_status"):
         text = (TESTS / f"{name}.sql").read_text(encoding="utf-8")

@@ -154,7 +154,10 @@ test: no extra job or schedule. `every_model_has_rows` (error): each of the 20 p
 fact has the same number of rows, because the model builds a full grid, so a dropped day or group shows. `history_not_below_status` (warn): `product_status` is insert-only
 and remembers every product ever built, so the history can never hold fewer distinct products; if it does, silver lost products. `silver_is_fresh` (warn, Databricks
 production only): the newest delta window silver holds must end less than `silver_stale_after_hours` (48) ago; a normal day at the gold run is about 27 hours, one
-skipped day about 51 (the threshold is an estimate from the observed schedule). It reads the wall clock, so it is disabled on DuckDB and in fixture mode. A warn does not
+skipped day about 51 (the threshold is an estimate from the observed schedule). It reads the wall clock, so it is disabled on DuckDB and in fixture mode. `delta_windows_are_contiguous` (warn, same switch, adopted after review 02): each delta window silver holds must start where
+the previous one ended, because `complete_days` takes its range from the earliest start and the latest end and would otherwise count a missing file as a quiet complete day. On production's 17 windows it returns nothing;
+removing one middle window in the query made it return exactly that gap, and removing the first window returned nothing (an end is not a gap). It is a warning because a file OFF no longer lists cannot be recovered,
+so a permanent gap would otherwise keep the job red for ever; the fixture is a slice of products, not a series of windows, which is why it does not run there. A warn does not
 turn the job red or send an email; it appears after 'warned:' in the run text (stale silver is also alerted by `packsense-core`). Verified: all three DuckDB-runnable checks
 fired on a deliberate fault (an emptied model, a dropped quality-fact row, a product only in the status table), and the freshness query on production data returned nothing
 at 48 hours (the newest window was 28.3 hours old) and fired at a 0-hour threshold.
