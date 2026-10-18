@@ -1,0 +1,41 @@
+name: Workflow-state tripwire (every workflow is still active)
+
+on:
+  schedule:
+    # Mondays 05:00 UTC, after the keep-alive's slot (04:17). GitHub's cron can run hours late; a weekly check does not mind.
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      expect_state:
+        description: "State every workflow should be in (default active). Any other value proves the alarm path: the run must go red."
+        required: false
+        default: "active"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: workflow-state
+  cancel-in-progress: false
+
+jobs:
+  workflow-state:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      EXPECT_STATE: ${{ inputs.expect_state }}
+      HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_WORKFLOW_STATE_PING_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Check workflow states
+        run: python p1_intake/check_workflow_state.py
+      - name: Ping healthchecks.io (the script crashed before it could ping)
+        if: failure()
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/fail" || true'
