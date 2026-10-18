@@ -144,6 +144,20 @@ above all, the spans equal the open spans in `product_flag_spans`), and the cove
 model uses the bridges). No fixture brand reaches 30 products, so the ranked path was exercised by building with `scorecard_min_products` = 4 (3 brands ranked, all 13 nodes
 passed), and a deliberate bug (Nutri-Score `e` left out) failed the coverage test.
 
+## Volume and freshness checks (2026-10-18)
+The design asked for dbt-expectations. Gold's notebook runs dbt in process from a copied project and never runs `dbt deps`, so the package would have added a download
+to every run, CI and local build, and run third-party macros with the gold principal's OAuth credential (the reason A29 gave for keeping dbt out of the bronze job), for
+two small checks. They are written in the project instead (amendment A43). They run inside the nightly `dbt build` of `packsense-gold-build` (09:30 UTC), like every other
+test: no extra job or schedule. `every_model_has_rows` (error): each of the 20 portable models holds at least one row (a model that builds empty passes every shape test;
+`tests/test_checks.py` fails when a model is added to the comparison and not to this list). `quality_fact_has_every_group_every_day` (error): every day of the quality
+fact has the same number of rows, because the model builds a full grid, so a dropped day or group shows. `history_not_below_status` (warn): `product_status` is insert-only
+and remembers every product ever built, so the history can never hold fewer distinct products; if it does, silver lost products. `silver_is_fresh` (warn, Databricks
+production only): the newest delta window silver holds must end less than `silver_stale_after_hours` (48) ago; a normal day at the gold run is about 27 hours, one
+skipped day about 51 (the threshold is an estimate from the observed schedule). It reads the wall clock, so it is disabled on DuckDB and in fixture mode. A warn does not
+turn the job red or send an email; it appears after 'warned:' in the run text (stale silver is also alerted by `packsense-core`). Verified: all three DuckDB-runnable checks
+fired on a deliberate fault (an emptied model, a dropped quality-fact row, a product only in the status table), and the freshness query on production data returned nothing
+at 48 hours (the newest window was 28.3 hours old) and fired at a 0-hour threshold.
+
 ## Still to do
 The brand
 scorecard. The per-market export and the public-site marts belong with P6 (they go through the exit function), the worklist mart waits for P7. Parked: an allergen alias table and a rule
