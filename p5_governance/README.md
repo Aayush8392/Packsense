@@ -19,6 +19,7 @@ runs the script, and the nightly policy-test job (step 3) will run the same comp
 | `gold_columns.json`, `bootstrap/gold_columns.py` | the real columns of the 20 portable gold models, dumped from the DuckDB build; the `engines` CI job checks it against a fresh build |
 | `bootstrap/render_classification.py` | writes `DATA_CLASSIFICATION.md` (repo root); `--check` fails when it is stale or unsound |
 | `tests/test_classification.py` | every silver column classified, hashed columns personal AND masked (ties to `policies.yml`), gold has no personal column, the document is current, a planted mistake is found |
+| `tests/test_deny_checks.py` | step 7: every deny check goes red when its action is allowed, passes only on a permission error, and every check really attempts the action on the object it names (a fake identity that may do everything, and one that may do nothing; a no-op attempt fails the test) |
 | `tests/test_policies.py` | the file validates, every hashed column of `silver.yml` is masked, the filter tables equal the dbt models that re-apply the filter, the plan drops before it sets, the `rows_only` judgement |
 | `tests/test_grants.py` | the file validates, a planted missing and a planted extra grant are both found, no other README keeps a copy, every schema and scope the bundles name is covered, this block is current |
 
@@ -90,6 +91,9 @@ nightly check catches anything longer. A mask has no non-exempt reader to test i
 silver), so it is checked by metadata (it is attached), not by behaviour. Whether a MERGE into masked silver by the deployer works is proven
 for the admin on scratch and for the gold read on dev; the first scheduled silver write after the production mask is the real test. Prod is
 applied by name (`--only prod`): a mask on production silver is a production change.
+
+## Documents (step 7)
+`SECURITY.md` (reporting policy and the controls that exist against those only designed) and `THREAT_MODEL.md` (secret leak, a compromised dependency or build step, prompt injection through product text) sit at the repo root. They are public, so they name no secret, date or identifier, and they mark every control as built (exercised) or designed (not built). Known gaps are listed, not hidden: no hash locking of Python dependencies and no committed Terraform provider lock file.
 
 ## Data classification (step 5)
 `DATA_CLASSIFICATION.md` (repo root) labels every column **public**, **personal** or **internal**. It is generated, never edited: silver's 81
