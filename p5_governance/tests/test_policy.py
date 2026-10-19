@@ -176,13 +176,15 @@ def test_the_sdk_runner_maps_each_action_to_one_api_call_and_cleans_up():
         secrets = NS(list_secrets=lambda scope: calls.append(("secrets", scope)) or [])
         files = NS(upload=lambda path, f, overwrite: calls.append(("upload", path)), delete=lambda path: calls.append(("delete", path)))
         volumes = NS(create=lambda **kw: calls.append(("volume", kw["name"])), delete=lambda name: calls.append(("vdelete", name)))
+        statement_execution = NS(execute_statement=lambda **kw: calls.append(("sql", kw["statement"])) or NS(
+            status=NS(state=NS(value="SUCCEEDED")), result=NS(data_array=[["en:india"]])))
 
     run = pr.SdkRunner(W())
     for c in CHECKS["identities"]["pipeline-user"]["checks"] + CHECKS["identities"]["analyst"]["checks"]:
         run.attempt_for(c)()
         run.cleanup_for(c)()
     kinds = {k for k, _ in calls}
-    assert {"catalog", "table", "secrets", "upload", "delete", "volume", "vdelete"} <= kinds
+    assert {"catalog", "table", "secrets", "upload", "delete", "volume", "vdelete", "sql"} <= kinds
     assert all(pl.PROBE in v for k, v in calls if k in ("upload", "delete", "volume", "vdelete"))
 
 

@@ -14,7 +14,7 @@ import yaml
 HERE = Path(__file__).resolve().parent
 DEFAULT_CHECKS = HERE / "checks.yml"
 PROBE = "_policy_probe"                      # every object a check creates carries this name, and is dropped again
-ACTIONS = {"read_table", "create_table", "create_schema", "list_secrets", "upload_file", "create_volume", "get_catalog"}
+ACTIONS = {"read_table", "create_table", "create_schema", "list_secrets", "upload_file", "create_volume", "get_catalog", "rows_only"}
 NAME_RE = re.compile(r"^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+){0,2}$")
 DENIED = re.compile(r"INSUFFICIENT_PERMISSIONS|PERMISSION_DENIED|SQLSTATE:\s*42501|\bForbidden\b|\b403\b|\[Errno 13\] Permission denied")
 
@@ -48,20 +48,23 @@ def validate_checks(spec: dict) -> None:
         for c in checks:
             if c["kind"] not in ("deny", "allow") or c.get("action") not in ACTIONS:
                 raise ChecksError(f"{ident}/{c.get('name')}: kind must be deny or allow and action one of {sorted(ACTIONS)}")
-            for field in ("table", "schema", "scope", "volume", "catalog"):
+            for field in ("table", "schema", "scope", "volume", "catalog", "column"):
                 if field in c and not NAME_RE.match(str(c[field])):
                     raise ChecksError(f"{ident}/{c['name']}: {field} is not a plain object name")
             need = {"read_table": "table", "create_table": "schema", "create_volume": "schema", "list_secrets": "scope",
-                    "upload_file": "volume", "get_catalog": "catalog"}.get(c["action"])
+                    "upload_file": "volume", "get_catalog": "catalog", "rows_only": "table"}.get(c["action"])
             if need and need not in c:
                 raise ChecksError(f"{ident}/{c['name']}: action {c['action']} needs {need}")
+            if c["action"] == "rows_only":
+                if c["kind"] != "allow" or "column" not in c or not c.get("allowed"):
+                    raise ChecksError(f"{ident}/{c['name']}: rows_only is an allow check with a column and a non-empty allowed list")
 
 
 def evaluate(check: dict, attempt) -> dict:
     """Run one attempt (a zero-argument callable) and judge it. Returns {name, kind, status, detail}; status PASS, FAIL or ERROR."""
     out = {"name": check["name"], "kind": check["kind"]}
     try:
-        attempt()
+        result = attempt()
     except Exception as e:  # noqa: BLE001
         denied = is_denied(e)
         if check["kind"] == "deny" and denied:
@@ -71,7 +74,23 @@ def evaluate(check: dict, attempt) -> dict:
         return {**out, "status": "ERROR", "detail": f"{type(e).__name__}: {str(e)[:120]}".replace("\n", " ")}
     if check["kind"] == "deny":
         return {**out, "status": "FAIL", "detail": "ALLOWED, but this identity must be denied"}
+    if check.get("action") == "rows_only":
+        return {**out, **judge_rows(check, result)}
     return {**out, "status": "PASS", "detail": "allowed"}
+
+
+def judge_rows(check: dict, values) -> dict:
+    """A rows_only check reads the DISTINCT values of one column through a row filter. It passes only when the identity sees at least one row
+    and every value is in the allowed list: seeing nothing means the filter or the access table is broken (fail closed is not a pass either),
+    seeing another market means the filter is gone or wrong. Only counts are reported, never the values."""
+    got = {v for v in (values or [])}
+    allowed = set(check["allowed"])
+    if not got:
+        return {"status": "FAIL", "detail": "reads the table but sees no rows (the filter or the access table is broken)"}
+    outside = got - allowed
+    if outside:
+        return {"status": "FAIL", "detail": f"sees {len(outside)} value(s) outside its allowed set: the row filter is missing or wrong"}
+    return {"status": "PASS", "detail": f"sees only its allowed set ({len(got)} value(s))"}
 
 
 def run_checks(checks: list[dict], attempt_for, cleanup_for=None) -> list[dict]:
@@ -111,7 +130,7 @@ def expected_allowed(role: str, check: dict, grants_spec: dict) -> bool:
         return ".".join(full.split(".")[:2])
 
     a = check["action"]
-    if a == "read_table":
+    if a in ("read_table", "rows_only"):
         t = check["table"]
         s = schema_of(t)
         return has("catalog", cat, "USE_CATALOG") and has("schema", s, "USE_SCHEMA") and (has("table", t, "SELECT") or has("schema", s, "SELECT"))

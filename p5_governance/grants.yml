@@ -46,9 +46,18 @@ securables:
 
   # Gold: written only by its own principal.
   - {type: schema, name: workspace.packsense_gold, grants: {
-      packsense-gold: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
+      packsense-gold: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT], analyst: [USE_SCHEMA]}}
   - {type: schema, name: workspace.packsense_dev_gold, grants: {
       packsense-gold-dev: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
+
+  # The policy schema (P5 step 4): the access table and the filter and mask functions (policies.yml). Created and owned by the admin. The gold
+  # principals need EXECUTE to attach the row filter right after a build (the dbt post-hook); a reader of a filtered table needs nothing here.
+  - {type: schema, name: workspace.packsense_policy, grants: {packsense-gold: [USE_SCHEMA, EXECUTE], packsense-gold-dev: [USE_SCHEMA, EXECUTE]}}
+
+  # The only gold tables the analyst may read (P5 step 4): both are row-filtered per market (policies.yml), so the analyst sees India only.
+  # A table-level grant survives dbt's table replace but not a drop and recreate: re-run apply_grants after a full refresh.
+  - {type: table, name: workspace.packsense_gold.bridge_product_market, grants: {analyst: [SELECT]}}
+  - {type: table, name: workspace.packsense_gold.dim_market, grants: {analyst: [SELECT]}}
 
   # The three silver tables gold reads. A table-level grant is lost when the table is renamed or dropped: re-run apply_grants after a swap.
   - {type: table, name: workspace.packsense_silver.silver_product_versions, grants: {packsense-gold: [SELECT]}}

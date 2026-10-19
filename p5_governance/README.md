@@ -12,6 +12,10 @@ runs the script, and the nightly policy-test job (step 3) will run the same comp
 | `grants_live.py` | the Databricks side: resolve principals, read live grants, add what is missing (never revokes) |
 | `bootstrap/apply_grants.py` | `plan` (show the difference), `apply` (add the missing), `check` (exit 1 on any difference) |
 | `bootstrap/render_readme_block.py` | rewrites the block below from `grants.yml` |
+| `policies.yml` | step 4: the single source of truth for row filters, column masks and who sees what (see "Row filters and masks" below) |
+| `policies_lib.py`, `policies_live.py` | pure logic (validate, SQL, parse what Unity Catalog reports, the plan) and the Databricks side |
+| `bootstrap/apply_policies.py` | `plan`, `apply --only dev\|prod\|all`, `check` (exit 1 on any difference) |
+| `tests/test_policies.py` | the file validates, every hashed column of `silver.yml` is masked, the filter tables equal the dbt models that re-apply the filter, the plan drops before it sets, the `rows_only` judgement |
 | `tests/test_grants.py` | the file validates, a planted missing and a planted extra grant are both found, no other README keeps a copy, every schema and scope the bundles name is covered, this block is current |
 
 ## Running it (an admin, from the repo root)
@@ -55,6 +59,34 @@ a deliberate violation turned the run red (2026-10-19: a forbidden `SELECT` on d
 analyst made three tasks fail: the gold-dev job, the analyst test and the drift check; revoking them made the next run green). To repeat
 the proof, plant a forbidden grant (or a forbidden action in `checks.yml`), run `bundle run policy`, and revoke it again.
 
+## Row filters and masks (step 4)
+`policies.yml` lists who sees which market (`access`), which gold tables carry a row filter on the raw market tag (`bridge_product_market`,
+`dim_market`) and the ten hashed contributor columns of `silver_product_versions`, which are masked. Everything hangs on one small table,
+`workspace.packsense_policy.market_access` (principal, market): a row `*` means "everything, and hashed columns unmasked", a row for a market
+lets that principal see that market, a principal with no row sees nothing (it fails closed). Three functions read it: `market_filter`,
+`mask_string`, `mask_array`. Exempt (`*`): the admin, both deployers, both gold principals. The analyst sees `en:india` only (the raw tag, so a
+variant spelling of India is a different value and is not shown).
+
+**What was measured (2026-10-19, dev) and shaped the design**
+- A filter with a mapping-table lookup works for the analyst, who needs no right on the mapping table; the function exempts by identity.
+- `CREATE OR REPLACE TABLE` run by the admin kept the filter, but **a real dbt build as the owning principal dropped it** (grants stayed): the
+  analyst then read every market (92,224 rows, 231 markets instead of 2,538 rows, 1 market). So gold re-applies the filter right after each
+  model builds (dbt post-hook, macro `apply_market_filter`; the gold principals hold `USE_SCHEMA` and `EXECUTE` on the policy schema), and the
+  nightly job proves what the analyst really sees (`rows_only` checks) and compares the attached filters and masks with this file
+  (`policies_drift.py`).
+- A drop and recreate loses grants and the filter; a rename keeps a mask on the renamed (old) table, so a freshly created table after a swap
+  has none: run `apply_policies.py apply` after a table swap.
+- Setting a filter or mask on a table that already has one fails for the admin ('MODIFY'); dropping first works, so `apply` drops a different
+  one and sets the right one, and leaves a matching one alone (idempotent).
+- A dbt run as `packsense-gold-dev` on masked dev silver succeeded (166 nodes) and `distinct_editors` was still computed: the exempt principals
+  read the hashed columns.
+
+**Limits, stated plainly.** Between a table being replaced and the post-hook running (seconds) the analyst could read an unfiltered table; the
+nightly check catches anything longer. A mask has no non-exempt reader to test it with (nobody but the exempt principals holds `SELECT` on
+silver), so it is checked by metadata (it is attached), not by behaviour. Whether a MERGE into masked silver by the deployer works is proven
+for the admin on scratch and for the gold read on dev; the first scheduled silver write after the production mask is the real test. Prod is
+applied by name (`--only prod`): a mask on production silver is a production change.
+
 ## The grants (generated from `grants.yml`: do not edit by hand)
 <!-- grants:begin -->
 ```sql
@@ -82,8 +114,13 @@ GRANT USE SCHEMA ON SCHEMA workspace.packsense_dev_silver TO `packsense-gold-dev
 GRANT SELECT ON SCHEMA workspace.packsense_dev_silver TO `admin`;
 GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_gold TO `packsense-gold`;
 GRANT SELECT ON SCHEMA workspace.packsense_gold TO `admin`;
+GRANT USE SCHEMA ON SCHEMA workspace.packsense_gold TO `analyst`;
 GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_dev_gold TO `packsense-gold-dev`;
 GRANT SELECT ON SCHEMA workspace.packsense_dev_gold TO `admin`;
+GRANT USE SCHEMA, EXECUTE ON SCHEMA workspace.packsense_policy TO `packsense-gold`;
+GRANT USE SCHEMA, EXECUTE ON SCHEMA workspace.packsense_policy TO `packsense-gold-dev`;
+GRANT SELECT ON TABLE workspace.packsense_gold.bridge_product_market TO `analyst`;
+GRANT SELECT ON TABLE workspace.packsense_gold.dim_market TO `analyst`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_product_versions TO `packsense-gold`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_manifest TO `packsense-gold`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_taxonomy_tag TO `packsense-gold`;

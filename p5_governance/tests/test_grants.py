@@ -75,7 +75,8 @@ def test_gold_principals_read_exactly_the_three_silver_tables():
     for s in SPEC["securables"]:
         if s["type"] == "table":
             for r in s["grants"]:
-                tables[r].add(s["name"].split(".")[-1])
+                if r in tables:                      # the analyst's table grants (P5 step 4) are checked in test_policies.py
+                    tables[r].add(s["name"].split(".")[-1])
     assert tables["packsense-gold"] == tables["packsense-gold-dev"] == {"silver_product_versions", "silver_manifest", "silver_taxonomy_tag"}
 
 

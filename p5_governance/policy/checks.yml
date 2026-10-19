@@ -79,7 +79,9 @@ identities:
       - {name: can see the catalog, kind: allow, action: get_catalog, catalog: workspace}
       - {name: cannot read bronze, kind: deny, action: read_table, table: workspace.packsense_bronze.bronze_manifest}
       - {name: cannot read quarantine, kind: deny, action: read_table, table: workspace.packsense_silver.silver_quarantine}
-      - {name: cannot read gold yet, kind: deny, action: read_table, table: workspace.packsense_gold.product_history}
+      - {name: cannot read the unfiltered product history, kind: deny, action: read_table, table: workspace.packsense_gold.product_history}
+      - {name: sees only India rows of the market bridge, kind: allow, action: rows_only, table: workspace.packsense_gold.bridge_product_market, column: market_code, allowed: ["en:india"]}
+      - {name: sees only India in the market dimension, kind: allow, action: rows_only, table: workspace.packsense_gold.dim_market, column: market_code, allowed: ["en:india"]}
       - {name: cannot write the landing volume, kind: deny, action: upload_file, volume: workspace.packsense.landing}
       - {name: cannot create a volume in gold, kind: deny, action: create_volume, schema: workspace.packsense_gold}
       - {name: cannot read the bronze scope, kind: deny, action: list_secrets, scope: packsense}

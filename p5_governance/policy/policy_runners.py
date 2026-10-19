@@ -8,6 +8,7 @@ import os
 from policy_lib import PROBE
 
 CATALOG = "workspace"
+WAREHOUSE = "c9e35ecf0a03295d"       # the Serverless Starter 2X-Small (an address, not a secret); only rows_only checks use it
 PROBE_SCHEMA = f"{CATALOG}.{PROBE}_schema"
 PROBE_FILE = f"{PROBE}.txt"
 
@@ -78,6 +79,18 @@ class SdkRunner:
     def whoami(self) -> str:
         return self.w.current_user.me().user_name
 
+    def distinct_values(self, table: str, column: str) -> list[str]:
+        """The distinct values of one column as this identity sees them (the row filter applies). Needs the identity to use the SQL warehouse."""
+        import time
+        r = self.w.statement_execution.execute_statement(
+            warehouse_id=WAREHOUSE, statement=f"SELECT DISTINCT {column} FROM {table}", wait_timeout="50s")
+        while r.status.state.value in ("PENDING", "RUNNING"):
+            time.sleep(2)
+            r = self.w.statement_execution.get_statement(r.statement_id)
+        if r.status.state.value != "SUCCEEDED":
+            raise RuntimeError(f"{r.status.state.value}: {r.status.error}")
+        return [row[0] for row in (r.result.data_array or [])] if r.result else []
+
     def attempt_for(self, check):
         a, w = check["action"], self.w
         if a == "get_catalog":
@@ -86,6 +99,8 @@ class SdkRunner:
             return lambda: w.tables.get(full_name=check["table"])
         if a == "list_secrets":
             return lambda: list(w.secrets.list_secrets(scope=check["scope"]))
+        if a == "rows_only":
+            return lambda: self.distinct_values(check["table"], check["column"])
         if a == "upload_file":
             return lambda: w.files.upload(volume_path(check["volume"]), io.BytesIO(b"policy probe"), overwrite=True)
         if a == "create_volume":

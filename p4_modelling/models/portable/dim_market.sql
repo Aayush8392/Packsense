@@ -1,4 +1,4 @@
-{{ config(materialized='table') }}
+{{ config(materialized='table', post_hook="{{ apply_market_filter(this) }}") }}
 
 -- One row per country tag seen in the history (the raw, user-entered tag). Coverage differs by market: India has the one-time seed plus every
 -- daily delta; every other market arrives only through the daily deltas, i.e. products edited since the capture began. Nothing published may

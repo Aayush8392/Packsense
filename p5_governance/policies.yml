@@ -1,0 +1,54 @@
+# Row filters and column masks (P5 step 4): the single source of truth. Read by p5_governance/bootstrap/apply_policies.py (an admin runs it)
+# and by the nightly drift notebook. Roles are the role names of grants.yml.
+#
+# HOW IT WORKS. One small table, `access`, says who may see what: a row (principal, market) lets that principal see rows of that market,
+# the market '*' means everything and also means "sees hashed columns unmasked". A principal with no row sees NO rows and masked columns
+# (it fails closed). The three functions read that table:
+#   market_filter(market)  row filter: true when the caller has '*' or a row for that market
+#   mask_string / mask_array  column masks: the real value for a caller with '*', NULL for everyone else
+# A function is attached to a table (`ALTER TABLE ... SET ROW FILTER` / `SET MASK`).
+#
+# ONE FACT THAT SHAPES THE REST (measured 2026-10-19, dev): a real dbt build as the owning principal REPLACES the gold table and drops the
+# row filter (grants stay, so the table stays readable: unfiltered). Gold therefore re-applies the filter right after each model builds
+# (a dbt post-hook calling the macro apply_market_filter); apply_policies.py plus the nightly drift check cover everything else, and the
+# nightly policy test proves what the analyst actually sees.
+version: 1
+catalog: workspace
+policy_schema: workspace.packsense_policy
+access_table: market_access
+row_filter_function: market_filter
+mask_functions: {string: mask_string, array: mask_array}
+
+# Who sees what. A role missing here sees nothing.
+access:
+  admin:                  ['*']
+  packsense-deployer:     ['*']     # writes silver: needs the hashed columns unmasked
+  packsense-deployer-dev: ['*']
+  packsense-gold:         ['*']     # computes distinct_editors from the hashed columns; its dbt tests read the filtered tables
+  packsense-gold-dev:     ['*']
+  analyst:                ['en:india']
+
+# Row filters: `column` holds the raw market tag (user-entered, so a variant spelling of India is a different value: the analyst sees
+# exactly 'en:india'). Gold re-applies these after every build (post-hook): the list must equal the models that call the macro.
+row_filters:
+  - {table: workspace.packsense_gold.bridge_product_market,     column: market_code}
+  - {table: workspace.packsense_gold.dim_market,                column: market_code}
+  - {table: workspace.packsense_dev_gold.bridge_product_market, column: market_code}
+  - {table: workspace.packsense_dev_gold.dim_market,            column: market_code}
+
+# Masks: every column of class `hashed` in the silver contract, on both environments' product table (a test ties this list to silver.yml).
+# A table swap (rename or drop and recreate) loses a mask like it loses a grant: re-run apply_policies.py after a swap.
+mask_tables:
+  - workspace.packsense_silver.silver_product_versions
+  - workspace.packsense_dev_silver.silver_product_versions
+mask_columns:
+  creator_hmac: string
+  last_editor_hmac: string
+  last_checker_hmac: string
+  owner_hmac: string
+  editors_hmac: array
+  informers_hmac: array
+  correctors_hmac: array
+  checkers_hmac: array
+  photographers_hmac: array
+  weighers_hmac: array

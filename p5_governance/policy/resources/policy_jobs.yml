@@ -116,6 +116,11 @@ resources:
           disable_auto_optimization: true
           notebook_task:
             notebook_path: ../notebooks/grants_drift.py
+        - task_key: policies_drift
+          environment_key: sdk_env
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../notebooks/policies_drift.py
         - task_key: report
           environment_key: sdk_env
           run_if: ALL_DONE
@@ -127,8 +132,9 @@ resources:
             - {task_key: pipeline_user}
             - {task_key: analyst}
             - {task_key: grants_drift}
+            - {task_key: policies_drift}
           notebook_task:
             notebook_path: ../notebooks/policy_report.py
             base_parameters:
               ping: ${var.ping}
-              results: "run_gold={{tasks.run_gold.result_state}},run_gold_dev={{tasks.run_gold_dev.result_state}},run_deployer={{tasks.run_deployer.result_state}},run_deployer_dev={{tasks.run_deployer_dev.result_state}},pipeline_user={{tasks.pipeline_user.result_state}},analyst={{tasks.analyst.result_state}},grants_drift={{tasks.grants_drift.result_state}}"
+              results: "run_gold={{tasks.run_gold.result_state}},run_gold_dev={{tasks.run_gold_dev.result_state}},run_deployer={{tasks.run_deployer.result_state}},run_deployer_dev={{tasks.run_deployer_dev.result_state}},pipeline_user={{tasks.pipeline_user.result_state}},analyst={{tasks.analyst.result_state}},grants_drift={{tasks.grants_drift.result_state}},policies_drift={{tasks.policies_drift.result_state}}"

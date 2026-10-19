@@ -57,6 +57,8 @@ The old tables stay as the rollback until the new ones have been through at leas
 9b. **Re-grant the gold principals** (added after the gold layer existed). They hold table-level `SELECT` on `silver_product_versions`, `silver_manifest` and `silver_taxonomy_tag` only (a product-contract swap renames the first two and not the taxonomy table). The grants are in `p5_governance/grants.yml`.
    Whether a rename keeps a table's grants is not verified: after the swap run `python p5_governance/bootstrap/apply_grants.py plan --env-file .env` (an admin): a lost table grant shows as MISSING, and `apply` puts it back
    (it only adds). Gold fails on a missing grant, not silently.
+9c. **Re-attach the masks** (P5 step 4). The ten hashed contributor columns of `silver_product_versions` are masked through `p5_governance/policies.yml`. A rename keeps a mask on the OLD table (it becomes `_v3`) and the new table the job creates has none, so run
+   `python p5_governance/bootstrap/apply_policies.py plan --env-file .env` (a missing mask shows as MASK ... live None) and then `apply --only prod` (or `dev`). Until then the new table is unmasked (nobody but the exempt principals can read it, so nothing leaks, but the nightly policies check is red).
 10. **After one clean scheduled day**, drop the four `_v3` tables. Until then they are the rollback.
 
 ## Rollback (if step 6 or 7 fails, or a scheduled day after the swap is wrong)
