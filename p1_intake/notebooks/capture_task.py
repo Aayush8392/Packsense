@@ -120,12 +120,23 @@ try:
     code = cd.main(flags + (["--max-files", str(MAX_FILES)] if MAX_FILES else []))
     if code != 0:
         raise RuntimeError(f"delta capture ended with code {code}")
+    taxonomy_problem = None
     if TAXONOMIES:
-        code = ct.main(flags)
-        if code != 0:
-            raise RuntimeError(f"taxonomy capture ended with code {code}")
+        # A taxonomy that fails to download must not fail the capture: the delta (the time-critical part) is already landed, taxonomies
+        # change rarely, and the next run (and the GitHub second path at 10:00 UTC) fetches any that were missed. The problem stays
+        # visible in the ping text and the notebook result. (2026-10-19: origins_adjectives failed once and turned the check red.)
+        try:
+            code = ct.main(flags)
+            if code != 0:
+                taxonomy_problem = f"taxonomy capture ended with code {code}"
+        except (Exception, SystemExit) as e:
+            taxonomy_problem = f"taxonomy capture raised {type(e).__name__}: {str(e)[:100]}"
+        if taxonomy_problem:
+            print("WARNING:", taxonomy_problem)
 
     summary = {"run_id": RUN_ID, "dry_run": DRY_RUN, "polls": published_polls}
+    if taxonomy_problem:
+        summary["taxonomy_problem"] = taxonomy_problem
     if not DRY_RUN:
         # The freshness assertion: the newest file OFF lists must now be in landing.
         names = cd.list_index()

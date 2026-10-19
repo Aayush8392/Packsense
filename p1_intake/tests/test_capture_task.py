@@ -153,6 +153,17 @@ def test_the_success_ping_comes_after_the_capture_and_the_freshness_assertion_an
     assert 'ping("/fail"' in NOTEBOOK and "raise\n" in NOTEBOOK
 
 
+def test_a_failing_taxonomy_is_reported_in_the_summary_but_does_not_fail_the_capture():
+    block = NOTEBOOK[NOTEBOOK.index("taxonomy_problem = None"):NOTEBOOK.index("freshness assertion failed")]
+    assert "ct.main(flags)" in block and "except (Exception, SystemExit)" in block
+    taxonomy_part = block[:block.index("summary = {")]
+    assert not [ln for ln in taxonomy_part.splitlines() if ln.strip().startswith("raise")]   # the taxonomy step never raises
+    assert 'summary["taxonomy_problem"]' in block
+    # the delta failure and the freshness assertion are still fatal
+    assert 'raise RuntimeError(f"delta capture ended with code' in NOTEBOOK
+    assert NOTEBOOK.index("ct.main(flags)") < NOTEBOOK.index('ping("", json.dumps(summary))')
+
+
 def test_the_notebook_never_prints_or_pings_a_secret_value():
     for line in NOTEBOOK.splitlines():
         if line.lstrip().startswith("#"):
