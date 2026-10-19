@@ -45,6 +45,7 @@ ALLOW = {"name": "a", "kind": "allow"}
     "[INSUFFICIENT_PERMISSIONS] Insufficient privileges: User does not have USE SCHEMA on Schema 'workspace.packsense_bronze'. SQLSTATE: 42501",
     "An error occurred while calling ListSecrets. PERMISSION_DENIED: User 05620ebf-cd4d is not allowed",
     "(com.databricks.sql.managedcatalog.acl.UnauthorizedAccessException) PERMISSION_DENIED: User does not have CREATE SCHEMA on Catalog 'workspace'.",
+    "[Errno 13] Permission denied: '/Volumes/workspace/packsense/landing/_policy_probe.txt'",   # a file write to a volume the identity cannot write
 ])
 def test_the_real_denial_messages_seen_on_dev_are_recognised(message):
     assert pl.is_denied(RuntimeError(message))

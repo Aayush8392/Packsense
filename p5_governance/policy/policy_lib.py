@@ -25,7 +25,7 @@ class ChecksError(ValueError):
 
 def is_denied(exc: BaseException) -> bool:
     """True only for a permission error. A NotFound, a syntax error or a timeout is NOT a denial."""
-    return type(exc).__name__ in ("PermissionDenied", "Forbidden") or bool(DENIED.search(str(exc)))
+    return type(exc).__name__ in ("PermissionDenied", "Forbidden", "PermissionError") or bool(DENIED.search(str(exc)))
 
 
 def load_checks(path: str | Path = DEFAULT_CHECKS) -> dict:
