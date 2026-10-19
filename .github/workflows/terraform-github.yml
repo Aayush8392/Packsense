@@ -1,10 +1,10 @@
-name: Terraform (B2 bucket and repository secrets)
+name: Terraform (GitHub rulesets and deploy key)
 
 on:
   pull_request:
     paths:
-      - "infra/terraform/**"
-      - ".github/workflows/terraform.yml"
+      - "infra/terraform/github/**"
+      - ".github/workflows/terraform-github.yml"
   workflow_dispatch:
     inputs:
       action:
@@ -12,10 +12,6 @@ on:
         type: choice
         options: [plan, apply]
         default: plan
-      target:
-        description: "Optional single resource address (e.g. github_repository_ruleset.protect_main). Leave blank for a full run. Needed when the B2 admin key is not present, because the b2 provider cannot start without it."
-        type: string
-        default: ""
 
 permissions:
   contents: read
@@ -35,12 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: infra/terraform
+        working-directory: infra/terraform/github
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_APP_KEY }}
-      B2_APPLICATION_KEY_ID: ${{ secrets.B2_TF_KEY_ID }}
-      B2_APPLICATION_KEY: ${{ secrets.B2_TF_APP_KEY }}
       GITHUB_TOKEN: ${{ secrets.GH_TF_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -49,17 +43,14 @@ jobs:
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: 1.16.5
-      - name: Check secret shapes (lengths only, values are never printed)
+      - name: Read the keep-alive deploy key id (the id is not a secret; the web interface does not show it)
         env:
-          S1: ${{ secrets.TF_STATE_KEY_ID }}
-          S2: ${{ secrets.TF_STATE_APP_KEY }}
-          S3: ${{ secrets.B2_TF_KEY_ID }}
-          S4: ${{ secrets.B2_TF_APP_KEY }}
-          S5: ${{ secrets.GH_TF_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
-          show() { v="${!2}"; t="$(printf '%s' "$v" | tr -d '[:space:]')"; echo "$1: length=${#v}, whitespace=$([ "${#v}" != "${#t}" ] && echo YES || echo no)"; }
-          show TF_STATE_KEY_ID S1; show TF_STATE_APP_KEY S2; show B2_TF_KEY_ID S3; show B2_TF_APP_KEY S4; show GH_TF_TOKEN S5
-          echo "Backblaze key ids are 25 characters and application keys 31; a missing secret shows length=0."
+          id=$(curl -fsS -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${REPO}/keys" | jq -r '[.[] | select(.title == "keepalive")] | if length == 1 then .[0].id else empty end')
+          if [ -z "$id" ]; then echo "::error::expected exactly one deploy key titled keepalive"; exit 1; fi
+          echo "deploy key id: $id"
+          echo "TF_VAR_keepalive_deploy_key_id=$id" >> "$GITHUB_ENV"
       - name: Init (state in the private B2 bucket)
         run: >
           terraform init -input=false
@@ -68,24 +59,20 @@ jobs:
       - run: terraform fmt -check -recursive
       - run: terraform validate
       - name: Plan
-        env:
-          TARGET: ${{ inputs.target }}
-        run: terraform plan -input=false -lock=false ${TARGET:+-target="$TARGET"}
+        run: terraform plan -input=false -lock=false
 
   apply:
     needs: plan
     if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
     runs-on: ubuntu-latest
-    # Add required reviewers to this environment in the repository settings for a manual approval gate.
+    # Required reviewers on this environment are the manual approval gate.
     environment: terraform-apply
     defaults:
       run:
-        working-directory: infra/terraform
+        working-directory: infra/terraform/github
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_APP_KEY }}
-      B2_APPLICATION_KEY_ID: ${{ secrets.B2_TF_KEY_ID }}
-      B2_APPLICATION_KEY: ${{ secrets.B2_TF_APP_KEY }}
       GITHUB_TOKEN: ${{ secrets.GH_TF_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -94,20 +81,24 @@ jobs:
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: 1.16.5
+      - name: Read the keep-alive deploy key id
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          id=$(curl -fsS -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${REPO}/keys" | jq -r '[.[] | select(.title == "keepalive")] | if length == 1 then .[0].id else empty end')
+          if [ -z "$id" ]; then echo "::error::expected exactly one deploy key titled keepalive"; exit 1; fi
+          echo "TF_VAR_keepalive_deploy_key_id=$id" >> "$GITHUB_ENV"
       - name: Init
         run: >
           terraform init -input=false
           -backend-config="bucket=${TF_STATE_BUCKET}"
           -backend-config='endpoints={s3="https://s3.eu-central-003.backblazeb2.com"}'
       - name: Apply
-        env:
-          TARGET: ${{ inputs.target }}
         run: |
           set +e
-          terraform apply -input=false -auto-approve ${TARGET:+-target="$TARGET"} 2>&1 | tee apply.log
+          terraform apply -input=false -auto-approve 2>&1 | tee apply.log
           rc=${PIPESTATUS[0]}
           if [ "$rc" != "0" ]; then
-            # Surface the first error lines as an annotation (Terraform already redacts sensitive values).
             msg=$(grep -E -A4 "Error" apply.log | head -n 24 | tr -s '[:space:]' ' ' | cut -c1-900)
             echo "::error title=terraform apply failed::$msg"
           fi

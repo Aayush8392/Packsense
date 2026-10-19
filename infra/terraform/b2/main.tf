@@ -78,75 +78,25 @@ resource "github_actions_variable" "b2_s3_endpoint" {
   value         = var.b2_s3_endpoint
 }
 
-# Branch protection for main: no deletion, no force-push, linear history. Created by hand on
-# 2026-10-13 and brought under Terraform by the import block below.
-resource "github_repository_ruleset" "protect_main" {
-  name        = "protect-main"
-  repository  = var.github_repository
-  target      = "branch"
-  enforcement = "active"
-
-  conditions {
-    ref_name {
-      include = ["~DEFAULT_BRANCH"]
-      exclude = []
-    }
-  }
-
-  rules {
-    deletion                = true
-    non_fast_forward        = true
-    required_linear_history = true
+# The rulesets and the deploy key moved to the github/ root (state key packsense/github.tfstate). These blocks make THIS state forget
+# them without touching them on GitHub (destroy = false). Remove the blocks once both roots have been applied.
+removed {
+  from = github_repository_ruleset.protect_main
+  lifecycle {
+    destroy = false
   }
 }
 
-import {
-  to = github_repository_ruleset.protect_main
-  id = "${var.github_repository}:25028655"
+removed {
+  from = github_repository_ruleset.require_ci
+  lifecycle {
+    destroy = false
+  }
 }
 
-# Required CI on main, with a bypass for ONE deploy key only. A required status check refuses any commit that has no passing result
-# on its own SHA, and the keep-alive workflow's empty commit never has one (a push with the workflow's built-in token starts no other
-# workflow, and GitHub Actions cannot be added to a ruleset's bypass list). So the keep-alive pushes over SSH with this deploy key and
-# the key is the only bypass. It lives in its own ruleset, apart from protect-main, because a bypass skips the WHOLE ruleset it is
-# attached to: the key must not be able to delete main or force-push it. Proven first in a throwaway repo (2026-10-16): the key pushed
-# an empty commit, and the same key's force-push was refused by the ruleset that had no bypass.
-# The private half is a repository secret (KEEPALIVE_DEPLOY_KEY) set by hand: it never goes through Terraform or its state.
-resource "github_repository_deploy_key" "keepalive" {
-  title      = "keepalive"
-  repository = var.github_repository
-  key        = trimspace(file("${path.module}/keepalive_deploy_key.pub"))
-  read_only  = false
-}
-
-resource "github_repository_ruleset" "require_ci" {
-  name        = "require-ci"
-  repository  = var.github_repository
-  target      = "branch"
-  enforcement = "active"
-
-  conditions {
-    ref_name {
-      include = ["~DEFAULT_BRANCH"]
-      exclude = []
-    }
-  }
-
-  bypass_actors {
-    actor_type  = "DeployKey"
-    bypass_mode = "always"
-  }
-
-  rules {
-    required_status_checks {
-      required_check {
-        context        = "tests"
-        integration_id = 15368 # the GitHub Actions app
-      }
-      required_check {
-        context        = "lint"
-        integration_id = 15368
-      }
-    }
+removed {
+  from = github_repository_deploy_key.keepalive
+  lifecycle {
+    destroy = false
   }
 }

@@ -27,7 +27,7 @@ concurrency:
 
 env:
   MAX_AGE_DAYS: "30"
-  # Workflows that have a schedule: trigger (not ci.yml or terraform.yml).
+  # Workflows that have a schedule: trigger (not ci.yml or the terraform workflows).
   SCHEDULED_WORKFLOWS: "capture.yml freshness.yml delete-markers.yml keepalive.yml"
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 5
     steps:
       # The push needs credentials to persist, and goes over SSH with the repository's deploy key (secret KEEPALIVE_DEPLOY_KEY): the
-      # ruleset that requires CI on main lets only that key bypass it (infra/terraform/main.tf). Accepted zizmor finding (artipacked).
+      # ruleset that requires CI on main lets only that key bypass it (infra/terraform/github/main.tf). Accepted zizmor finding (artipacked).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
         with:
           ref: main

@@ -52,7 +52,7 @@ p1_intake/       P1: daily capture, landing, taxonomy snapshots, tripwires
 p2_lakehouse/    P2: bronze, silver, taxonomy tables, India seed, drift monitor on Databricks
 p3_delivery/     P3: Asset Bundle job definitions, grants, rollout notes
 p4_modelling/    P4: the gold layer (dbt Core), the DuckDB comparison fixture
-infra/terraform/ shared infrastructure as code (B2 bucket, repository secrets)
+infra/terraform/ infrastructure as code in two roots: b2/ (bucket, keys, derived secrets) and github/ (rulesets, deploy key)
 docs/            design and evidence
 .github/         workflows (they must live here), Dependabot, CODEOWNERS
 ```

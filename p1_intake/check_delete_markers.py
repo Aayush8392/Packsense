@@ -4,7 +4,7 @@ The capture key is upload-only, but an upload-only B2 key can still hide objects
 files are kept 30 days, so a hidden file is recoverable if someone notices in time. This job lists every object
 version with a read-only key and fails on any delete marker the bucket's lifecycle rules did not create.
 
-Expected markers (the lifecycle rules in infra/terraform/main.tf):
+Expected markers (the lifecycle rules in infra/terraform/b2/main.tf):
   tmp/  hidden after 7 days                -> always allowed
   raw/  hidden after 270 days of uploading -> allowed only if the key's earlier version is at least 269 days older
 Anything else, including taxonomies/ (no lifecycle rule), is unexpected.
