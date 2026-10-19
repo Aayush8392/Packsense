@@ -34,6 +34,7 @@ def main(argv=None) -> int:
     ap.add_argument("mode", choices=["plan", "apply", "check"])
     ap.add_argument("--env-file")
     ap.add_argument("--only", choices=["dev", "prod", "all"], default="dev")
+    ap.add_argument("--no-masks", action="store_true", help="attach row filters only (a mask on production silver waits for a clean scheduled run)")
     ap.add_argument("--policies", default=str(pol.DEFAULT_PATH))
     args = ap.parse_args(argv)
     if args.env_file:
@@ -49,7 +50,7 @@ def main(argv=None) -> int:
     pol.validate(spec, set(grants_spec["principals"]))
     w = WorkspaceClient(host=os.environ["DATABRICKS_HOST"], token=os.environ["DATABRICKS_TOKEN"], auth_type="pat")
     if args.mode == "apply":
-        for s in live.apply(w, spec, grants_spec, only=args.only):
+        for s in live.apply(w, spec, grants_spec, only=args.only, masks=not args.no_masks):
             print("ran:", s if len(s) < 200 else s[:200] + " ...")
     r = live.compare(w, spec, grants_spec)
     print(live.describe(r))

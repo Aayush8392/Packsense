@@ -79,7 +79,7 @@ def gl_pretty(item: tuple, names: dict[str, str]) -> str:
     return glive.pretty(item, names)
 
 
-def apply(w, spec: dict, grants_spec: dict, environ=os.environ, run=None, only: str = "all") -> list[str]:
+def apply(w, spec: dict, grants_spec: dict, environ=os.environ, run=None, only: str = "all", masks: bool = True) -> list[str]:
     """Create or refresh the access table and the functions, then attach filters and masks. `only` = dev | prod | all limits the ATTACH step
     to the tables of that environment (a table of the dev gold and silver schemas contains 'dev'). Returns the statements run (for printing).
     ORDER MATTERS: the access rows exist before any mask is attached, otherwise the pipeline itself would read masked columns."""
@@ -93,6 +93,8 @@ def apply(w, spec: dict, grants_spec: dict, environ=os.environ, run=None, only: 
         run(s)
         done.append(s)
     for s in pol.attach_plan(spec, read_attachments(run, spec)):
+        if not masks and "MASK" in s:
+            continue
         is_dev = "_dev_" in s
         if only == "all" or (only == "dev") == is_dev:
             run(s)
