@@ -29,28 +29,10 @@ Why two principals: on Free Edition a job runs as whoever deployed it and cannot
 identity is also the running identity. Separating dev from prod by permissions (not only by parameters) needs two principals,
 each with rights on its own objects only. Schemas and volumes are created beforehand by an admin; no principal has `CREATE SCHEMA`.
 
-## Grants (set by an admin in the SQL editor, kept here so they can be re-created)
-
-Both principals need the **Workspace access** entitlement and nothing else (no SQL access, no admin). Replace `<principal>` with
-its application (client) id.
-
-Prod (`packsense-deployer`):
-
-```sql
-GRANT USE CATALOG ON CATALOG workspace TO `<principal>`;
-GRANT USE SCHEMA ON SCHEMA workspace.packsense TO `<principal>`;
-GRANT READ VOLUME, WRITE VOLUME ON VOLUME workspace.packsense.landing TO `<principal>`;
-GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_bronze TO `<principal>`;
-GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_silver TO `<principal>`;
-```
-
-Secret scope `packsense`: `READ` for the principal (`databricks secrets put-acl packsense <principal> READ`).
-
-Dev (`packsense-deployer-dev`): the same shapes on `workspace.packsense_dev_bronze`, `workspace.packsense_dev_silver` and the
-volume `workspace.packsense_dev.landing` (with `USE SCHEMA` on `workspace.packsense_dev`), and `READ` on the scope `packsense_dev`.
-
-**Owner grant for the admin.** A table is owned by the principal that created it, and a schema owner does not get read access to
-it, so the admin needs a standing `GRANT SELECT ON SCHEMA <schema> TO <admin user>` on each schema to read what the jobs write.
+## Grants
+Both principals need the **Workspace access** entitlement and nothing else (no SQL access, no admin). Their grants, the admin's standing
+`SELECT` on each pipeline schema (a schema owner gets no read access to the tables a principal created) and the secret-scope `READ`
+entries are in `p5_governance/grants.yml`; `p5_governance/README.md` shows them as SQL and `bootstrap/apply_grants.py` applies and checks them.
 
 ## What the tests showed (2026-10-16, scratch)
 

@@ -54,9 +54,9 @@ The old tables stay as the rollback until the new ones have been through at leas
    real (see the drift gotchas in the buildlog).
 9. **Revoke the temporary admin rights** from step 2 and restore the standing read access:
    `REVOKE ALL PRIVILEGES ON SCHEMA <silver schema> FROM <admin user>;` then `GRANT SELECT ON SCHEMA <silver schema> TO <admin user>;`.
-9b. **Re-grant the gold principals** (added after the gold layer existed). They hold table-level `SELECT` on `silver_product_versions`, `silver_manifest` and `silver_taxonomy_tag` only (a product-contract swap renames the first two and not the taxonomy table)
-   (`p4_modelling/README.md`). Whether a rename keeps a table's grants is not verified: after the swap run `SHOW GRANTS ON TABLE <silver schema>.silver_product_versions`
-   and re-grant `SELECT` to the gold principal of that environment if it is missing. Gold fails on a missing grant, not silently.
+9b. **Re-grant the gold principals** (added after the gold layer existed). They hold table-level `SELECT` on `silver_product_versions`, `silver_manifest` and `silver_taxonomy_tag` only (a product-contract swap renames the first two and not the taxonomy table). The grants are in `p5_governance/grants.yml`.
+   Whether a rename keeps a table's grants is not verified: after the swap run `python p5_governance/bootstrap/apply_grants.py plan --env-file .env` (an admin): a lost table grant shows as MISSING, and `apply` puts it back
+   (it only adds). Gold fails on a missing grant, not silently.
 10. **After one clean scheduled day**, drop the four `_v3` tables. Until then they are the rollback.
 
 ## Rollback (if step 6 or 7 fails, or a scheduled day after the swap is wrong)

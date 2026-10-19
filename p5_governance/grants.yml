@@ -1,0 +1,70 @@
+# The one source of truth for who may do what in Unity Catalog and in the secret scopes (P5 step 2).
+#
+# Read by p5_governance/bootstrap/apply_grants.py (an admin runs it: dry run by default, --apply adds what is missing, `check`
+# fails on any difference). It only ever ADDS: a grant that exists live and is not listed here is reported as extra and left for a
+# human to revoke. Principals are named by role; the script resolves them (a service principal by its display name, a user from the
+# token in the .env: nothing personal is committed here).
+#
+# Privilege names use the underscore form Unity Catalog reports (USE_CATALOG, READ_VOLUME, ...). A schema owner gets no read access to the
+# tables a principal created in it, which is why the admin holds a standing SELECT on every pipeline schema.
+version: 1
+catalog: workspace
+
+# Who the roles are. `service_principal`: the display name in Databricks. `user_from_token`: the owner of the token named in the
+# environment variable (DATABRICKS_TOKEN is the admin; the pipeline and analyst tokens are optional: a role without a token is skipped
+# and its live grants are reported as unmanaged).
+principals:
+  packsense-deployer:      {kind: service_principal, name: packsense-deployer}
+  packsense-deployer-dev:  {kind: service_principal, name: packsense-deployer-dev}
+  packsense-gold:          {kind: service_principal, name: packsense-gold}
+  packsense-gold-dev:      {kind: service_principal, name: packsense-gold-dev}
+  admin:                   {kind: user_from_token, env: DATABRICKS_TOKEN}
+  pipeline-user:           {kind: user_from_token, env: DATABRICKS_PIPELINE_TOKEN}
+  analyst:                 {kind: user_from_token, env: DATABRICKS_ANALYST_TOKEN}
+
+securables:
+  - {type: catalog, name: workspace, grants: {
+      packsense-deployer: [USE_CATALOG], packsense-deployer-dev: [USE_CATALOG],
+      packsense-gold: [USE_CATALOG], packsense-gold-dev: [USE_CATALOG],
+      pipeline-user: [USE_CATALOG], analyst: [USE_CATALOG]}}
+
+  # Landing (prod) and landing (dev).
+  - {type: schema, name: workspace.packsense, grants: {packsense-deployer: [USE_SCHEMA], pipeline-user: [USE_SCHEMA]}}
+  - {type: volume, name: workspace.packsense.landing, grants: {packsense-deployer: [READ_VOLUME, WRITE_VOLUME], pipeline-user: [READ_VOLUME, WRITE_VOLUME]}}
+  - {type: schema, name: workspace.packsense_dev, grants: {packsense-deployer-dev: [USE_SCHEMA]}}
+  - {type: volume, name: workspace.packsense_dev.landing, grants: {packsense-deployer-dev: [READ_VOLUME, WRITE_VOLUME]}}
+
+  # Bronze and silver: written by the deployer of that environment. Gold only has USE_SCHEMA on silver, plus table-level SELECT below.
+  - {type: schema, name: workspace.packsense_bronze, grants: {
+      packsense-deployer: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
+  - {type: schema, name: workspace.packsense_silver, grants: {
+      packsense-deployer: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], packsense-gold: [USE_SCHEMA], admin: [SELECT]}}
+  - {type: schema, name: workspace.packsense_dev_bronze, grants: {
+      packsense-deployer-dev: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
+  - {type: schema, name: workspace.packsense_dev_silver, grants: {
+      packsense-deployer-dev: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], packsense-gold-dev: [USE_SCHEMA], admin: [SELECT]}}
+
+  # Gold: written only by its own principal.
+  - {type: schema, name: workspace.packsense_gold, grants: {
+      packsense-gold: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
+  - {type: schema, name: workspace.packsense_dev_gold, grants: {
+      packsense-gold-dev: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
+
+  # The three silver tables gold reads. A table-level grant is lost when the table is renamed or dropped: re-run apply_grants after a swap.
+  - {type: table, name: workspace.packsense_silver.silver_product_versions, grants: {packsense-gold: [SELECT]}}
+  - {type: table, name: workspace.packsense_silver.silver_manifest, grants: {packsense-gold: [SELECT]}}
+  - {type: table, name: workspace.packsense_silver.silver_taxonomy_tag, grants: {packsense-gold: [SELECT]}}
+  - {type: table, name: workspace.packsense_dev_silver.silver_product_versions, grants: {packsense-gold-dev: [SELECT]}}
+  - {type: table, name: workspace.packsense_dev_silver.silver_manifest, grants: {packsense-gold-dev: [SELECT]}}
+  - {type: table, name: workspace.packsense_dev_silver.silver_taxonomy_tag, grants: {packsense-gold-dev: [SELECT]}}
+
+# Secret scopes: a scope has no per-key permission, so READ covers every secret in it. The admin manages all of them.
+secret_scopes:
+  packsense:         {packsense-deployer: READ, admin: MANAGE}
+  packsense_dev:     {packsense-deployer-dev: READ, admin: MANAGE}
+  packsense_gold:    {packsense-gold: READ, admin: MANAGE}
+  packsense_gold_dev: {packsense-gold-dev: READ, admin: MANAGE}
+
+# Live objects the check reads for EXTRA grants (every schema and volume of the catalog except these, and every table of the schemas
+# listed above). information_schema is Databricks' own.
+ignore_schemas: [information_schema, default]
