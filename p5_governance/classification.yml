@@ -1,0 +1,73 @@
+# Data classification (P5 step 5): the single source for DATA_CLASSIFICATION.md, which is GENERATED (bootstrap/render_classification.py) and
+# kept in step by tests. Three classes, as the design (6.7) says:
+#   public    data that is OFF's own public content or an aggregate of it; may appear in releases, the site and prompts, through the exit function
+#   personal  identifies a person, or could once a reader joins it with OFF's public data (pseudonymised data is still personal data)
+#   internal  operating data (lineage, run bookkeeping): not published, not personal
+# Silver's columns are NOT listed here: they come from the `class` column of p2_lakehouse/contracts/silver.yml through the mapping below.
+version: 1
+
+# silver.yml `class` -> design class. A `derived` column is computed from public data, so it is public; the one exception is the key version
+# (any column marked `egress: never` that is not hashed is internal by the rule in the generator).
+silver_mapping: {key: public, public: public, hashed: personal, derived: public, lineage: internal}
+
+# A silver column whose design class differs from the mapping (none today).
+silver_overrides: {}
+
+# Every other table that holds data. `class` is the default for its columns; `columns` overrides one column. Column names are checked against
+# the real table definitions by tests (a name that does not exist fails the build).
+tables:
+  - name: workspace.packsense_bronze.bronze_delta_raw
+    class: internal
+    why: the landed OFF record exactly as received, so it still holds the plaintext contributor names
+    columns:
+      code: {class: public}
+      last_modified_t: {class: public}
+      raw_json: {class: personal, note: "the whole OFF record; carries plaintext contributor usernames (OFF publishes them, but this copy is never read by analysts, gold or any export)"}
+  - name: workspace.packsense_bronze.bronze_manifest
+    class: internal
+    why: file-level load bookkeeping
+  - name: workspace.packsense_silver.silver_quarantine
+    class: internal
+    why: records that could not be loaded, with a coded reason
+    columns:
+      code: {class: public}
+      last_modified_t: {class: public}
+      payload: {class: personal, note: "the record content kept for diagnosis, scrubbed of patterns but not of everything: analysts and gold are denied this table (grants and nightly policy checks)"}
+  - name: workspace.packsense_silver.silver_manifest
+    class: internal
+    why: per-file processing bookkeeping
+  - name: workspace.packsense_silver.silver_run_stats
+    class: internal
+    why: per-run counts
+  - name: workspace.packsense_silver.silver_field_log
+    class: internal
+    why: which top-level fields OFF sent and in how many products (feeds the drift monitor)
+  - name: workspace.packsense_silver.silver_drift_report
+    class: internal
+    why: drift findings
+  - name: workspace.packsense_silver.silver_drift_metrics
+    class: internal
+    why: counts of values the shape checks changed
+  - name: workspace.packsense_silver.silver_taxonomy_tag
+    class: public
+    why: OFF's own taxonomy vocabulary (an allowlist contract keeps out the organisations' contact fields)
+    columns:
+      snapshot: {class: internal}
+      snapshot_sha256: {class: internal}
+      loaded_at: {class: internal}
+      job_run_id: {class: internal}
+  - name: workspace.packsense_silver.silver_taxonomy_manifest
+    class: internal
+    why: taxonomy load bookkeeping
+  - name: workspace.packsense_policy.market_access
+    class: internal
+    why: who may see which market (policies.yml)
+    columns:
+      principal: {class: personal, note: "the account names of the owner's own admin, pipeline and analyst users (service principals appear as application ids); only the admin reads this table"}
+
+# Gold: every column of the 20 portable models is public unless listed here. The column list itself is p5_governance/gold_columns.json,
+# dumped from the DuckDB build and checked against a fresh build in CI (the `engines` job). A column named here must exist.
+gold_default: public
+gold_overrides:
+  product_history.distinct_editors: {class: public, note: "a COUNT of distinct contributors computed from the hashed codes; the codes themselves never enter gold (tested)"}
+  product_history.ingredients_sha256: {class: public, note: "a fingerprint of the ingredients text, not the text; no secret is involved"}

@@ -15,6 +15,10 @@ runs the script, and the nightly policy-test job (step 3) will run the same comp
 | `policies.yml` | step 4: the single source of truth for row filters, column masks and who sees what (see "Row filters and masks" below) |
 | `policies_lib.py`, `policies_live.py` | pure logic (validate, SQL, parse what Unity Catalog reports, the plan) and the Databricks side |
 | `bootstrap/apply_policies.py` | `plan`, `apply --only dev\|prod\|all`, `check` (exit 1 on any difference) |
+| `classification.yml`, `classification_lib.py` | step 5: the mapping from the silver contract's `class` to public / personal / internal, the other tables by hand, gold's default and overrides; the library reads every real column list and renders the document |
+| `gold_columns.json`, `bootstrap/gold_columns.py` | the real columns of the 20 portable gold models, dumped from the DuckDB build; the `engines` CI job checks it against a fresh build |
+| `bootstrap/render_classification.py` | writes `DATA_CLASSIFICATION.md` (repo root); `--check` fails when it is stale or unsound |
+| `tests/test_classification.py` | every silver column classified, hashed columns personal AND masked (ties to `policies.yml`), gold has no personal column, the document is current, a planted mistake is found |
 | `tests/test_policies.py` | the file validates, every hashed column of `silver.yml` is masked, the filter tables equal the dbt models that re-apply the filter, the plan drops before it sets, the `rows_only` judgement |
 | `tests/test_grants.py` | the file validates, a planted missing and a planted extra grant are both found, no other README keeps a copy, every schema and scope the bundles name is covered, this block is current |
 
@@ -86,6 +90,15 @@ nightly check catches anything longer. A mask has no non-exempt reader to test i
 silver), so it is checked by metadata (it is attached), not by behaviour. Whether a MERGE into masked silver by the deployer works is proven
 for the admin on scratch and for the gold read on dev; the first scheduled silver write after the production mask is the real test. Prod is
 applied by name (`--only prod`): a mask on production silver is a production change.
+
+## Data classification (step 5)
+`DATA_CLASSIFICATION.md` (repo root) labels every column **public**, **personal** or **internal**. It is generated, never edited: silver's 81
+columns come from the `class` column of `silver.yml` (hashed to personal, lineage to internal, a never-leaves column that is not hashed to
+internal, the rest public), the other tables (bronze, quarantine, bookkeeping, taxonomy, the access table) are listed in `classification.yml`
+with a reason, and gold's 213 columns are public unless overridden. To change a class, edit `classification.yml` or `silver.yml` and run
+`python p5_governance/bootstrap/render_classification.py`. After a gold model gains or loses a column, rebuild the DuckDB fixture, run
+`bootstrap/gold_columns.py dump --duckdb p4_modelling/target/fixture.duckdb` and render again (the `engines` job fails until you do).
+The classification is a label and a policy, not a guarantee: the document says so, and the privacy audit (step 6) carries the measured numbers.
 
 ## The grants (generated from `grants.yml`: do not edit by hand)
 <!-- grants:begin -->
