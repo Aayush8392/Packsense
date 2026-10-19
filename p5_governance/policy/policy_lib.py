@@ -16,7 +16,7 @@ DEFAULT_CHECKS = HERE / "checks.yml"
 PROBE = "_policy_probe"                      # every object a check creates carries this name, and is dropped again
 ACTIONS = {"read_table", "create_table", "create_schema", "list_secrets", "upload_file", "create_volume", "get_catalog"}
 NAME_RE = re.compile(r"^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+){0,2}$")
-DENIED = re.compile(r"INSUFFICIENT_PERMISSIONS|PERMISSION_DENIED|SQLSTATE:\s*42501|\bForbidden\b|\b403\b")
+DENIED = re.compile(r"INSUFFICIENT_PERMISSIONS|PERMISSION_DENIED|SQLSTATE:\s*42501|\bForbidden\b|\b403\b|\[Errno 13\] Permission denied")
 
 
 class ChecksError(ValueError):
