@@ -67,7 +67,7 @@ it, so the admin needs a standing `GRANT SELECT ON SCHEMA <schema> TO <admin use
 ## Limits
 
 - The dev archive job is deployed (paused) but cannot work: the dev scope holds no B2 or HF keys. Do not add them.
-- The principals' OAuth secrets expire (30 days when made; at most 730): rotate them and update the environment secrets.
+- The principals' OAuth secrets expire (30 days when made; at most 730): one script rotates all four, including the GitHub environment secrets, the gold scopes and the expiry list: `p3_delivery/bootstrap/rotate_principal_secrets.py`, procedure in `docs/runbook-secret-rotation.md`. Built 2026-10-19; not yet run live (the first run is on the dev principals).
 - Rollback is a `git revert` followed by a redeploy of the reverted code (the deploy workflow, or the CLI as the target's
   principal). Drilled on the dev target on 2026-10-16 (a silent data bug reverted, redeployed and the data repaired with
   `RESTORE`); the prod deploy of a revert and the production schedule pause are not drilled. See `docs/runbook-rollback.md`.
