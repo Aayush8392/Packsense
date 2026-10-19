@@ -64,6 +64,7 @@ secret_scopes:
   packsense_dev:     {packsense-deployer-dev: READ, admin: MANAGE}
   packsense_gold:    {packsense-gold: READ, admin: MANAGE}
   packsense_gold_dev: {packsense-gold-dev: READ, admin: MANAGE}
+  packsense_policy:  {admin: MANAGE}     # the pipeline and analyst tokens and the policy ping URL: only the admin-owned policy job reads it
 
 # Live objects the check reads for EXTRA grants (every schema and volume of the catalog except these, and every table of the schemas
 # listed above). information_schema is Databricks' own.

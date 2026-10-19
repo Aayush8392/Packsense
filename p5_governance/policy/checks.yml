@@ -1,0 +1,85 @@
+# What each identity must be allowed and denied (P5 step 3). Each check signs in AS the identity and tries one thing.
+#   deny  : passes only when the attempt fails with a permission error
+#   allow : passes only when the attempt succeeds (it also proves the identity can work at all)
+# tests/test_policy.py checks this file against grants.yml in both directions: a check that expects `allow` where grants.yml gives no
+# right (or the other way round) fails the build, so the two files cannot drift apart. Roles are the role names of grants.yml.
+#
+# Actions (structured on purpose: no free SQL in this file):
+#   read_table(table)      SELECT 1 FROM <table> LIMIT 1
+#   create_table(schema)   create <schema>._policy_probe, then drop it
+#   create_schema          create workspace._policy_probe_schema (nobody may), dropped again if it ever works
+#   list_secrets(scope)    list the secret names of a scope
+#   upload_file(volume)    write and delete one small file in the volume
+#   create_volume(schema)  create <schema>._policy_probe, then drop it
+#   get_catalog(catalog)   read the catalog object
+# `runner`: notebook = a job run as the identity (service principals); sdk = the identity's own token, used from the admin job.
+version: 1
+identities:
+  packsense-gold:
+    runner: notebook
+    checks:
+      - {name: reads its three silver tables, kind: allow, action: read_table, table: workspace.packsense_silver.silver_manifest}
+      - {name: builds tables in its own gold schema, kind: allow, action: create_table, schema: workspace.packsense_gold}
+      - {name: cannot read bronze, kind: deny, action: read_table, table: workspace.packsense_bronze.bronze_manifest}
+      - {name: cannot read quarantine, kind: deny, action: read_table, table: workspace.packsense_silver.silver_quarantine}
+      - {name: cannot read the silver tables it was not granted, kind: deny, action: read_table, table: workspace.packsense_silver.silver_field_log}
+      - {name: cannot write silver, kind: deny, action: create_table, schema: workspace.packsense_silver}
+      - {name: cannot read dev gold, kind: deny, action: read_table, table: workspace.packsense_dev_gold.product_history}
+      - {name: cannot read the bronze scope, kind: deny, action: list_secrets, scope: packsense}
+      - {name: cannot create a schema, kind: deny, action: create_schema}
+  packsense-gold-dev:
+    runner: notebook
+    checks:
+      - {name: reads its three silver tables, kind: allow, action: read_table, table: workspace.packsense_dev_silver.silver_manifest}
+      - {name: builds tables in its own gold schema, kind: allow, action: create_table, schema: workspace.packsense_dev_gold}
+      - {name: cannot read dev bronze, kind: deny, action: read_table, table: workspace.packsense_dev_bronze.bronze_manifest}
+      - {name: cannot read dev quarantine, kind: deny, action: read_table, table: workspace.packsense_dev_silver.silver_quarantine}
+      - {name: cannot write dev silver, kind: deny, action: create_table, schema: workspace.packsense_dev_silver}
+      - {name: cannot read prod gold, kind: deny, action: read_table, table: workspace.packsense_gold.product_history}
+      - {name: cannot read prod silver, kind: deny, action: read_table, table: workspace.packsense_silver.silver_manifest}
+      - {name: cannot read the bronze scope, kind: deny, action: list_secrets, scope: packsense}
+      - {name: cannot create a schema, kind: deny, action: create_schema}
+  packsense-deployer:
+    runner: notebook
+    checks:
+      - {name: reads bronze, kind: allow, action: read_table, table: workspace.packsense_bronze.bronze_manifest}
+      - {name: writes its own silver schema, kind: allow, action: create_table, schema: workspace.packsense_silver}
+      - {name: writes the landing volume, kind: allow, action: upload_file, volume: workspace.packsense.landing}
+      - {name: reads its secret scope, kind: allow, action: list_secrets, scope: packsense}
+      - {name: cannot read gold, kind: deny, action: read_table, table: workspace.packsense_gold.product_history}
+      - {name: cannot write gold, kind: deny, action: create_table, schema: workspace.packsense_gold}
+      - {name: cannot read dev bronze, kind: deny, action: read_table, table: workspace.packsense_dev_bronze.bronze_manifest}
+      - {name: cannot read the gold scope, kind: deny, action: list_secrets, scope: packsense_gold}
+      - {name: cannot create a schema, kind: deny, action: create_schema}
+  packsense-deployer-dev:
+    runner: notebook
+    checks:
+      - {name: reads dev bronze, kind: allow, action: read_table, table: workspace.packsense_dev_bronze.bronze_manifest}
+      - {name: writes its own dev silver schema, kind: allow, action: create_table, schema: workspace.packsense_dev_silver}
+      - {name: writes the dev landing volume, kind: allow, action: upload_file, volume: workspace.packsense_dev.landing}
+      - {name: reads its secret scope, kind: allow, action: list_secrets, scope: packsense_dev}
+      - {name: cannot read prod bronze, kind: deny, action: read_table, table: workspace.packsense_bronze.bronze_manifest}
+      - {name: cannot write prod silver, kind: deny, action: create_table, schema: workspace.packsense_silver}
+      - {name: cannot write the prod landing volume, kind: deny, action: upload_file, volume: workspace.packsense.landing}
+      - {name: cannot read the prod scope, kind: deny, action: list_secrets, scope: packsense}
+      - {name: cannot create a schema, kind: deny, action: create_schema}
+  pipeline-user:
+    runner: sdk
+    checks:
+      - {name: writes the landing volume, kind: allow, action: upload_file, volume: workspace.packsense.landing}
+      - {name: cannot read bronze, kind: deny, action: read_table, table: workspace.packsense_bronze.bronze_manifest}
+      - {name: cannot read silver, kind: deny, action: read_table, table: workspace.packsense_silver.silver_manifest}
+      - {name: cannot read gold, kind: deny, action: read_table, table: workspace.packsense_gold.product_history}
+      - {name: cannot write the dev landing volume, kind: deny, action: upload_file, volume: workspace.packsense_dev.landing}
+      - {name: cannot read the bronze scope, kind: deny, action: list_secrets, scope: packsense}
+      - {name: cannot create a volume in gold, kind: deny, action: create_volume, schema: workspace.packsense_gold}
+  analyst:
+    runner: sdk
+    checks:
+      - {name: can see the catalog, kind: allow, action: get_catalog, catalog: workspace}
+      - {name: cannot read bronze, kind: deny, action: read_table, table: workspace.packsense_bronze.bronze_manifest}
+      - {name: cannot read quarantine, kind: deny, action: read_table, table: workspace.packsense_silver.silver_quarantine}
+      - {name: cannot read gold yet, kind: deny, action: read_table, table: workspace.packsense_gold.product_history}
+      - {name: cannot write the landing volume, kind: deny, action: upload_file, volume: workspace.packsense.landing}
+      - {name: cannot create a volume in gold, kind: deny, action: create_volume, schema: workspace.packsense_gold}
+      - {name: cannot read the bronze scope, kind: deny, action: list_secrets, scope: packsense}

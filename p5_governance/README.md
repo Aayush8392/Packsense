@@ -35,6 +35,24 @@ are optional: a role without a working token is skipped and said so, and that us
 - Table-level grants are lost when a table is renamed or dropped (the silver table-swap runbook): run `apply` afterwards.
 - A secret scope has no per-key permission: `READ` covers every secret in it.
 
+## Policy tests (step 3): what each identity can and cannot do, proven nightly
+`policy/checks.yml` lists, per identity, things it must be **denied** and things it must be **allowed**. Each check signs in AS that identity and
+tries the action. A deny check passes only on a permission error (a missing table or a timeout is an ERROR, never a pass: a test that is denied
+for the wrong reason proves nothing); an allow check passes only on success. `tests/test_policy.py` ties the checks to `grants.yml` in both
+directions, so the two files cannot drift apart.
+
+| Piece | What it does |
+|---|---|
+| four jobs `packsense-policy-<principal>` | each runs AS one service principal (`run_as`), so no principal secret is stored anywhere; the notebook refuses to run if the job's identity is not the one it was told to test |
+| job `packsense-policy` (admin-owned) | nightly at 03:00 UTC: starts the four jobs, tests the pipeline user and the analyst with their own tokens (scope `packsense_policy`), runs the grants drift check, then reports once to the healthchecks check `packsense-policy` |
+| `policy/notebooks/grants_drift.py` | the same comparison as `apply_grants.py check`; any missing or extra grant, or a role whose token no longer works, turns it red |
+| `bootstrap/policy_scope.py` | creates the scope and stores the two user tokens and the ping URL (hidden prompts) |
+
+The bundle is deployed by the **admin from the laptop** (there is no Databricks admin credential in CI, by decision): the admin must hold
+the Use permission on the four service principals, and `bundle deploy` / `bundle run` use the admin token. The schedule starts PAUSED
+(variable `policy_pause`) until every job has passed once by hand. Each denial is proven by a deliberate violation: plant a forbidden
+grant (or a forbidden action in `checks.yml`) and the run must turn red.
+
 ## The grants (generated from `grants.yml`: do not edit by hand)
 <!-- grants:begin -->
 ```sql
@@ -78,5 +96,6 @@ GRANT SELECT ON TABLE workspace.packsense_dev_silver.silver_taxonomy_tag TO `pac
 -- secret scope packsense_gold: MANAGE for `admin`
 -- secret scope packsense_gold_dev: READ for `packsense-gold-dev`
 -- secret scope packsense_gold_dev: MANAGE for `admin`
+-- secret scope packsense_policy: MANAGE for `admin`
 ```
 <!-- grants:end -->

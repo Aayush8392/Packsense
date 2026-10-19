@@ -43,31 +43,16 @@ def main(argv=None) -> int:
 
     spec = gl.load_spec(args.grants)
     w = WorkspaceClient(host=os.environ["DATABRICKS_HOST"], token=os.environ["DATABRICKS_TOKEN"], auth_type="pat")
-    ids, names = live.resolve_principals(w, spec)
-    unresolved = [r for r, v in ids.items() if v is None]
-    for r in unresolved:
-        print(f"SKIPPED role {r}: could not be resolved (missing or dead token, or no such service principal); its grants are not checked")
-
-    want_grants, _ = gl.expected_grants(spec, ids)
-    want_acls = gl.expected_acls(spec, ids)
-    have_grants, have_acls = live.read_live(w, spec)
-    missing_g, extra_g = gl.diff(want_grants, have_grants)
-    missing_a, extra_a = gl.diff(want_acls, have_acls)
-
-    print(f"expected {len(want_grants)} grants and {len(want_acls)} scope ACLs; live {len(have_grants)} and {len(have_acls)}")
-    for m in missing_g + missing_a:
-        print("MISSING", live.pretty(m, names))
-    for e in extra_g + extra_a:
-        print("EXTRA  ", live.pretty(e, names), "(not in the file; left alone)")
-    if not (missing_g or missing_a or extra_g or extra_a):
-        print("live state equals the grants file")
+    r = live.compare(w, spec)
+    print(live.describe(r))
+    missing_g, missing_a = r["missing_g"], r["missing_a"]
 
     if args.mode == "apply" and (missing_g or missing_a):
         live.apply_missing(w, missing_g, missing_a)
         print(f"added {len(missing_g)} grants and {len(missing_a)} scope ACLs")
         return 0
     if args.mode == "check":
-        return 1 if (missing_g or missing_a or extra_g or extra_a) else 0
+        return 0 if r["clean"] else 1
     return 0
 
 

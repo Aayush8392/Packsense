@@ -1,0 +1,45 @@
+# PackSense policy bundle (P5 step 3): the nightly policy tests and the grants drift check.
+#
+# Deployed BY THE ADMIN from the laptop (there is no Databricks admin credential in CI, by decision): `bundle deploy` / `bundle run` with the admin
+# token. The admin must hold the Use permission on each service principal named in run_as (Settings > Identity and access > Service
+# principals > Permissions). Four small jobs run AS a service principal, each testing that principal with its own rights, so no principal
+# secret is stored anywhere; the admin-owned job `packsense-policy` starts them, tests the two users from their own tokens (scope
+# `packsense_policy`), runs the grants drift check, and reports once to healthchecks.io.
+bundle:
+  name: packsense-policy
+
+include:
+  - policy/resources/*.yml
+
+sync:
+  exclude:
+    - "**/tests/**"
+    - "bootstrap/**"
+    - README.md
+
+variables:
+  policy_cron:
+    description: quartz cron (UTC) of the nightly policy run; 03:00 UTC is after the 16:00 UTC archive run and well before the 06:45 UTC load
+    default: "0 0 3 * * ?"
+  policy_pause:
+    description: PAUSED until the first manual run of every job has passed; then UNPAUSED
+    default: PAUSED
+  ping:
+    description: whether the report task pings healthchecks.io ("true" or "false")
+    default: "false"
+
+targets:
+  prod:
+    default: true
+    # No custom root_path: only the admin deploys this bundle, so its own private home folder holds the files and state.
+
+# Each principal must be able to READ the notebook that runs as it.
+permissions:
+  - service_principal_name: "4fdd8310-bedc-4a22-8a94-bf436118e3e5"   # packsense-deployer (client ids are not secrets)
+    level: CAN_VIEW
+  - service_principal_name: "2e1246f9-63d0-4a91-91bb-e2b628348789"   # packsense-deployer-dev
+    level: CAN_VIEW
+  - service_principal_name: "520fb1ac-a6cf-4913-b7af-c081eb32456c"   # packsense-gold
+    level: CAN_VIEW
+  - service_principal_name: "05620ebf-cd4d-4b0a-88ad-029915441965"   # packsense-gold-dev
+    level: CAN_VIEW
