@@ -14,7 +14,7 @@ Per principal, in this order (the OLD secret stays valid until the last step, so
   5 move the principal's entry in the repository variable SECRET_EXPIRY_LIST to the new expiry date
   6 delete the old secret(s) (skipped with --keep-old)
 Only names, dates and ids are printed, never a value. Needs in the environment (or the env file): DATABRICKS_HOST, DATABRICKS_TOKEN (admin),
-GITHUB_ROTATION_TOKEN (fine-grained, this repo only, Secrets + Variables read and write). A stale DATABRICKS_CLIENT_ID/SECRET in the shell is dropped.
+GITHUB_ROTATION_TOKEN (fine-grained, this repo only: Secrets and Variables read and write, Environments read). A stale DATABRICKS_CLIENT_ID/SECRET in the shell is dropped.
 `plan` changes nothing. A re-run after a failure creates another secret (the limit is five per principal; the script stops at four).
 """
 import argparse
@@ -105,7 +105,8 @@ class GitHub:
                 raw = r.read()
                 return json.loads(raw) if raw else None
         except urllib.error.HTTPError as e:
-            raise RuntimeError(f"GitHub {method} {path} -> HTTP {e.code}") from None   # never the body or the token
+            needs = e.headers.get("X-Accepted-GitHub-Permissions") if e.headers else None   # names the permission a 403 lacks; not a secret
+            raise RuntimeError(f"GitHub {method} {path} -> HTTP {e.code}" + (f" (needs: {needs})" if needs else "")) from None   # never the body or the token
 
     def variable(self) -> str:
         return self._call("GET", f"/actions/variables/{EXPIRY_VARIABLE}")["value"]

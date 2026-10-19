@@ -13,7 +13,7 @@ date can be set with `set-expiry`.
 
 ## Before
 - `.env` holds `DATABRICKS_HOST`, `DATABRICKS_TOKEN` (admin) and `GITHUB_ROTATION_TOKEN` (fine-grained, this repository only, Secrets and
-  Variables read and write). Use a fresh shell (a stale `DATABRICKS_CLIENT_*` is dropped by the script anyway).
+  Variables read and write, Environments read). Use a fresh shell (a stale `DATABRICKS_CLIENT_*` is dropped by the script anyway).
 - Choose a quiet time: not while a deploy or the gold build is running (06:45 to 08:45 UTC, 08:15 UTC gold, 16:00 UTC archive).
 - `python p3_delivery/bootstrap/rotate_principal_secrets.py plan --all --env-file .env` changes nothing and shows, per principal: found, how many
   secrets it holds, which `SECRET_EXPIRY_LIST` entry it will move (`--expiry-name PRINCIPAL=ENTRY` when the name is not found), the GitHub
