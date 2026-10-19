@@ -49,9 +49,11 @@ directions, so the two files cannot drift apart.
 | `bootstrap/policy_scope.py` | creates the scope and stores the two user tokens and the ping URL (hidden prompts) |
 
 The bundle is deployed by the **admin from the laptop** (there is no Databricks admin credential in CI, by decision): the admin must hold
-the Use permission on the four service principals, and `bundle deploy` / `bundle run` use the admin token. The schedule starts PAUSED
-(variable `policy_pause`) until every job has passed once by hand. Each denial is proven by a deliberate violation: plant a forbidden
-grant (or a forbidden action in `checks.yml`) and the run must turn red.
+the Use permission on the four service principals, and `bundle deploy` / `bundle run` use the admin token. The schedule (variable
+`policy_cron`, 03:00 UTC) is UNPAUSED and the report pings healthchecks (variable `ping`), after every job passed once by hand and
+a deliberate violation turned the run red (2026-10-19: a forbidden `SELECT` on dev bronze for `packsense-gold-dev` and on prod gold for the
+analyst made three tasks fail: the gold-dev job, the analyst test and the drift check; revoking them made the next run green). To repeat
+the proof, plant a forbidden grant (or a forbidden action in `checks.yml`), run `bundle run policy`, and revoke it again.
 
 ## The grants (generated from `grants.yml`: do not edit by hand)
 <!-- grants:begin -->

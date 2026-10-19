@@ -221,8 +221,9 @@ def test_the_admin_job_starts_every_principal_job_tests_both_users_checks_drift_
     assert set(re.findall(r"tasks\.(\w+)\.result_state", results)) == set(tasks) - {"report"}
 
 
-def test_the_schedule_starts_paused_and_no_secret_is_a_job_parameter():
-    assert BUNDLE["variables"]["policy_pause"]["default"] == "PAUSED"
+def test_the_schedule_is_live_pinging_and_no_secret_is_a_job_parameter():
+    assert BUNDLE["variables"]["policy_pause"]["default"] == "UNPAUSED"
+    assert BUNDLE["variables"]["ping"]["default"] == "true"
     text = (P5 / "policy" / "resources" / "policy_jobs.yml").read_text(encoding="utf-8")
     assert not re.search(r"(secret|password|token)\s*:", text.replace("token_key", ""), re.I)
 

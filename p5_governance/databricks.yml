@@ -22,11 +22,11 @@ variables:
     description: quartz cron (UTC) of the nightly policy run; 03:00 UTC is after the 16:00 UTC archive run and well before the 06:45 UTC load
     default: "0 0 3 * * ?"
   policy_pause:
-    description: PAUSED until the first manual run of every job has passed; then UNPAUSED
-    default: PAUSED
+    description: UNPAUSED since 2026-10-19, after every job passed once by hand and a deliberate violation turned the run red
+    default: UNPAUSED
   ping:
     description: whether the report task pings healthchecks.io ("true" or "false")
-    default: "false"
+    default: "true"
 
 targets:
   prod:
