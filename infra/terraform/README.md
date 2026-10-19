@@ -17,7 +17,7 @@ The split exists so that a GitHub-only change (a ruleset) no longer needs the B2
 | `GH_TF_TOKEN` | both | Fine-grained GitHub token limited to this repository: Secrets read/write, Variables read/write, Administration read/write (rulesets and the deploy key). It expires; the expiry alarm is in `SECRET_EXPIRY_LIST` |
 
 ## How the split was made (no `terraform state mv`)
-`b2/` kept the original state key, so nothing moved. `github/` has a new state key and adopts the live objects with `import` blocks (the two ruleset ids are fixed; the deploy key's id is read from the API by the workflow and passed as `TF_VAR_keepalive_deploy_key_id`). `b2/` carries three `removed` blocks with `destroy = false`, which make the old state forget the same three resources without touching them on GitHub. Apply `github/` first, then `b2/`, then delete the `removed` blocks from `b2/` in a later commit.
+`b2/` kept the original state key, so nothing moved. `github/` has a new state key and adopts the live objects with `import` blocks (the two ruleset ids are fixed; the deploy key's id is read from the API by the workflow and passed as `TF_VAR_keepalive_deploy_key_id`). `b2/` carried three `removed` blocks with `destroy = false` for one apply, which made the old state forget the same three resources without touching them on GitHub; they have been deleted again. Applied 2026-10-19: `github/` first, then `b2/`, then both planned clean.
 
 ## Rules on `main` (two rulesets, on purpose)
 - **`protect-main`:** no deletion, no force-push, linear history, no bypass for anyone.

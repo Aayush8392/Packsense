@@ -77,26 +77,3 @@ resource "github_actions_variable" "b2_s3_endpoint" {
   variable_name = "B2_S3_ENDPOINT"
   value         = var.b2_s3_endpoint
 }
-
-# The rulesets and the deploy key moved to the github/ root (state key packsense/github.tfstate). These blocks make THIS state forget
-# them without touching them on GitHub (destroy = false). Remove the blocks once both roots have been applied.
-removed {
-  from = github_repository_ruleset.protect_main
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = github_repository_ruleset.require_ci
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = github_repository_deploy_key.keepalive
-  lifecycle {
-    destroy = false
-  }
-}
