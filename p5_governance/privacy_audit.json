@@ -1,0 +1,134 @@
+{
+ "measured_at": "2026-10-19",
+ "engine": "Databricks SQL, Spark regex engine",
+ "rows": {
+  "bronze_rows": 147243,
+  "silver_rows": 147239,
+  "quarantine_rows": 4,
+  "silver_codes": 133881
+ },
+ "patterns": {
+  "bronze": {
+   "name": {
+    "email": 3,
+    "obfuscated_email": 0,
+    "social_link": 0,
+    "url": 6,
+    "at_handle": 0,
+    "aadhaar": 0,
+    "gstin": 0,
+    "pan": 0,
+    "any": 9,
+    "run_7_plus": 739,
+    "run_8": 356,
+    "mobile_shape_10": 8,
+    "barcode_shape_13": 310
+   },
+   "brands": {
+    "email": 0,
+    "obfuscated_email": 0,
+    "social_link": 0,
+    "url": 2,
+    "at_handle": 0,
+    "aadhaar": 0,
+    "gstin": 0,
+    "pan": 0,
+    "any": 2,
+    "run_7_plus": 17,
+    "run_8": 1,
+    "mobile_shape_10": 1,
+    "barcode_shape_13": 2
+   }
+  },
+  "silver": {
+   "name": {
+    "email": 0,
+    "obfuscated_email": 0,
+    "social_link": 0,
+    "url": 0,
+    "at_handle": 0,
+    "aadhaar": 0,
+    "gstin": 0,
+    "pan": 0,
+    "any": 0,
+    "run_7_plus": 739,
+    "run_8": 356,
+    "mobile_shape_10": 8,
+    "barcode_shape_13": 310,
+    "replacement_marker": 9
+   },
+   "brands": {
+    "email": 0,
+    "obfuscated_email": 0,
+    "social_link": 0,
+    "url": 0,
+    "at_handle": 0,
+    "aadhaar": 0,
+    "gstin": 0,
+    "pan": 0,
+    "any": 0,
+    "run_7_plus": 17,
+    "run_8": 1,
+    "mobile_shape_10": 1,
+    "barcode_shape_13": 2,
+    "replacement_marker": 2
+   }
+  },
+  "quarantine": {
+   "name": {
+    "email": 0,
+    "obfuscated_email": 0,
+    "social_link": 0,
+    "url": 0,
+    "at_handle": 0,
+    "aadhaar": 0,
+    "gstin": 0,
+    "pan": 0,
+    "any": 0,
+    "run_7_plus": 4,
+    "run_8": 4,
+    "mobile_shape_10": 4,
+    "barcode_shape_13": 4
+   }
+  }
+ },
+ "known_names": {
+  "ordinary_min_products": 10,
+  "5_to_7": {
+   "bronze": {
+    "name": 401,
+    "brands": 364,
+    "either": 718,
+    "ordinary_only": 11577
+   },
+   "silver": {
+    "name": 401,
+    "brands": 364,
+    "either": 718,
+    "ordinary_only": 11577
+   }
+  },
+  "8_plus": {
+   "bronze": {
+    "name": 138,
+    "brands": 128,
+    "either": 247,
+    "ordinary_only": 3619
+   },
+   "silver": {
+    "name": 128,
+    "brands": 128,
+    "either": 246,
+    "ordinary_only": 3617
+   }
+  }
+ },
+ "tags_dropped": {
+  "allergens_tags": 3048,
+  "categories_tags": 14800,
+  "labels_tags": 5036,
+  "origins_tags": 1622,
+  "packaging_tags": 56,
+  "traces_tags": 4120
+ }
+}

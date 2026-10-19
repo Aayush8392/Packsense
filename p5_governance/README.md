@@ -100,6 +100,23 @@ with a reason, and gold's 213 columns are public unless overridden. To change a 
 `bootstrap/gold_columns.py dump --duckdb p4_modelling/target/fixture.duckdb` and render again (the `engines` job fails until you do).
 The classification is a label and a policy, not a guarantee: the document says so, and the privacy audit (step 6) carries the measured numbers.
 
+## Privacy audit and licence gate (step 6)
+**`PRIVACY_AUDIT.md`** (repo root) reports how much personal-looking text is left in what the pipeline keeps, as bounds measured on all rows and dated. It is
+generated from `privacy_audit.json`, which `bootstrap/privacy_audit.py` measures on production (admin, read-only, six SQL statements, **counts only**: the
+raw contributor names are read and joined inside Databricks and only integers leave). To refresh it: run the script, then `bootstrap/render_privacy_audit.py`.
+First run 2026-10-19 on 147,243 bronze rows: after the scrub no contact-shaped text is left in `product_name` or `brands` (the raw records had it in 9 names and 2 brands);
+at most 128 silver names and 128 brands contain a known contributor name of 8+ characters outside ordinary words (the pipeline's own-handle redaction only
+touches the record's own contributors, and `brands` is exempt by design); 8 names and 1 brand have a 10-digit Indian-mobile shape (phone numbers are not scrubbed by pattern).
+Tests keep the document current, the stored result to integers, and the measured result consistent with the pipeline's promise (a pattern hit in silver would be a defect).
+
+**`licence_gate.py`** checks the RENDERED output of an export (a release folder with `release_manifest.json`): the manifest names the source, a source dump date, the licence
+ODbL-1.0 and an attribution that says Open Food Facts and the Open Database License and links both; the export went through the exit function with a passed residue scan;
+no product images (no image column, URL or data); a score file holds only barcode, score and provenance; a data file holds no column that the classification marks personal or
+internal; a page carries the attribution; listed files exist and match their sha256; and the rendered text is re-scanned for the scrub patterns (a hit is reported as a count, never
+as the value). `bootstrap/check_release.py <folder>` runs it by hand. The wording follows Open Food Facts' terms and data pages (read 2026-10-19: ODbL for the database, DbCL for
+its contents, CC BY-SA for images with other rights possibly attached; attribute Open Food Facts with a link and link the ODbL). **It is not wired into a real export yet**:
+none exists until P6, which must call `check_release()` as the last step before publishing and fail on any violation. The tests use real fixture rows and break one rule at a time.
+
 ## The grants (generated from `grants.yml`: do not edit by hand)
 <!-- grants:begin -->
 ```sql
