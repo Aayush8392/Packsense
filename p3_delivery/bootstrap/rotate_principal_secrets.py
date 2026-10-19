@@ -14,7 +14,7 @@ Per principal, in this order (the OLD secret stays valid until the last step, so
   5 move the principal's entry in the repository variable SECRET_EXPIRY_LIST to the new expiry date
   6 delete the old secret(s) (skipped with --keep-old)
 Only names, dates and ids are printed, never a value. Needs in the environment (or the env file): DATABRICKS_HOST, DATABRICKS_TOKEN (admin),
-GITHUB_ROTATION_TOKEN (fine-grained, this repo only: Secrets and Variables read and write, Environments read). A stale DATABRICKS_CLIENT_ID/SECRET in the shell is dropped.
+GITHUB_ROTATION_TOKEN (fine-grained, this repo only: Secrets, Variables and Environments, all read and write). A stale DATABRICKS_CLIENT_ID/SECRET in the shell is dropped.
 `plan` changes nothing. A re-run after a failure creates another secret (the limit is five per principal; the script stops at four).
 """
 import argparse

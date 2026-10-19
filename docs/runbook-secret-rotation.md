@@ -13,7 +13,7 @@ date can be set with `set-expiry`.
 
 ## Before
 - `.env` holds `DATABRICKS_HOST`, `DATABRICKS_TOKEN` (admin) and `GITHUB_ROTATION_TOKEN` (fine-grained, this repository only, Secrets and
-  Variables read and write, Environments read). Use a fresh shell (a stale `DATABRICKS_CLIENT_*` is dropped by the script anyway).
+  Variables and Environments, all read and write). Use a fresh shell (a stale `DATABRICKS_CLIENT_*` is dropped by the script anyway).
 - Choose a quiet time: not while a deploy or the gold build is running (06:45 to 08:45 UTC, 08:15 UTC gold, 16:00 UTC archive).
 - `python p3_delivery/bootstrap/rotate_principal_secrets.py plan --all --env-file .env` changes nothing and shows, per principal: found, how many
   secrets it holds, which `SECRET_EXPIRY_LIST` entry it will move (`--expiry-name PRINCIPAL=ENTRY` when the name is not found), the GitHub
@@ -38,3 +38,9 @@ date can be set with `set-expiry`.
 - A failure after step 4 (GitHub already updated) leaves both secrets valid: re-run is safe; or finish by hand (move the expiry entry with
   `set-expiry NAME YYYY-MM-DD`, delete the old id in Databricks).
 - Lost or leaked rotation token: delete it in GitHub (Settings, Developer settings), make a new one, put it in `.env`.
+
+## Manual runs without a principal secret
+After a rotation nobody holds a principal's secret, and none is needed: a bundle job runs as its owner whoever starts it. Use
+`python p3_delivery/bootstrap/run_job.py --match <part of the job name> [--only TASK ...] --env-file .env` (admin token; proven on the dev gold
+job, the dev bronze job's `drift` task and, earlier, the production gold and archive jobs). Deploys go through the manual **Run workflow** buttons of
+`deploy.yml` and `deploy-gold.yml`. Do not run the dev bronze job's `capture` task: it would back-fill every file OFF lists into dev landing.
