@@ -53,8 +53,16 @@ def packsense_reconcile():
         answered = sum(1 for x in lines if x["status"] != "unconfirmed")
         return {"date": plan["date"], "candidates": len(codes), "answered": answered, "unconfirmed": len(codes) - answered}
 
+    @task
+    def batches_of(plan: dict) -> list:
+        return plan["batches"]                  # Airflow 3 maps only over a task's WHOLE return value, never over one key of it (found on the first import)
+
+    @task
+    def date_of(plan: dict) -> str:
+        return plan["date"]
+
     plan = read_candidates(wait_for_candidates())
-    results = lookup_batch.partial(date=plan["date"]).expand(batch=plan["batches"])
+    results = lookup_batch.partial(date=date_of(plan)).expand(batch=batches_of(plan))
     upload(plan, results)
 
 
