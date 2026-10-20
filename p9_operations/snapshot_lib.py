@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import re
+import sys
 import threading
 import urllib.error
 import urllib.request
@@ -261,14 +262,20 @@ def compute_pair(con, prev: str = "p", cur: str = "n") -> dict:
     def q(sql):
         return con.execute(sql).fetchall()
 
-    con.execute("create or replace temp table _b as select p.code, p.lm as lm_from, c.lm as lm_to, "
+    # Memory: the 2026-10-20 production run was killed (out of memory) after 7 pairs. The first version copied BOTH snapshots' flag lists into a joined
+    # temp table for every pair. Now the join is read twice but only counts come out of the first pass and only the products that changed (tens of
+    # thousands, not 4.7 million) are kept in `_d`.
+    joined = f"from {prev} p join {cur} c on p.code = c.code"
+    in_both, edited = q(f"select count(*), count(*) filter (where p.lm <> c.lm) {joined}")[0]
+    con.execute("create or replace temp table _d as select p.code, p.lm as lm_from, c.lm as lm_to, "
                 + ", ".join(f"coalesce(p.{a}, []::varchar[]) as {a}_p, coalesce(c.{a}, []::varchar[]) as {a}_c" for a, _, _ in SEVERITIES)
-                + f" from {prev} p join {cur} c on p.code = c.code")
+                + f" {joined} where p.lm <> c.lm or "
+                + " or ".join(f"coalesce(p.{a}, []::varchar[]) <> coalesce(c.{a}, []::varchar[])" for a, _, _ in SEVERITIES))
     stats = {
         "rows_from": q(f"select count(*) from {prev}")[0][0],
         "rows_to": q(f"select count(*) from {cur}")[0][0],
-        "in_both": q("select count(*) from _b")[0][0],
-        "edited_count": q("select count(*) from _b where lm_from <> lm_to")[0][0],
+        "in_both": in_both,
+        "edited_count": edited,
     }
     left = [(code, lm) for code, lm in q(f"select code, lm from {prev} where code not in (select code from {cur}) order by code")]
     stats["left_count"] = len(left)
@@ -278,7 +285,7 @@ def compute_pair(con, prev: str = "p", cur: str = "n") -> dict:
     for alias, sev, _ in SEVERITIES:
         for event, a, b in (("disappeared", f"{alias}_p", f"{alias}_c"), ("appeared", f"{alias}_c", f"{alias}_p")):
             rows = q(f"select code, lm_from, lm_to, tag, {b} as other from (select code, lm_from, lm_to, {b}, "
-                     f"unnest(list_distinct(list_filter({a}, x -> not list_contains({b}, x)))) as tag from _b)")
+                     f"unnest(list_distinct(list_filter({a}, x -> not list_contains({b}, x)))) as tag from _d)")
             # the tags the product carries on the OTHER side, as family sets, to tell a rename from a real change
             for code, lm_from, lm_to, tag, other in rows:
                 fam = family_key(tag)
@@ -286,4 +293,109 @@ def compute_pair(con, prev: str = "p", cur: str = "n") -> dict:
                 events.append({"code": code, "severity": sev, "flag": tag, "family": fam, "event": event, "family_remains": remains,
                                "edited": lm_from != lm_to, "lm_from": lm_from, "lm_to": lm_to})
     stats["flag_events"] = len(events)
+    con.execute("drop table if exists _d")
     return {"stats": stats, "events": events, "left": left}
+
+
+# --- watching a long run ------------------------------------------------------------------------------------------------------------------
+# Added after the 2026-10-20 production run: it was killed (out of memory) after 117 minutes with 7 of 12 pairs written, the time per pair rising
+# from 554 s to 1,355 s, and nothing in the run said so until it died. Every pair now logs its memory and seconds and the run stops by itself, with
+# its progress saved, as soon as either runs away.
+
+def process_rss_mb(path: str = "/proc/self/status") -> float:
+    """Resident memory of this process in MB (Linux)."""
+    with open(path) as fh:
+        for line in fh:
+            if line.startswith("VmRSS:"):
+                return int(line.split()[1]) / 1024
+    raise RuntimeError("VmRSS not found in " + path)
+
+
+def mem_total_mb(path: str = "/proc/meminfo") -> float:
+    """Total memory of the machine in MB, or of the cgroup limit when that is lower (a container sees the host's memory in /proc/meminfo)."""
+    with open(path) as fh:
+        for line in fh:
+            if line.startswith("MemTotal:"):
+                return int(line.split()[1]) / 1024
+    raise RuntimeError("MemTotal not found in " + path)
+
+
+def should_stop(seconds_history: list[float], rss_mb: float, total_mb: float, rss_fraction: float = 0.6, slowdown: float = 2.0, min_history: int = 3):
+    """(stop, reason) after a finished pair. Stop when the process holds more than `rss_fraction` of the machine's memory, or when the last pair
+    took more than `slowdown` times the median of the earlier ones (needs `min_history` earlier pairs)."""
+    if total_mb and rss_mb > rss_fraction * total_mb:
+        return True, f"memory {rss_mb:.0f} MB is over {rss_fraction:.0%} of {total_mb:.0f} MB"
+    if len(seconds_history) > min_history:
+        earlier = sorted(seconds_history[:-1])
+        median = earlier[len(earlier) // 2]
+        if seconds_history[-1] > slowdown * median:
+            return True, f"the last pair took {seconds_history[-1]:.0f} s, over {slowdown:g} x the median {median:.0f} s of the earlier ones"
+    return False, ""
+
+
+# --- one pair in its own process ----------------------------------------------------------------------------------------------------------
+# The notebook runs every pair in a separate Python process (`python snapshot_lib.py worker <spec.json>`): when the process ends, all its memory
+# goes back to the machine, so one pair can never inherit what the one before it left behind, and a pair that is killed for memory takes down only
+# itself (the notebook sees the exit code, keeps the pairs already written and reports). A snapshot read from the network is also written to a local
+# Parquet file (`cache`), so the next pair, whose older snapshot is this one, reads it from disk instead of downloading it again.
+
+def _load_side(con, table: str, side: dict, byte_guard: int) -> int:
+    """Create `table` from one side of a pair: a local Parquet file when `local` is set, otherwise the snapshot over the network (then copied to
+    `cache` when given). Returns the bytes received from the network."""
+    local = side.get("local")
+    if local:
+        con.execute(f"create table {table} as select * from read_parquet('{local}')")
+        return 0
+    with ByteGuard(read_rx_bytes, byte_guard, con.interrupt) as guard:
+        con.execute(load_sql(table, resolve_cdn(side["sha"])))
+    if guard.tripped:
+        raise RuntimeError(f"byte guard: reading snapshot {side['sha'][:8]} passed {byte_guard / 1e6:.0f} MB; stopped")
+    if side.get("cache"):
+        con.execute(f"copy {table} to '{side['cache']}' (format parquet, compression zstd)")
+    return guard.received()
+
+
+def peak_rss_mb() -> float | None:
+    """Highest resident memory this process has reached, in MB (None where the platform has no `resource` module)."""
+    try:
+        import resource
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024      # Linux reports kilobytes
+    except ImportError:
+        return None
+
+
+def run_worker(spec: dict) -> dict:
+    """Compare one pair. spec: prev and cur ({sha, local?, cache?}), out (path of the result JSON), memory_limit_mb, temp_dir, threads,
+    byte_guard, count_prev / count_cur (whether to compute the open-flag counts of that side). Returns and writes the result."""
+    import time
+
+    import duckdb
+    t0 = time.time()
+    con = duckdb.connect()
+    if not (spec["prev"].get("local") and spec["cur"].get("local")):
+        con.execute("INSTALL httpfs; LOAD httpfs;")
+    con.execute(f"SET threads={int(spec.get('threads', 8))}")
+    con.execute("SET allow_asterisks_in_http_paths = true")           # the signed CDN address has a '*' in its query string
+    if spec.get("memory_limit_mb"):
+        con.execute(f"SET memory_limit='{int(spec['memory_limit_mb'])}MB'")
+    if spec.get("temp_dir"):
+        con.execute(f"SET temp_directory='{spec['temp_dir']}'")
+    guard = int(spec.get("byte_guard", BYTE_GUARD))
+    rx = _load_side(con, "p", spec["prev"], guard) + _load_side(con, "n", spec["cur"], guard)
+    res = compute_pair(con, "p", "n")
+    res["open_counts"] = {"prev": open_counts(con, "p") if spec.get("count_prev") else None,
+                          "cur": open_counts(con, "n") if spec.get("count_cur") else None}
+    res["rx_bytes"] = rx
+    res["seconds"] = round(time.time() - t0, 1)
+    res["peak_rss_mb"] = peak_rss_mb()
+    with open(spec["out"], "w", encoding="utf-8") as fh:
+        json.dump(res, fh)
+    return res
+
+
+if __name__ == "__main__":
+    if len(sys.argv) == 3 and sys.argv[1] == "worker":
+        with open(sys.argv[2], encoding="utf-8") as fh:
+            run_worker(json.load(fh))
+    else:
+        raise SystemExit("usage: python snapshot_lib.py worker <spec.json>")

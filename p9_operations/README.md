@@ -34,6 +34,14 @@ tells a rename from a fix. Measured 2026-10-20 on two snapshots 18 days apart: 1
 - The job is never retried automatically (`disable_auto_optimization`), because a retry would silently download another ~600 MB.
 - The Hugging Face resolver allows 3,000 requests per 5 minutes; the signed CDN address is resolved once and read directly.
 
+**One process per pair, and what the 2026-10-20 failure taught.** The first production run died (out of memory) after 7 of 12 pairs, with the seconds per pair
+rising from 554 to 1,355. The notebook now runs every pair in its own Python process (`snapshot_lib.py worker`), keeps a snapshot read from the network as a
+local Parquet file for the next pair, logs memory and seconds per pair, and stops itself (progress saved) when memory passes 60% of the machine or a pair takes more
+than twice the median. `bootstrap/snapshot_soak.py` loops the comparison from local files and compares the old loop with the new one. **Result (12 and 8 iterations):**
+the new loop is flat (39 to 50 s per iteration, notebook process 260 MB, worker peak 7.1 GB of 15.6 GB); the old loop was ALSO flat on local files (about 90 s, a
+plateau at 6.6 GB), so the compute loop alone does not explain the failure. The cause is probably in reading from the network (not reproduced: the soak
+reads local files); the process-per-pair design bounds it, but that is a protection, not a proof.
+
 **Measured and not measured.** Reading cost per snapshot and the pair comparison are measured (three snapshots, 2026-10-20). What the label is
 worth is measured only for error flags that OFF's own arithmetic rules can recompute (about 93% genuine numeric fixes at family level); warnings
 and info flags were not examined, and a numeric fix is not proof of a correct value.

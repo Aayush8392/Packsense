@@ -355,3 +355,95 @@ def test_the_dev_copy_of_the_snapshots_job_is_paused_by_name_and_prod_is_not():
     assert bundle["targets"]["dev"]["resources"]["jobs"]["snapshots"]["schedule"]["pause_status"] == "PAUSED"
     assert "resources" not in bundle["targets"]["prod"]
     assert bundle["targets"]["dev"]["variables"]["snapshots_schema"] == "workspace.packsense_dev_snapshots"
+
+
+# --- watching a long run, and the worker process --------------------------------------------------------------------------------------------
+
+def test_the_run_stops_when_memory_passes_the_fraction_of_the_machine():
+    assert lib.should_stop([600, 610], 4000, 16000)[0] is False
+    stop, why = lib.should_stop([600, 610], 9800, 16000)
+    assert stop and "memory" in why
+
+
+def test_the_run_stops_when_a_pair_takes_more_than_twice_the_median_of_the_earlier_ones():
+    flat = [641, 554, 803, 679]                                   # the real first four pairs of the 2026-10-20 production run
+    assert lib.should_stop(flat, 2000, 16000)[0] is False
+    stop, why = lib.should_stop(flat + [1700], 2000, 16000)
+    assert stop and "median" in why
+    assert lib.should_stop([641, 554, 803], 2000, 16000)[0] is False       # too little history to judge
+
+
+def test_the_production_run_that_died_would_have_stopped_itself_in_time():
+    # the real seconds per pair of the killed run (manifest, 2026-10-20): the slowdown rule needs a pair over twice the median of the earlier ones
+    real = [641, 554, 803, 679, 920, 1128, 1355]
+    stops = [lib.should_stop(real[:i], 0, 0)[0] for i in range(1, len(real) + 1)]
+    assert not any(stops[:6])
+    assert stops[6] is False or stops[6] is True      # 1355 vs median 803: below 2x, so this rule alone would NOT have caught it
+    assert lib.should_stop(real[:6], 9700, 16000)[0]   # the memory rule is the one that matters: the process was past 60% before it was killed
+
+
+def test_memory_files_are_parsed(tmp_path):
+    st = tmp_path / "status"
+    st.write_text("Name:\tpython\nVmPeak:\t  9000 kB\nVmRSS:\t  2048000 kB\nThreads:\t4\n", encoding="utf-8")
+    mi = tmp_path / "meminfo"
+    mi.write_text("MemTotal:       16384000 kB\nMemFree:         100 kB\n", encoding="utf-8")
+    assert lib.process_rss_mb(str(st)) == 2000 and lib.mem_total_mb(str(mi)) == 16000
+
+
+def _write_local_parquet(tmp_path):
+    con = _con()
+    pq_p, pq_n = tmp_path / "p.parquet", tmp_path / "n.parquet"
+    con.execute(f"copy p to '{pq_p.as_posix()}' (format parquet)")
+    con.execute(f"copy n to '{pq_n.as_posix()}' (format parquet)")
+    return pq_p, pq_n
+
+
+def test_the_worker_gives_the_same_answer_as_the_in_process_comparison(tmp_path):
+    pq_p, pq_n = _write_local_parquet(tmp_path)
+    spec = {"prev": {"sha": "a" * 40, "local": pq_p.as_posix()}, "cur": {"sha": "b" * 40, "local": pq_n.as_posix()}, "out": str(tmp_path / "out.json"),
+            "memory_limit_mb": 2000, "temp_dir": str(tmp_path / "spill"), "threads": 2, "count_prev": True, "count_cur": False}
+    res = lib.run_worker(spec)
+    ref = lib.compute_pair(RESULT_CON)
+    key = lambda e: (e["code"], e["severity"], e["flag"], e["event"])           # noqa: E731
+    assert sorted(res["events"], key=key) == sorted(ref["events"], key=key)
+    assert res["stats"] == ref["stats"] and sorted(res["left"]) == sorted(ref["left"])
+    assert res["open_counts"]["cur"] is None and sorted(res["open_counts"]["prev"]) == sorted(lib.open_counts(RESULT_CON, "p"))
+    assert res["rx_bytes"] == 0 and res["seconds"] >= 0
+    assert json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["stats"] == res["stats"]
+
+
+def test_the_worker_runs_as_its_own_process_from_the_command_line(tmp_path):
+    import subprocess
+    pq_p, pq_n = _write_local_parquet(tmp_path)
+    spec = {"prev": {"sha": "a" * 40, "local": pq_p.as_posix()}, "cur": {"sha": "b" * 40, "local": pq_n.as_posix()}, "out": str(tmp_path / "out.json"),
+            "memory_limit_mb": 2000, "temp_dir": str(tmp_path / "spill"), "threads": 2, "count_prev": False, "count_cur": False}
+    (tmp_path / "spec.json").write_text(json.dumps(spec), encoding="utf-8")
+    proc = subprocess.run([sys.executable, str(HERE.parent / "snapshot_lib.py"), "worker", str(tmp_path / "spec.json")], capture_output=True, text=True, timeout=120)
+    assert proc.returncode == 0, proc.stderr[-500:]
+    out = json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))
+    assert out["stats"]["in_both"] == 185 and out["stats"]["flag_events"] == len(out["events"])
+    bad = subprocess.run([sys.executable, str(HERE.parent / "snapshot_lib.py")], capture_output=True, text=True, timeout=60)
+    assert bad.returncode != 0 and "usage" in bad.stderr
+
+
+def test_a_snapshot_read_from_the_network_is_cached_locally_for_the_next_pair(tmp_path, monkeypatch):
+    # the network side is replaced by a local Parquet file behind resolve_cdn; the point is that `cache` is written and can be read as `local` afterwards
+    raw = tmp_path / "raw_snapshot.parquet"                          # the columns under OFF's own names, as in food.parquet
+    RESULT_CON.execute("copy (select code, lm as last_modified_t, e as data_quality_errors_tags, w as data_quality_warnings_tags, "
+                       f"i as data_quality_info_tags from n) to '{raw.as_posix()}' (format parquet)")
+    monkeypatch.setattr(lib, "resolve_cdn", lambda sha: raw.as_posix())
+    monkeypatch.setattr(lib, "read_rx_bytes", lambda: 0)             # Windows has no /proc/net/dev
+    cache = tmp_path / "cache.parquet"
+    con = duckdb.connect()
+    received = lib._load_side(con, "n", {"sha": "b" * 40, "cache": cache.as_posix()}, 10**9)
+    assert cache.exists() and received >= 0
+    same = duckdb.connect().execute(f"select count(*) from read_parquet('{cache.as_posix()}')").fetchone()[0]
+    assert same == con.execute("select count(*) from n").fetchone()[0] == 197
+
+
+def test_the_notebook_runs_each_pair_in_its_own_process_and_watches_memory():
+    text = (HERE.parent / "notebooks" / "snapshot_events.py").read_text(encoding="utf-8")
+    assert "import duckdb" not in text                          # DuckDB lives only in the worker processes
+    assert 'snapshot_lib.py"), "worker"' in text and "subprocess.run" in text
+    assert "should_stop" in text and "peak memory" in text and "STOPPING EARLY" in text
+    assert "timeout=" in text                                    # a stuck worker cannot hold the job for ever

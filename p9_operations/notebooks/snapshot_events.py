@@ -23,10 +23,12 @@ dbutils.library.restartPython()
 import datetime as dt
 import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 
-import duckdb
 import requests
 
 
@@ -133,34 +135,35 @@ def run():
     if DRY or not todo:
         return {"snapshots": len(snaps), "done": len(done), "todo": len(todo), "dry_run": DRY, "pairs_run": 0}
 
-    con = duckdb.connect()
-    con.execute("INSTALL httpfs; LOAD httpfs;")
-    con.execute("SET threads=8")
-    con.execute("SET allow_asterisks_in_http_paths = true")      # the signed CDN address has a '*' in its query string
-    loaded = None                                                # the snapshot currently held in table `p`
-    total_rx = 0
+    total_mb = lib.mem_total_mb()
+    work = tempfile.mkdtemp(prefix="packsense_snapshots_")                       # local disk: cached snapshots, worker specs and results
+    disk_free_gb = shutil.disk_usage(work).free / 1e9
+    use_cache = disk_free_gb > 3
+    print(f"machine memory {total_mb:.0f} MB, local disk free {disk_free_gb:.1f} GB (snapshot cache {'on' if use_cache else 'OFF'}), work dir {work}")
+    counted = {r[0] for r in spark.sql(f"select distinct snapshot_sha from {SCHEMA}.snapshot_open_counts").collect()}
+    seconds_history, total_rx, pairs_run, stopped = [], 0, 0, ""
 
-    def load(table, snap):
-        t0 = time.time()
-        with lib.ByteGuard(lib.read_rx_bytes, lib.BYTE_GUARD, con.interrupt) as g:
-            con.execute(lib.load_sql(table, lib.resolve_cdn(snap.sha)))
-        if g.tripped:
-            raise RuntimeError(f"byte guard: reading snapshot {snap.sha[:8]} passed {lib.BYTE_GUARD / 1e6:.0f} MB; stopped")
-        return g.received(), time.time() - t0
+    def cache_of(snap):
+        return f"{work}/{snap.sha[:12]}.parquet"
 
-    pairs_run = 0
     for a, b in todo:
         t0 = time.time()
-        rx = 0
-        if loaded is None or loaded.sha != a.sha:
-            con.execute("drop table if exists p")
-            r, _ = load("p", a)
-            rx += r
-        con.execute("drop table if exists n")
-        r, _ = load("n", b)
-        rx += r
-        res = lib.compute_pair(con, "p", "n")
         pid = lib.pair_id(a, b)
+        # the older snapshot comes from the local cache when the previous pair left it there, otherwise from the network
+        prev = {"sha": a.sha, "local": cache_of(a) if os.path.exists(cache_of(a)) else None, "cache": cache_of(a) if use_cache else None}
+        cur = {"sha": b.sha, "cache": cache_of(b) if use_cache else None}
+        spec = {"prev": prev, "cur": cur, "out": f"{work}/{pid}.json", "memory_limit_mb": int(0.5 * total_mb), "temp_dir": f"{work}/spill",
+                "threads": 8, "byte_guard": lib.BYTE_GUARD, "count_prev": a.sha not in counted, "count_cur": b.sha not in counted}
+        spec_path = f"{work}/{pid}.spec.json"
+        with open(spec_path, "w", encoding="utf-8") as fh:
+            json.dump(spec, fh)
+        proc = subprocess.run([sys.executable, os.path.join(find_p9(), "snapshot_lib.py"), "worker", spec_path],
+                              capture_output=True, text=True, timeout=2700)
+        if proc.returncode != 0:
+            raise RuntimeError(f"pair {pid}: the worker process ended with code {proc.returncode} (-9 means killed for memory); "
+                               f"{pairs_run} pairs of this run are already saved. stderr: {proc.stderr[-600:]}")
+        with open(spec["out"], encoding="utf-8") as fh:
+            res = json.load(fh)
         d_from, d_to = a.date.date(), b.date.date()
 
         # idempotent write: remove whatever an interrupted run left for this pair, rewrite, manifest row LAST
@@ -169,30 +172,42 @@ def run():
         append("snapshot_flag_events", [(pid, d_from, d_to, e["code"], e["severity"], e["flag"], e["family"], e["event"], e["family_remains"],
                                          e["edited"], e["lm_from"], e["lm_to"]) for e in res["events"]], EVENT_SCHEMA)
         append("snapshot_presence_events", [(pid, d_from, d_to, code, "left", lm) for code, lm in res["left"]], PRESENCE_SCHEMA)
-        counted = {r[0] for r in spark.sql(f"select distinct snapshot_sha from {SCHEMA}.snapshot_open_counts").collect()}
-        for table, snap in (("p", a), ("n", b)):
-            if snap.sha not in counted:
+        for side, snap in (("prev", a), ("cur", b)):
+            if res["open_counts"][side] is not None:
+                spark.sql(f"delete from {SCHEMA}.snapshot_open_counts where snapshot_sha = '{snap.sha}'")
                 append("snapshot_open_counts", [(snap.sha, snap.date.date(), sev, tag, lib.family_key(tag), n)
-                                                for sev, tag, n in lib.open_counts(con, table)], OPEN_SCHEMA)
+                                                for sev, tag, n in res["open_counts"][side]], OPEN_SCHEMA)
+                counted.add(snap.sha)
         s = res["stats"]
         secs = time.time() - t0
+        rx = res["rx_bytes"]
         append("snapshot_manifest", [(pid, a.sha, b.sha, d_from, d_to, s["rows_from"], s["rows_to"], s["in_both"], s["left_count"], s["entered_count"],
                                       s["edited_count"], s["flag_events"], round(rx / 1e6), round(secs, 1), RUN_ID, dt.datetime.now(dt.timezone.utc).replace(tzinfo=None))],
                MANIFEST_SCHEMA)
-        print(f"pair {pid}: {s} rx {rx / 1e6:.0f} MB, {secs:.0f} s")
         total_rx += rx
         pairs_run += 1
-        # the newer snapshot becomes the older one of the next pair, without reading it again
-        con.execute("drop table if exists p")
-        con.execute("alter table n rename to p")
-        loaded = b
+        seconds_history.append(secs)
+        peak = res.get("peak_rss_mb")
+        print(f"pair {pid}: {s} | worker {res['seconds']:.0f} s, peak memory {peak and round(peak)} MB of {total_mb:.0f} MB, "
+              f"rx {rx / 1e6:.0f} MB | whole pair {secs:.0f} s", flush=True)
+        # only the newer snapshot is needed by the next pair
+        for old in os.listdir(work):
+            if old.endswith(".parquet") and old != os.path.basename(cache_of(b)):
+                os.remove(os.path.join(work, old))
+        stop, why = lib.should_stop(seconds_history, peak or 0, total_mb)
+        if stop and (a, b) != todo[-1]:
+            stopped = why
+            print(f"STOPPING EARLY, progress is saved and the next run continues: {why}")
+            break
 
+    shutil.rmtree(work, ignore_errors=True)
     cutoff = lib.retention_cutoff(now, RETENTION)
     for table in ("snapshot_flag_events", "snapshot_presence_events", "snapshot_manifest"):
         spark.sql(f"delete from {SCHEMA}.{table} where date_to < DATE'{cutoff}'")
     spark.sql(f"delete from {SCHEMA}.snapshot_open_counts where snapshot_date < DATE'{cutoff}'")
     print(f"retention: rows with a newer-snapshot date before {cutoff} deleted")
-    return {"snapshots": len(snaps), "done": len(done), "todo": len(todo), "dry_run": False, "pairs_run": pairs_run, "rx_mb": round(total_rx / 1e6)}
+    return {"snapshots": len(snaps), "done": len(done), "todo": len(todo), "dry_run": False, "pairs_run": pairs_run, "rx_mb": round(total_rx / 1e6),
+            "stopped_early": stopped or None, "seconds_per_pair": [round(x) for x in seconds_history]}
 
 
 ping("/start")
