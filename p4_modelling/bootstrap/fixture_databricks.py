@@ -21,6 +21,7 @@ FIXTURES = P4 / "fixtures"
 SCHEMA = "workspace.packsense_fixture"
 TABLE = f"{SCHEMA}.fixture_stg_silver_versions"
 TAXONOMY_TABLE = f"{SCHEMA}.fixture_taxonomy_tag"
+EXISTENCE_TABLE = f"{SCHEMA}.fixture_existence_check"
 REMOTE_DIR = "/Volumes/workspace/packsense_dev/landing/_fixture_check"
 REMOTE_FILE = f"{REMOTE_DIR}/stg_silver_versions.jsonl"
 DEFAULT_HTTP_PATH = "/sql/1.0/warehouses/c9e35ecf0a03295d"   # the Serverless Starter 2X-Small: an address, not a secret
@@ -73,6 +74,8 @@ def load() -> None:
     load_one(w, "stg_silver_versions.jsonl", "manifest.json", TABLE, REMOTE_FILE)
     if (FIXTURES / "taxonomy_manifest.json").exists():
         load_one(w, "taxonomy_tag.jsonl", "taxonomy_manifest.json", TAXONOMY_TABLE, f"{REMOTE_DIR}/taxonomy_tag.jsonl")
+    if (FIXTURES / "existence_manifest.json").exists():
+        load_one(w, "existence_check.jsonl", "existence_manifest.json", EXISTENCE_TABLE, f"{REMOTE_DIR}/existence_check.jsonl")
 
 
 def dbt() -> int:

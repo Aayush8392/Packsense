@@ -10,6 +10,7 @@ from pathlib import Path
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 TABLE = "fixture_stg_silver_versions"
 TAXONOMY_TABLE = "fixture_taxonomy_tag"
+EXISTENCE_TABLE = "fixture_existence_check"
 
 SCALARS = {
     "string": "VARCHAR", "double": "DOUBLE", "bigint": "BIGINT", "int": "INTEGER", "boolean": "BOOLEAN", "timestamp": "TIMESTAMP",
@@ -68,7 +69,7 @@ def _load_table(con, schema, table, jsonl, manifest, reverse, order_cols):
 
 def load(con, schema: str = "main", fixtures: Path = FIXTURES, reverse: bool = False) -> int:
     """(Re)create the fixture tables in `schema` from the committed JSONL and manifests. Returns the product row count.
-    The taxonomy table (fixture_taxonomy_tag) is loaded too when its files are there.
+    The taxonomy table (fixture_taxonomy_tag) and the existence-check table (fixture_existence_check) are loaded too when their files are there.
     reverse=True stores the rows in the opposite physical order (the idempotence check: gold must not depend on arrival order)."""
     con.execute(f'create schema if not exists "{schema}"')
     manifest = json.loads((fixtures / "manifest.json").read_text(encoding="utf-8"))
@@ -77,6 +78,10 @@ def load(con, schema: str = "main", fixtures: Path = FIXTURES, reverse: bool = F
     if tax_manifest.exists():
         _load_table(con, schema, TAXONOMY_TABLE, fixtures / "taxonomy_tag.jsonl", json.loads(tax_manifest.read_text(encoding="utf-8")),
                     reverse, ["taxonomy", "tag", "valid_from"])
+    existence_manifest = fixtures / "existence_manifest.json"
+    if existence_manifest.exists():
+        _load_table(con, schema, EXISTENCE_TABLE, fixtures / "existence_check.jsonl", json.loads(existence_manifest.read_text(encoding="utf-8")),
+                    reverse, ["code", "checked_at"])
     return n
 
 

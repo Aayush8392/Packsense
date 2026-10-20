@@ -35,10 +35,19 @@ def test_the_contiguity_check_is_a_warning_and_never_runs_on_the_fixture():
 
 
 def test_the_other_new_checks_do_not_read_the_clock():
-    for name in ("every_model_has_rows", "quality_fact_has_every_group_every_day", "history_not_below_status"):
+    for name in ("every_model_has_rows", "quality_fact_has_every_group_every_day", "status_matches_evidence"):
         text = (TESTS / f"{name}.sql").read_text(encoding="utf-8")
         assert "current_timestamp" not in text and "current_date" not in text, name
 
 
-def test_the_status_check_is_a_warning():
-    assert "severity='warn'" in (TESTS / "history_not_below_status.sql").read_text(encoding="utf-8").split("}}", 1)[0]
+def test_the_existence_freshness_check_is_a_warning_reads_the_clock_and_never_runs_on_the_fixture():
+    text = (TESTS / "existence_check_is_fresh.sql").read_text(encoding="utf-8")
+    config = text.split("}}", 1)[0]
+    assert "severity='warn'" in config and "target.type == 'databricks'" in config and "fixture_mode" in config
+    assert "current_timestamp" in text and "existence_stale_after_days', 10" in text
+    assert "coalesce(max(checked_at)" in text                                         # an empty table warns too
+
+
+def test_the_retired_insert_only_check_is_gone_and_product_status_is_no_longer_incremental():
+    assert not (TESTS / "history_not_below_status.sql").exists()
+    assert "is_incremental" not in (ROOT / "models" / "portable" / "product_status.sql").read_text(encoding="utf-8")

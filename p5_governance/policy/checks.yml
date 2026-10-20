@@ -18,7 +18,8 @@ identities:
   packsense-gold:
     runner: notebook
     checks:
-      - {name: reads its three silver tables, kind: allow, action: read_table, table: workspace.packsense_silver.silver_manifest}
+      - {name: reads its four silver tables, kind: allow, action: read_table, table: workspace.packsense_silver.silver_manifest}
+      - {name: reads the existence checks, kind: allow, action: read_table, table: workspace.packsense_silver.silver_existence_check}
       - {name: builds tables in its own gold schema, kind: allow, action: create_table, schema: workspace.packsense_gold}
       - {name: cannot read bronze, kind: deny, action: read_table, table: workspace.packsense_bronze.bronze_manifest}
       - {name: cannot read quarantine, kind: deny, action: read_table, table: workspace.packsense_silver.silver_quarantine}
@@ -30,7 +31,8 @@ identities:
   packsense-gold-dev:
     runner: notebook
     checks:
-      - {name: reads its three silver tables, kind: allow, action: read_table, table: workspace.packsense_dev_silver.silver_manifest}
+      - {name: reads its four silver tables, kind: allow, action: read_table, table: workspace.packsense_dev_silver.silver_manifest}
+      - {name: reads the existence checks, kind: allow, action: read_table, table: workspace.packsense_dev_silver.silver_existence_check}
       - {name: builds tables in its own gold schema, kind: allow, action: create_table, schema: workspace.packsense_dev_gold}
       - {name: cannot read dev bronze, kind: deny, action: read_table, table: workspace.packsense_dev_bronze.bronze_manifest}
       - {name: cannot read dev quarantine, kind: deny, action: read_table, table: workspace.packsense_dev_silver.silver_quarantine}

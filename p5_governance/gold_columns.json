@@ -235,6 +235,7 @@
   "product_status": [
    "code",
    "status",
+   "detail",
    "checked_at",
    "evidence_source"
   ],

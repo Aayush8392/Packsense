@@ -3,7 +3,7 @@
 Status (2026-10-18): **P4 is closed.** The exit gate was met on 2026-10-17 and all seven slices are built: 27 models and 137 dbt tests (165 nodes) run in production, 137 pass and 1 warns (the ancestor test).
 The gold job runs on dev and on production (daily 08:15 UTC since 2026-10-18, after the 06:45 UTC load job; it was 09:30 UTC), deployed by its own workflow. The 20 portable models give identical rows on Databricks and on DuckDB **on a
 fixture of 233 real products (542 versions)**, not on the full data, and a rerun is idempotent; both run in CI (see "The DuckDB comparison" below). Moved on purpose: the per-market export
-and the public-site marts to P6 (they go through the exit function), the worklist mart to P7, filling `product_status` to P9.
+and the public-site marts to P6 (they go through the exit function), the worklist mart to P7. `product_status` is filled since 2026-10-21 (see "Existence status").
 
 Gold is built from silver only, by its own job and its own principals (`packsense-gold-dev`, `packsense-gold`), so the single-writer rule
 holds: the bronze principal never writes gold, and gold never reads bronze, quarantine or the secret scope `packsense`.
@@ -16,8 +16,8 @@ holds: the bronze principal never writes gold, and gold never reads bronze, quar
   `stg_flag_occurrences`, `stg_history_markets`, `stg_history_allergens` and `stg_taxonomy_names` (array and map explodes), and `stg_taxonomy_tag` (silver's taxonomy table).
 - **Portable models** (`models/portable/`, plain ANSI SQL so they can run on DuckDB): `product_history` (SCD2 derived from silver's own versions, rebuilt in
   full every run: a period opens when the tracked set changes, versions that change nothing are merged, the open row is `is_latest_observed`),
-  `product_flag_spans` (OFF's quality flags as spans, with `first_seen_is_first_version` and `vanished_with_tracked_change`), `product_status` (every
-  product `unverified`, insert-only), `dim_brand`, `dim_market` (readable names, name matching) with `bridge_product_market`, `dim_date`, `taxonomy_tag_latest`, `taxonomy_name_lookup`,
+  `product_flag_spans` (OFF's quality flags as spans, with `first_seen_is_first_version` and `vanished_with_tracked_change`), `product_status` (the latest
+  existence check per product, `unverified` until one exists), `dim_brand`, `dim_market` (readable names, name matching) with `bridge_product_market`, `dim_date`, `taxonomy_tag_latest`, `taxonomy_name_lookup`,
   `dim_flag`, `bridge_product_allergen`, `dim_allergen` and `mart_allergen_change_log` (see "Taxonomy-based models"), and `bridge_product_category`, `dim_category`, `bridge_product_label` and `dim_label` (see "Categories and labels").
 - **Categories and labels** (slice 4, `bridge_product_category`, `bridge_product_label`, `dim_category`, `dim_label`): one bridge row per history period and tag, from one Databricks-only explode view
   (`stg_history_taxonomy_tags`, with a DuckDB twin). The two dimensions share the macro `tag_dimension` (the same tag / name / ambiguous / none resolution as `dim_allergen`) and carry the taxonomy's
@@ -85,8 +85,7 @@ The portable models must not depend on Databricks. The Databricks-only staging c
   bridge_product_label 824, dim_label 153), and all 134 dbt nodes (25 models, 109 tests; 133 pass, 1 warning) pass on both engines. The 2026-10-17 result was 13 models on 209 products. **The comparison found two defects:** (1) Databricks' statement API returns numbers nested in a map as text, a defect of the
   comparison reader, fixed and tested; (2) the engines lower-case a few characters differently (Databricks turns the Turkish dotted capital I into `i` plus a combining dot, DuckDB into a
   plain `i`), which made the name lookup differ for 13 Turkish and Azerbaijani names: fixed with the shared `name_key` macro and a test that forbids a bare `lower(trim(`.
-- **Rerun idempotence** (`compare_engines.py idempotence`, 2026-10-17): on DuckDB a second build, a `--full-refresh` build (the incremental
-  `product_status`) and a build from the same rows stored in the opposite physical order (the seed arrived after newer deltas) all reproduce the first build
+- **Rerun idempotence** (`compare_engines.py idempotence`, 2026-10-17): on DuckDB a second build, a `--full-refresh` build and a build from the same rows stored in the opposite physical order (the seed arrived after newer deltas) all reproduce the first build
   exactly, and the reversed build still equals the Databricks golden file.
 - **Slim CI** (`engines` job in `ci.yml`, not a required check): parse the Databricks project in both modes, build the portable models on DuckDB, compare with
   the golden file, run the idempotence check. **To regenerate** after a model change: `fixture_databricks.py load`, `dbt`, `compare_engines.py dump --engine databricks`, `drop` (all
@@ -151,8 +150,8 @@ to every run, CI and local build, and run third-party macros with the gold princ
 two small checks. They are written in the project instead (amendment A43). They run inside the daily `dbt build` of `packsense-gold-build` (08:15 UTC), like every other
 test: no extra job or schedule. `every_model_has_rows` (error): each of the 20 portable models holds at least one row (a model that builds empty passes every shape test;
 `tests/test_checks.py` fails when a model is added to the comparison and not to this list). `quality_fact_has_every_group_every_day` (error): every day of the quality
-fact has the same number of rows, because the model builds a full grid, so a dropped day or group shows. `history_not_below_status` (warn): `product_status` is insert-only
-and remembers every product ever built, so the history can never hold fewer distinct products; if it does, silver lost products. `silver_is_fresh` (warn, Databricks
+fact has the same number of rows, because the model builds a full grid, so a dropped day or group shows. `status_matches_evidence` (error): a status must come with the evidence that can give it (a snapshot row for `present_in_snapshot`, OFF's API for every other answer, no evidence
+for `unverified`). `existence_check_is_fresh` (warn, Databricks production only): the newest weekly `present_in_snapshot` row must be less than 10 days old. `silver_is_fresh` (warn, Databricks
 production only): the newest delta window silver holds must end less than `silver_stale_after_hours` (48) ago; a normal day at the gold run is about 27 hours, one
 skipped day about 51 (the threshold is an estimate from the observed schedule). It reads the wall clock, so it is disabled on DuckDB and in fixture mode. `delta_windows_are_contiguous` (warn, same switch, adopted after review 02): each delta window silver holds must start where
 the previous one ended, because `complete_days` takes its range from the earliest start and the latest end and would otherwise count a missing file as a quiet complete day. On production's 17 windows it returns nothing;
@@ -164,12 +163,12 @@ at 48 hours (the newest window was 28.3 hours old) and fired at a 0-hour thresho
 
 ## Still to do
 Nothing in P4 itself. The per-market export and the public-site marts belong with P6 (they go through the exit function), the worklist mart waits for P7, and `product_status` is filled by
-the P9 reconciliation. Parked: an allergen alias table, a rule table for the roughly 300 generated flags the taxonomy does not list, and fixture rows for two paths no real data reaches today
+the P9 reconciliation (built, see "Existence status"). Parked: an allergen alias table, a rule table for the roughly 300 generated flags the taxonomy does not list, and fixture rows for two paths no real data reaches today
 (a change opened by the seed: none exists in production; an India new product and a root flag exist and can be added at the next fixture regeneration).
 
 ## Gold principals and grants
 Two principals, each with the **Workspace access** and **Databricks SQL access** entitlements, **Can use** on the SQL warehouse and nothing else.
-A principal reads exactly three silver tables and writes only its own gold schema; it has no access to bronze, to quarantine, or to the secret scope
+A principal reads exactly four silver tables and writes only its own gold schema; it has no access to bronze, to quarantine, or to the secret scope
 `packsense`. No `CREATE SCHEMA`: an admin creates the schema first. Unity Catalog has no `CREATE VIEW` privilege; `CREATE TABLE` covers views.
 The grants themselves are in `p5_governance/grants.yml` (SQL form in `p5_governance/README.md`). Table-level grants on silver are lost when a
 silver table is renamed or dropped and recreated (the table-swap runbook): run `apply_grants.py apply` afterwards.
@@ -203,3 +202,18 @@ cd p4_modelling
 ../.venv-dbt/Scripts/dbt build --target duckdb --profiles-dir .
 ../.venv-dbt/Scripts/python bootstrap/compare_engines.py check
 ```
+
+## Existence status (`product_status`, since 2026-10-21)
+`product_status` says whether each product we hold is still in OFF's food database. It is the latest existence check per product from the silver table
+`silver_existence_check`, which two P9 pieces write: the weekly comparison with OFF's Hugging Face snapshot (a `present_in_snapshot` row for the ~97% of products the snapshot
+holds) and the Airflow lookups of OFF's API for the products it does not (`confirmed_not_found`, `moved_other_type`, `confirmed_exists`, `invalid_code`, `unconfirmed`; see
+`p9_operations/existence_lib.py`). A product with no check is `unverified`, and nothing in gold may read that as "exists". The model is a full rebuild each night (it was an
+insert-only table of `unverified` rows until then): the memory lives in the append-only silver table. Columns: `code`, `status`, `detail`, `checked_at`, `evidence_source`.
+
+- **First production state (2026-10-20):** 135,217 present in the snapshot, 2,092 not found, 25 moved to another product type (`product`, `beauty`, `petfood`), 3 found by the API
+  although the snapshot lacks them, and the products edited after the snapshot was built still `unverified` until the next weekly run.
+- **Fixture (committed):** `fixtures/existence_check.jsonl` and `existence_manifest.json` hold the real checks of the 233 fixture products (232 `present_in_snapshot`, 1 `confirmed_not_found`),
+  exported by `bootstrap/export_existence_fixture.py` (admin, read-only) through the exit function (the barcode is the key and is not scrubbed). **Limit:** the other statuses
+  (`moved_other_type`, `confirmed_exists`, `invalid_code`, `unconfirmed`) and `unverified` are not in the fixture, because the product fixture was not regenerated for them; they pass
+  through the model unchanged and the ordering rule is tested on its own in `p9_operations/tests/test_existence_lib.py`. Add real API-answered products to the product fixture's case list at the next regeneration.
+- **Access:** the gold principals read this table with a table-level SELECT (`p5_governance/grants.yml`); it exists only after the weekly candidate job has run once in each environment.

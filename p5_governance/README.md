@@ -37,7 +37,7 @@ are optional: a role without a working token is skipped and said so, and that us
 ## Rules this file encodes
 - Both deployers and both gold principals have the **Workspace access** entitlement and nothing else (the gold ones also **Databricks SQL
   access** and **Can use** on the SQL warehouse). Those entitlements are not grants; they are set in the workspace and are not checked here.
-- Gold principals read exactly three silver tables (`silver_product_versions`, `silver_manifest`, `silver_taxonomy_tag`) and write only their own gold
+- Gold principals read exactly four silver tables (`silver_product_versions`, `silver_manifest`, `silver_taxonomy_tag`, `silver_existence_check`) and write only their own gold
   schema; they have nothing on bronze, quarantine or the secret scope `packsense` (tests check this in the file).
 - No principal has `CREATE SCHEMA`: an admin creates schemas and volumes first.
 - A table is owned by the principal that created it, and a schema owner gets no read access to it, hence the admin's standing `SELECT` on every pipeline schema.
@@ -165,6 +165,8 @@ GRANT SELECT ON TABLE workspace.packsense_silver.silver_taxonomy_tag TO `packsen
 GRANT SELECT ON TABLE workspace.packsense_dev_silver.silver_product_versions TO `packsense-gold-dev`;
 GRANT SELECT ON TABLE workspace.packsense_dev_silver.silver_manifest TO `packsense-gold-dev`;
 GRANT SELECT ON TABLE workspace.packsense_dev_silver.silver_taxonomy_tag TO `packsense-gold-dev`;
+GRANT SELECT ON TABLE workspace.packsense_silver.silver_existence_check TO `packsense-gold`;
+GRANT SELECT ON TABLE workspace.packsense_dev_silver.silver_existence_check TO `packsense-gold-dev`;
 -- secret scope packsense: READ for `packsense-deployer`
 -- secret scope packsense: MANAGE for `admin`
 -- secret scope packsense_dev: READ for `packsense-deployer-dev`

@@ -66,13 +66,18 @@ securables:
   - {type: table, name: workspace.packsense_gold.bridge_product_market, grants: {analyst: [SELECT]}}
   - {type: table, name: workspace.packsense_gold.dim_market, grants: {analyst: [SELECT]}}
 
-  # The three silver tables gold reads. A table-level grant is lost when the table is renamed or dropped: re-run apply_grants after a swap.
+  # The silver tables gold reads (three until 2026-10-21, four since). A table-level grant is lost when the table is renamed or dropped: re-run apply_grants after a swap.
   - {type: table, name: workspace.packsense_silver.silver_product_versions, grants: {packsense-gold: [SELECT]}}
   - {type: table, name: workspace.packsense_silver.silver_manifest, grants: {packsense-gold: [SELECT]}}
   - {type: table, name: workspace.packsense_silver.silver_taxonomy_tag, grants: {packsense-gold: [SELECT]}}
   - {type: table, name: workspace.packsense_dev_silver.silver_product_versions, grants: {packsense-gold-dev: [SELECT]}}
   - {type: table, name: workspace.packsense_dev_silver.silver_manifest, grants: {packsense-gold-dev: [SELECT]}}
   - {type: table, name: workspace.packsense_dev_silver.silver_taxonomy_tag, grants: {packsense-gold-dev: [SELECT]}}
+
+  # The fourth silver table gold reads (since 2026-10-21): the existence checks product_status is built from. Created by the weekly candidate job (as the deployer), so it
+  # exists only after that job has run once in each environment: apply this AFTER the first run and BEFORE the gold deploy that reads it.
+  - {type: table, name: workspace.packsense_silver.silver_existence_check, grants: {packsense-gold: [SELECT]}}
+  - {type: table, name: workspace.packsense_dev_silver.silver_existence_check, grants: {packsense-gold-dev: [SELECT]}}
 
 # Secret scopes: a scope has no per-key permission, so READ covers every secret in it. The admin manages all of them.
 secret_scopes:

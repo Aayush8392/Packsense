@@ -130,17 +130,24 @@ models:
 
   - name: product_status
     description: >
-      Existence status per product. Created now, every product `unverified`; filled by the monthly reconciliation (P9).
-      Incremental: only new codes are inserted, existing rows are never touched.
+      Whether each product we hold is still in OFF's food database, from its latest existence check (silver_existence_check: the weekly snapshot comparison and the
+      Airflow lookups of OFF's API). One row per product; a product with no check yet is `unverified`. Rebuilt in full every night.
     columns:
       - name: code
         data_tests: [unique, not_null]
       - name: status
+        description: unverified, present_in_snapshot, confirmed_exists, confirmed_not_found (OFF's API has no such product), moved_other_type (OFF moved it to another product type), invalid_code, unconfirmed (the API gave no clear answer).
         data_tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ['unverified', 'exists', 'deleted_or_merged']
+                values: ['unverified', 'present_in_snapshot', 'confirmed_exists', 'confirmed_not_found', 'moved_other_type', 'invalid_code', 'unconfirmed']
+      - name: detail
+        description: What OFF said beyond the status, for example `beauty` for a product moved to Open Beauty Facts. NULL otherwise.
+      - name: checked_at
+        description: When the latest check was made (the snapshot's commit time for a snapshot row). NULL while unverified.
+      - name: evidence_source
+        description: snapshot or off_api_v2. NULL while unverified.
 
   - name: bridge_product_allergen
     description: >

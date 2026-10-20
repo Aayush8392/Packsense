@@ -70,14 +70,14 @@ def test_gold_principals_have_no_access_to_bronze_or_the_main_scope():
         assert not {r for r in SPEC["secret_scopes"][scope] if "gold" in r}
 
 
-def test_gold_principals_read_exactly_the_three_silver_tables():
+def test_gold_principals_read_exactly_the_four_silver_tables():
     tables = {r: set() for r in ("packsense-gold", "packsense-gold-dev")}
     for s in SPEC["securables"]:
         if s["type"] == "table":
             for r in s["grants"]:
                 if r in tables:                      # the analyst's table grants (P5 step 4) are checked in test_policies.py
                     tables[r].add(s["name"].split(".")[-1])
-    assert tables["packsense-gold"] == tables["packsense-gold-dev"] == {"silver_product_versions", "silver_manifest", "silver_taxonomy_tag"}
+    assert tables["packsense-gold"] == tables["packsense-gold-dev"] == {"silver_product_versions", "silver_manifest", "silver_taxonomy_tag", "silver_existence_check"}
 
 
 def test_the_readme_block_is_the_generated_one():

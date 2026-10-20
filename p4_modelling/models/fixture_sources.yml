@@ -10,3 +10,4 @@ sources:
     tables:
       - name: fixture_stg_silver_versions
       - name: fixture_taxonomy_tag
+      - name: fixture_existence_check

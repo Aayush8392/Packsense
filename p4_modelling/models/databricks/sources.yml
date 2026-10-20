@@ -1,6 +1,6 @@
 version: 2
 
-# The only tables gold reads. The gold principal gets table-level SELECT on these three and nothing else
+# The only tables gold reads. The gold principal gets table-level SELECT on these four and nothing else
 # (no quarantine, no bronze, no secret scope `packsense`).
 sources:
   - name: silver
@@ -13,3 +13,5 @@ sources:
         description: One row per processed bronze file; gold uses it as a freshness guard.
       - name: silver_taxonomy_tag
         description: One row per (taxonomy, snapshot, tag) of OFF's taxonomies (contract taxonomy.yml, public vocabulary, no personal data); gold takes the newest snapshot of each taxonomy it uses.
+      - name: silver_existence_check
+        description: One row per product per existence check (a weekly snapshot row or an answer from OFF's API; p9_operations/existence_lib.py). Append-only; product_status takes the latest row per product.

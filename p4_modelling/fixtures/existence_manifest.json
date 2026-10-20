@@ -1,0 +1,24 @@
+{
+ "columns": {
+  "checked_at": "timestamp",
+  "code": "string",
+  "detail": "string",
+  "evidence_source": "string",
+  "status": "string"
+ },
+ "exit_report": {
+  "columns_dropped": 0,
+  "patterns_removed": 0,
+  "rows": 233
+ },
+ "generated_at_utc": "2026-10-20 21:42:58",
+ "products_in_fixture": 233,
+ "products_with_a_check": 233,
+ "products_without_any_check": [],
+ "rows_by_status": {
+  "confirmed_not_found": 1,
+  "present_in_snapshot": 232
+ },
+ "version_rows": 233,
+ "what": "rows of silver_existence_check (the weekly snapshot comparison and OFF's API answers) for the products of the committed product fixture, after the exit function"
+}
