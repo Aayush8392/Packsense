@@ -71,6 +71,12 @@ targets:
         snapshots:
           schedule:
             pause_status: PAUSED
+        reconcile_candidates:
+          schedule:
+            pause_status: PAUSED
+        reconcile_load:
+          schedule:
+            pause_status: PAUSED
   prod:
     # No custom root_path: only the deploy principal deploys prod, so its own home folder (private to it) holds the files and
     # the state. /Workspace/Shared would be writable by every workspace user, and these notebooks read the HMAC key.

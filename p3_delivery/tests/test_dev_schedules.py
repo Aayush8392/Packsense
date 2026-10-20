@@ -11,7 +11,7 @@ GOLD_BUNDLE = yaml.safe_load((ROOT / "p4_modelling" / "databricks.yml").read_tex
 
 def test_every_dev_job_of_the_main_bundle_is_paused_by_name():
     jobs = ROOT_BUNDLE["targets"]["dev"]["resources"]["jobs"]
-    assert set(jobs) == {"bronze_load", "archive", "snapshots"}
+    assert set(jobs) == {"bronze_load", "archive", "snapshots", "reconcile_candidates", "reconcile_load"}
     assert all(j["schedule"]["pause_status"] == "PAUSED" for j in jobs.values())
 
 

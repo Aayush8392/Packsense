@@ -182,6 +182,16 @@ barcodes that were in one weekly snapshot of OFF and not in the next (deletion c
 
 per-pair bookkeeping of the snapshot comparison (counts, bytes read, run id). 16 columns: 0 public, 0 personal, 16 internal.
 
+### `workspace.packsense_silver.silver_existence_check`: public
+
+whether each product we hold is still in OFF's food database (a barcode and a status; from a snapshot of OFF's public dataset and from OFF's public API). 7 columns: 4 public, 0 personal, 3 internal.
+
+| Column | Class | Note |
+|---|---|---|
+| `evidence_source` | internal |  |
+| `snapshot_sha` | internal |  |
+| `job_run_id` | internal |  |
+
 ### `workspace.packsense_policy.market_access`: internal
 
 who may see which market (policies.yml). 2 columns: 0 public, 1 personal, 1 internal.

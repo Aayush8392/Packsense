@@ -1,0 +1,117 @@
+{
+ "source": "OFF API v2 world.openfoodfacts.org/api/v2/product/<code>.json?fields=code,status,status_verbose,last_modified_t, fetched 2026-10-20; codes are real products from the snapshot fixture",
+ "responses": [
+  {
+   "kind": "left_snapshot",
+   "code": "3614790000309",
+   "http": 404,
+   "status": 0,
+   "status_verbose": "product found with a different product type: beauty",
+   "product_last_modified_t": null
+  },
+  {
+   "kind": "left_snapshot",
+   "code": "9781338214611",
+   "http": 404,
+   "status": 0,
+   "status_verbose": "product not found",
+   "product_last_modified_t": null
+  },
+  {
+   "kind": "left_snapshot",
+   "code": "8909106057647",
+   "http": 404,
+   "status": 0,
+   "status_verbose": "product found with a different product type: beauty",
+   "product_last_modified_t": null
+  },
+  {
+   "kind": "left_snapshot",
+   "code": "9788831013185",
+   "http": 404,
+   "status": 0,
+   "status_verbose": "product found with a different product type: product",
+   "product_last_modified_t": null
+  },
+  {
+   "kind": "left_snapshot",
+   "code": "9040732330977",
+   "http": 404,
+   "status": 0,
+   "status_verbose": "product not found",
+   "product_last_modified_t": null
+  },
+  {
+   "kind": "left_snapshot",
+   "code": "4006508176571",
+   "http": 404,
+   "status": 0,
+   "status_verbose": "product found with a different product type: product",
+   "product_last_modified_t": null
+  },
+  {
+   "kind": "still_in_snapshot",
+   "code": "5411883501440",
+   "http": 200,
+   "status": 1,
+   "status_verbose": "product found",
+   "product_last_modified_t": 1791631184
+  },
+  {
+   "kind": "still_in_snapshot",
+   "code": "76139321",
+   "http": 200,
+   "status": 1,
+   "status_verbose": "product found",
+   "product_last_modified_t": 1791459776
+  },
+  {
+   "kind": "still_in_snapshot",
+   "code": "8017172106425",
+   "http": 200,
+   "status": 1,
+   "status_verbose": "product found",
+   "product_last_modified_t": 1791144618
+  },
+  {
+   "kind": "still_in_snapshot",
+   "code": "4028491402475",
+   "http": 200,
+   "status": 1,
+   "status_verbose": "product found",
+   "product_last_modified_t": 1791118862
+  },
+  {
+   "kind": "still_in_snapshot",
+   "code": "7070622010629",
+   "http": 200,
+   "status": 1,
+   "status_verbose": "product found",
+   "product_last_modified_t": 1791995745
+  },
+  {
+   "kind": "odd",
+   "code": "00078067",
+   "http": 404,
+   "status": 0,
+   "status_verbose": "product found with a different product type: beauty",
+   "product_last_modified_t": null
+  },
+  {
+   "kind": "odd",
+   "code": "4088600237008060399",
+   "http": 404,
+   "status": 0,
+   "status_verbose": "product not found",
+   "product_last_modified_t": null
+  },
+  {
+   "kind": "odd",
+   "code": "0000000000000",
+   "http": 200,
+   "status": 0,
+   "status_verbose": "no code or invalid code",
+   "product_last_modified_t": null
+  }
+ ]
+}

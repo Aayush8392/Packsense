@@ -71,6 +71,13 @@ tables:
   - name: workspace.packsense_snapshots.snapshot_manifest
     class: internal
     why: per-pair bookkeeping of the snapshot comparison (counts, bytes read, run id)
+  - name: workspace.packsense_silver.silver_existence_check
+    class: public
+    why: whether each product we hold is still in OFF's food database (a barcode and a status; from a snapshot of OFF's public dataset and from OFF's public API)
+    columns:
+      evidence_source: {class: internal}
+      snapshot_sha: {class: internal}
+      job_run_id: {class: internal}
   - name: workspace.packsense_policy.market_access
     class: internal
     why: who may see which market (policies.yml)

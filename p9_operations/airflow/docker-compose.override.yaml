@@ -1,0 +1,16 @@
+# Extra volumes and variables for the Airflow stack on D: so it can run the PackSense reconciliation DAG. Use it together with the stack's own compose file:
+#   docker compose -f docker-compose.yaml -f C:/Users/HP/Packsense/p9_operations/airflow/docker-compose.override.yaml up -d
+# The DAG file and its library are read straight from the repo (read-only); results are kept in the stack's dags/data folder.
+# Add PACKSENSE_DBX_HOST and PACKSENSE_PIPELINE_TOKEN to the stack's existing env file yourself (the values are secrets and are never written here), and
+# create the pool once (the stack creates DAGs paused: unpause packsense_reconcile in the UI once):  airflow pools set off_api 1 "OFF API lookups, one at a time"
+x-packsense-volumes: &packsense-volumes
+  - C:/Users/HP/Packsense/p9_operations:/opt/airflow/p9_operations:ro
+  - C:/Users/HP/Packsense/p9_operations/airflow/dags:/opt/airflow/dags/packsense:ro
+
+x-airflow-common-override: &airflow-common-override
+  volumes: *packsense-volumes
+
+services:
+  airflow-apiserver: *airflow-common-override
+  airflow-scheduler: *airflow-common-override
+  airflow-dag-processor: *airflow-common-override

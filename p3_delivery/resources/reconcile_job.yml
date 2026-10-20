@@ -1,0 +1,46 @@
+# The two Databricks jobs of the deletion reconciliation (p9_operations/existence_lib.py says what it is and why). The lookups against OFF's API run in
+# Airflow on the laptop between them; Databricks never waits for the laptop.
+#   packsense-reconcile-candidates  Tuesdays 07:00 UTC, after the Monday snapshot job: reads the newest snapshot's codes, records `present_in_snapshot` for
+#                                   every product it holds and writes the list of products to ask OFF about to landing/reconcile/candidates/.
+#   packsense-reconcile-load        Thursdays 07:00 UTC: loads whatever answers the Airflow DAG left in landing/reconcile/results/ (idempotent, so a late
+#                                   laptop only means the answers arrive the week after).
+resources:
+  jobs:
+    reconcile_candidates:
+      name: packsense-reconcile-candidates
+      max_concurrent_runs: 1
+      timeout_seconds: 3600
+      schedule:
+        quartz_cron_expression: "0 0 7 ? * TUE"
+        timezone_id: UTC
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: candidates
+          disable_auto_optimization: true       # no automatic retry (it would read the snapshot columns again)
+          notebook_task:
+            notebook_path: ../../p9_operations/notebooks/reconcile_candidates.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              silver_schema: ${var.silver_schema}
+              landing: ${var.landing}
+              secret_scope: ${var.secret_scope}
+              ping_healthchecks: ${var.ping}
+    reconcile_load:
+      name: packsense-reconcile-load
+      max_concurrent_runs: 1
+      timeout_seconds: 3600
+      schedule:
+        quartz_cron_expression: "0 0 7 ? * THU"
+        timezone_id: UTC
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: load
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../../p9_operations/notebooks/reconcile_load.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              silver_schema: ${var.silver_schema}
+              landing: ${var.landing}
+              secret_scope: ${var.secret_scope}
+              ping_healthchecks: ${var.ping}
