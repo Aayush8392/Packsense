@@ -24,7 +24,7 @@ with latest as (
 select
     h.code,
     coalesce(l.status, 'unverified') as status,
-    l.detail,
+    nullif(l.detail, '') as detail,                          -- silver stores '' where OFF said nothing more; gold says NULL (found on the first production build)
     l.checked_at,
     l.evidence_source
 from (select distinct code from {{ ref('stg_silver_versions') }}) as h

@@ -33,8 +33,9 @@ def to_utc_text(value: str) -> str:
 
 
 def build_rows(raw: list[list]) -> list[dict]:
-    """raw: [code, checked_at, status, detail, evidence_source] as the warehouse returns them. Sorted for a stable file."""
-    rows = [{"code": r[0], "checked_at": to_utc_text(r[1]), "status": r[2], "detail": r[3] or None, "evidence_source": r[4]} for r in raw]
+    """raw: [code, checked_at, status, detail, evidence_source] as the warehouse returns them. Sorted for a stable file. `detail` is kept exactly as silver holds it:
+    an empty string where OFF said nothing more (production has '' there, and the model turns it into NULL; a fixture with NULL would hide that)."""
+    rows = [{"code": r[0], "checked_at": to_utc_text(r[1]), "status": r[2], "detail": r[3], "evidence_source": r[4]} for r in raw]
     return sorted(rows, key=lambda r: (r["code"], r["checked_at"], r["evidence_source"]))
 
 

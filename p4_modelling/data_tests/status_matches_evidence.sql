@@ -5,3 +5,4 @@ from {{ ref('product_status') }}
 where (status = 'present_in_snapshot' and coalesce(evidence_source, '') <> 'snapshot')
    or (status in ('confirmed_exists', 'confirmed_not_found', 'moved_other_type', 'invalid_code', 'unconfirmed') and coalesce(evidence_source, '') <> 'off_api_v2')
    or (status = 'unverified' and (evidence_source is not null or checked_at is not null or detail is not null))
+   or detail = ''
