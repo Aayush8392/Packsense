@@ -312,4 +312,39 @@ def test_open_counts_add_up_to_the_flags_the_rows_carry():
     for table, rows in (("p", [(r["e_a"], r["w_a"], r["i_a"]) for r in SLICE["pairs"]] + [(r["e"], r["w"], r["i"]) for r in SLICE["only_a"]]),):
         counts = lib.open_counts(con, table)
         for sev, idx in (("error", 0), ("warning", 1), ("info", 2)):
-            assert sum(n for s, _, n in counts if s == sev) == sum(len(r[idx]) for r in rows)
+            assert sum(n for s, _, n in counts if s == sev) == sum(len(set(r[idx])) for r in rows)
+
+
+def test_a_tag_listed_twice_on_one_product_gives_one_event_and_one_count():
+    # Seen live on 2026-10-20: one product's old list repeated a warning tag. Built from a real fixture row by listing one of its own tags twice.
+    row = next(r for r in SLICE["pairs"] if r["case"] == "warning_gone")
+    gone = next(t for t in row["w_a"] if t not in row["w_c"])
+    con = duckdb.connect()
+    for t in ("p", "n"):
+        con.execute(f"create table {t} (code varchar, lm bigint, e varchar[], w varchar[], i varchar[])")
+    con.execute("insert into p values (?,?,?,?,?)", [row["code"], row["lm_a"], row["e_a"], row["w_a"] + [gone], row["i_a"]])
+    con.execute("insert into n values (?,?,?,?,?)", [row["code"], row["lm_c"], row["e_c"], row["w_c"], row["i_c"]])
+    res = lib.compute_pair(con)
+    same = [e for e in res["events"] if e["severity"] == "warning" and e["flag"] == gone and e["event"] == "disappeared"]
+    assert len(same) == 1
+    counts = {(s, t): n for s, t, n in lib.open_counts(con, "p")}
+    assert counts[("warning", gone)] == 1
+
+
+def test_a_product_with_no_flag_list_at_all_still_gets_its_new_flags_as_appeared_events():
+    # The fixture export turned NULL lists into empty ones; live data has real NULLs (a product OFF lists with no flags). Built from a real fixture
+    # row by setting its OLD warning list to NULL and, in a second case, its NEW list to NULL.
+    row = next(r for r in SLICE["pairs"] if r["case"] == "flag_appeared" and r["w_c"])
+    con = duckdb.connect()
+    for t in ("p", "n"):
+        con.execute(f"create table {t} (code varchar, lm bigint, e varchar[], w varchar[], i varchar[])")
+    con.execute("insert into p values (?,?,?,?,?)", [row["code"], row["lm_a"], row["e_a"], None, row["i_a"]])
+    con.execute("insert into n values (?,?,?,?,?)", [row["code"], row["lm_c"], row["e_c"], row["w_c"], row["i_c"]])
+    res = lib.compute_pair(con)
+    appeared = {e["flag"] for e in res["events"] if e["severity"] == "warning" and e["event"] == "appeared"}
+    assert appeared == set(row["w_c"])
+    con.execute("update p set w = ?", [row["w_a"]])
+    con.execute("update n set w = NULL")
+    res = lib.compute_pair(con)
+    gone = {e["flag"] for e in res["events"] if e["severity"] == "warning" and e["event"] == "disappeared"}
+    assert gone == set(row["w_a"])

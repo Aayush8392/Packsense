@@ -240,10 +240,11 @@ def load_sql(table: str, url: str) -> str:
 
 
 def open_counts(con, table: str) -> list[tuple[str, str, int]]:
-    """(severity, tag, number of products carrying it) for one loaded snapshot."""
+    """(severity, tag, number of products carrying it) for one loaded snapshot. A tag listed twice on one product counts once (OFF's lists
+    can repeat a tag: seen on 2026-10-20 in `en:nutri-score-grade-from-label-does-not-match-calculated-grade`)."""
     rows = []
     for alias, sev, _ in SEVERITIES:
-        for tag, n in con.execute(f"select tag, count(*) from (select unnest({alias}) as tag from {table}) group by 1").fetchall():
+        for tag, n in con.execute(f"select tag, count(*) from (select unnest(list_distinct({alias})) as tag from {table}) group by 1").fetchall():
             rows.append((sev, tag, n))
     return rows
 
@@ -253,13 +254,15 @@ def compute_pair(con, prev: str = "p", cur: str = "n") -> dict:
       stats     counts for the manifest;
       events    one dict per tag that disappeared from or appeared on a product present in both snapshots;
       left      products in `prev` and not in `cur` (deletion candidates).
+    A NULL tag list (a product OFF lists with no flags at all) counts as an empty list: without that, `list_contains(NULL, x)` is NULL and every
+    tag that appeared on such a product was silently dropped (found 2026-10-20 by an independent recount: 372 warning and 561 info events).
     For a disappeared tag `family_remains` is True when the product still carries ANOTHER tag of the same family in `cur` (a rename, not a fix);
     for an appeared tag it is True when the product already carried that family in `prev`. `edited` is whether last_modified_t changed."""
     def q(sql):
         return con.execute(sql).fetchall()
 
     con.execute("create or replace temp table _b as select p.code, p.lm as lm_from, c.lm as lm_to, "
-                + ", ".join(f"p.{a} as {a}_p, c.{a} as {a}_c" for a, _, _ in SEVERITIES)
+                + ", ".join(f"coalesce(p.{a}, []::varchar[]) as {a}_p, coalesce(c.{a}, []::varchar[]) as {a}_c" for a, _, _ in SEVERITIES)
                 + f" from {prev} p join {cur} c on p.code = c.code")
     stats = {
         "rows_from": q(f"select count(*) from {prev}")[0][0],
@@ -275,7 +278,7 @@ def compute_pair(con, prev: str = "p", cur: str = "n") -> dict:
     for alias, sev, _ in SEVERITIES:
         for event, a, b in (("disappeared", f"{alias}_p", f"{alias}_c"), ("appeared", f"{alias}_c", f"{alias}_p")):
             rows = q(f"select code, lm_from, lm_to, tag, {b} as other from (select code, lm_from, lm_to, {b}, "
-                     f"unnest(list_filter({a}, x -> not list_contains({b}, x))) as tag from _b)")
+                     f"unnest(list_distinct(list_filter({a}, x -> not list_contains({b}, x)))) as tag from _b)")
             # the tags the product carries on the OTHER side, as family sets, to tell a rename from a real change
             for code, lm_from, lm_to, tag, other in rows:
                 fam = family_key(tag)
