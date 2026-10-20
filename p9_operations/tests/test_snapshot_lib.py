@@ -348,3 +348,10 @@ def test_a_product_with_no_flag_list_at_all_still_gets_its_new_flags_as_appeared
     res = lib.compute_pair(con)
     gone = {e["flag"] for e in res["events"] if e["severity"] == "warning" and e["event"] == "disappeared"}
     assert gone == set(row["w_a"])
+
+
+def test_the_dev_copy_of_the_snapshots_job_is_paused_by_name_and_prod_is_not():
+    bundle = yaml.safe_load((Path(__file__).resolve().parents[2] / "databricks.yml").read_text(encoding="utf-8"))
+    assert bundle["targets"]["dev"]["resources"]["jobs"]["snapshots"]["schedule"]["pause_status"] == "PAUSED"
+    assert "resources" not in bundle["targets"]["prod"]
+    assert bundle["targets"]["dev"]["variables"]["snapshots_schema"] == "workspace.packsense_dev_snapshots"

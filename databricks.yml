@@ -55,6 +55,13 @@ targets:
       secret_scope: packsense_dev                         # holds only a throwaway HMAC key: dev never sees the real secrets
       ping: "false"
       capture_b2: "false"
+    resources:
+      jobs:
+        snapshots:
+          # Found 2026-10-20: an explicit `pause_status: UNPAUSED` in a job file overrides development mode, so the dev copies of the other jobs run on
+          # their schedules every day. This one would download ~3.7 GB of snapshots a second time, so dev pauses it by name.
+          schedule:
+            pause_status: PAUSED
   prod:
     # No custom root_path: only the deploy principal deploys prod, so its own home folder (private to it) holds the files and
     # the state. /Workspace/Shared would be writable by every workspace user, and these notebooks read the HMAC key.
