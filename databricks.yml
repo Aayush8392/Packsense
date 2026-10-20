@@ -1,7 +1,8 @@
 # PackSense Databricks Asset Bundle: the two scheduled jobs, deployed as a fixed copy of the code instead of
 # running notebooks straight from `main`.
 #
-# dev  : scratch schemas, its own landing volume and secret scope, no schedules (development mode pauses them), no pings.
+# dev  : scratch schemas, its own landing volume and secret scope, no schedules (each dev job is paused by name below: development mode alone
+#        does not pause a job whose file says UNPAUSED), no pings.
 #        Deployed by the dev principal, which has rights on dev objects only. The archive job is deployed there too but
 #        cannot work (the dev scope holds no B2 or HF keys); do not run it.
 # prod : the real schemas, landing volume and scope and the current schedules; deployed only by the prod principal.
@@ -57,9 +58,17 @@ targets:
       capture_b2: "false"
     resources:
       jobs:
+        # Found 2026-10-20: an explicit `pause_status: UNPAUSED` in a job file overrides development mode, so every dev copy ran on its schedule
+        # every day (dev bronze with a capture that back-filled all of OFF's files into the dev landing volume, dev gold, and a dev archive that failed
+        # daily). Nothing reads dev's output and production does the real work, so dev pauses each schedule by name; a dev job is started by hand
+        # when a change is tried there. The dev copy of the gold job is paused in p4_modelling/databricks.yml. A test keeps all four in step.
+        bronze_load:
+          schedule:
+            pause_status: PAUSED
+        archive:
+          schedule:
+            pause_status: PAUSED
         snapshots:
-          # Found 2026-10-20: an explicit `pause_status: UNPAUSED` in a job file overrides development mode, so the dev copies of the other jobs run on
-          # their schedules every day. This one would download ~3.7 GB of snapshots a second time, so dev pauses it by name.
           schedule:
             pause_status: PAUSED
   prod:

@@ -43,6 +43,13 @@ targets:
   dev:
     default: true
     mode: development
+    resources:
+      jobs:
+        gold_build:
+          # An explicit UNPAUSED in the job file overrides development mode (found 2026-10-20), so the dev copy ran every day for nothing. Paused by name;
+          # start it by hand when a change is tried in dev.
+          schedule:
+            pause_status: PAUSED
   prod:
     # No custom root_path: only the prod principal deploys prod, so its own private home folder holds the files and state.
     default: false
