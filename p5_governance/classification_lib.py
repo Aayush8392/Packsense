@@ -13,6 +13,8 @@ import yaml
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(ROOT / "p2_lakehouse"))
+sys.path.insert(0, str(ROOT / "p9_operations"))
+import snapshot_lib  # noqa: E402
 from silver_lib import contract as silver_contract  # noqa: E402
 from silver_lib import schema as silver_schema  # noqa: E402
 from silver_lib import taxonomy as taxonomy_lib  # noqa: E402
@@ -114,6 +116,7 @@ def table_columns() -> dict[str, list[str]]:
         tc["table"]: [c["name"] for c in tc["columns"]],
         tc["manifest_table"]: ddl_columns(taxonomy_lib.manifest_sql(tc)),
         pol_table: ["principal", "market"],
+        **{f"{snapshot_lib.DEFAULT_SCHEMA}.{name}": snapshot_lib.ddl_columns(sql) for name, sql in snapshot_lib.ddl(snapshot_lib.DEFAULT_SCHEMA).items()},
     }
 
 

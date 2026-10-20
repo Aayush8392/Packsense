@@ -33,6 +33,9 @@ variables:
     default: /Volumes/workspace/packsense/landing
   secret_scope:
     default: packsense
+  snapshots_schema:
+    description: where the weekly OFF snapshot flag events are kept (p9_operations/snapshot_lib.py)
+    default: workspace.packsense_snapshots
   ping:
     description: whether the notebooks ping healthchecks.io ("true" or "false")
     default: "true"
@@ -47,6 +50,7 @@ targets:
     variables:
       bronze_schema: workspace.packsense_dev_bronze
       silver_schema: workspace.packsense_dev_silver
+      snapshots_schema: workspace.packsense_dev_snapshots
       landing: /Volumes/workspace/packsense_dev/landing   # its own volume: the dev principal has no rights on the real one
       secret_scope: packsense_dev                         # holds only a throwaway HMAC key: dev never sees the real secrets
       ping: "false"

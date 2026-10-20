@@ -1,0 +1,25 @@
+# The job `packsense-snapshots`: once a week, compare consecutive weekly snapshots of OFF's Hugging Face dataset and keep only the flag changes
+# (p9_operations/snapshot_lib.py; the notebook says what is bounded and why). It reads one public dataset over the internet and writes only to
+# the snapshots schema; it needs no secret except the optional healthchecks ping. The first run after a deploy is the backfill (12 weeks).
+# Mondays 12:00 UTC: the weekly grid is anchored to Monday 00:00 UTC, so any time that day picks the same snapshots.
+resources:
+  jobs:
+    snapshots:
+      name: packsense-snapshots
+      max_concurrent_runs: 1
+      timeout_seconds: 10800
+      schedule:
+        quartz_cron_expression: "0 0 12 ? * MON"
+        timezone_id: UTC
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: events
+          # No automatic retry: a pair is idempotent, but a retry would silently download another ~600 MB.
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../../p9_operations/notebooks/snapshot_events.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              schema: ${var.snapshots_schema}
+              secret_scope: ${var.secret_scope}
+              ping_healthchecks: ${var.ping}

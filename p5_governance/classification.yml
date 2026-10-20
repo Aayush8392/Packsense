@@ -59,6 +59,18 @@ tables:
   - name: workspace.packsense_silver.silver_taxonomy_manifest
     class: internal
     why: taxonomy load bookkeeping
+  - name: workspace.packsense_snapshots.snapshot_flag_events
+    class: public
+    why: which OFF quality flags appeared or disappeared on which product between two weekly snapshots of OFF's public dataset (barcode, flag tag, edit time; no contributor field)
+  - name: workspace.packsense_snapshots.snapshot_open_counts
+    class: public
+    why: how many products carried each flag tag at one snapshot (an aggregate of OFF's public flags)
+  - name: workspace.packsense_snapshots.snapshot_presence_events
+    class: public
+    why: barcodes that were in one weekly snapshot of OFF and not in the next (deletion candidates)
+  - name: workspace.packsense_snapshots.snapshot_manifest
+    class: internal
+    why: per-pair bookkeeping of the snapshot comparison (counts, bytes read, run id)
   - name: workspace.packsense_policy.market_access
     class: internal
     why: who may see which market (policies.yml)

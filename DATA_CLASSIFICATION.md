@@ -166,6 +166,22 @@ OFF's own taxonomy vocabulary (an allowlist contract keeps out the organisations
 
 taxonomy load bookkeeping. 9 columns: 0 public, 0 personal, 9 internal.
 
+### `workspace.packsense_snapshots.snapshot_flag_events`: public
+
+which OFF quality flags appeared or disappeared on which product between two weekly snapshots of OFF's public dataset (barcode, flag tag, edit time; no contributor field). 12 columns: 12 public, 0 personal, 0 internal.
+
+### `workspace.packsense_snapshots.snapshot_open_counts`: public
+
+how many products carried each flag tag at one snapshot (an aggregate of OFF's public flags). 6 columns: 6 public, 0 personal, 0 internal.
+
+### `workspace.packsense_snapshots.snapshot_presence_events`: public
+
+barcodes that were in one weekly snapshot of OFF and not in the next (deletion candidates). 6 columns: 6 public, 0 personal, 0 internal.
+
+### `workspace.packsense_snapshots.snapshot_manifest`: internal
+
+per-pair bookkeeping of the snapshot comparison (counts, bytes read, run id). 16 columns: 0 public, 0 personal, 16 internal.
+
 ### `workspace.packsense_policy.market_access`: internal
 
 who may see which market (policies.yml). 2 columns: 0 public, 1 personal, 1 internal.

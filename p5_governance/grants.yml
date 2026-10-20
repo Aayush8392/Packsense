@@ -44,6 +44,13 @@ securables:
   - {type: schema, name: workspace.packsense_dev_silver, grants: {
       packsense-deployer-dev: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], packsense-gold-dev: [USE_SCHEMA], admin: [SELECT]}}
 
+  # Snapshot flag events (P9 operations, Phase A): written by the deployer of that environment from OFF's weekly Hugging Face snapshots; only
+  # barcodes, flag tags and edit times, no contributor field. Created by the admin; nothing reads it yet (gold will, with its own grant).
+  - {type: schema, name: workspace.packsense_snapshots, grants: {
+      packsense-deployer: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
+  - {type: schema, name: workspace.packsense_dev_snapshots, grants: {
+      packsense-deployer-dev: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
+
   # Gold: written only by its own principal.
   - {type: schema, name: workspace.packsense_gold, grants: {
       packsense-gold: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT], analyst: [USE_SCHEMA]}}
