@@ -213,6 +213,7 @@ def test_the_dag_is_wired_as_designed_and_holds_no_secret():
     assert ".partial(" in src and ".expand(batch=batches_of(plan))" in src               # mapped over BATCHES, never over single codes
     assert 'plan["batches"])' not in src.split("def batches_of")[1].split("upload(plan")[1] and "expand(batch=plan[" not in src    # Airflow 3 refuses to map over one key of an XCom
     assert 'os.environ["PACKSENSE_PIPELINE_TOKEN"]' in src and "dapi" not in src
+    assert 'default_args={"retries": 3' in src                                         # every task survives a transient failure
     assert '"max_codes": 0' in src and "get_current_context" in src                    # a drill can be limited to a few codes
     assert 'trigger_rule="all_done"' in src                                             # the upload runs even if a batch gave up
     compose = (AIRFLOW / "docker-compose.override.yaml").read_text(encoding="utf-8")

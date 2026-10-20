@@ -25,7 +25,8 @@ def landing():
 
 
 @dag(schedule="0 9 * * 2", start_date=datetime(2026, 10, 20), catchup=False, max_active_runs=1, tags=["p9", "reconcile"],
-     params={"max_codes": 0})                                                      # 0 = every candidate; a drill is triggered with {"max_codes": 24}
+     params={"max_codes": 0},                                                   # 0 = every candidate; a drill is triggered with {"max_codes": 24}
+     default_args={"retries": 3, "retry_delay": timedelta(minutes=2)})            # a hiccup in the Files API must not end a 2.5-hour run (lookup_batch sets its own)
 def packsense_reconcile():
     @task.sensor(poke_interval=900, timeout=12 * 3600, mode="reschedule")
     def wait_for_candidates() -> PokeReturnValue:
