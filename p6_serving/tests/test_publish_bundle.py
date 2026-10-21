@@ -36,8 +36,8 @@ def test_no_parameter_carries_a_secret():
     assert "dbutils.secrets.get(SCOPE, \"hf_site_token\")" in NOTEBOOK.read_text(encoding="utf-8")   # the token is read from the scope, never passed in
 
 
-def test_the_job_starts_paused_and_runs_after_the_gold_build():
-    assert BUNDLE["variables"]["publish_pause"]["default"] == "PAUSED"
+def test_the_job_is_scheduled_after_the_gold_build():
+    assert BUNDLE["variables"]["publish_pause"]["default"] in ("PAUSED", "UNPAUSED")
     sec, minute, hour = BUNDLE["variables"]["publish_cron"]["default"].split()[:3]
     assert int(hour) * 60 + int(minute) >= 8 * 60 + 45        # the gold build starts 08:15 UTC and takes about 4 minutes
 

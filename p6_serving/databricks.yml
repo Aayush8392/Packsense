@@ -30,8 +30,8 @@ variables:
     description: quartz cron (UTC); 09:00 is after the 08:15 gold build (about 4 minutes) with room for a slow day
     default: "0 0 9 * * ?"
   publish_pause:
-    description: PAUSED until the first run by hand has passed (the Hugging Face repo and token must exist first)
-    default: PAUSED
+    description: UNPAUSED since 2026-10-21, after the dry run and the first real run passed by hand (the Hugging Face repo and token exist)
+    default: UNPAUSED
   ping:
     description: whether the notebook pings healthchecks.io ("true" or "false")
     default: "true"
