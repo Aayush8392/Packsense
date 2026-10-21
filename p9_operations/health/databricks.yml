@@ -25,8 +25,8 @@ variables:
     description: quartz cron (UTC); 08:40 is after the 08:15 gold build and before the 09:00 publish, so the site shows the same morning's health
     default: "0 40 8 * * ?"
   health_pause:
-    description: PAUSED until the dry run and the first real run have passed by hand; the first real run is followed by a commit that sets this to UNPAUSED
-    default: PAUSED
+    description: UNPAUSED since 2026-10-22, after the dry run (78 rows, 7 of 7 services) and the first real run passed by hand and the healthchecks check went green
+    default: UNPAUSED
   ping:
     description: whether the notebook pings healthchecks.io ("true" or "false")
     default: "true"
