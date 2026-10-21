@@ -93,25 +93,6 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/policy_check.py
             base_parameters: {identity: packsense-publish, expected_id: "3af7c7cc-7ee4-4aa7-b516-df00a420327a"}
-    policy_health:
-      name: packsense-policy-health
-      max_concurrent_runs: 1
-      timeout_seconds: 900
-      environments:
-        - environment_key: pol_env
-          spec:
-            environment_version: "2"
-            dependencies:
-              - PyYAML==6.0.3
-      # aacbd589-643b-4dab-910b-a031197dcfec is a marker: p9_operations/bootstrap/setup_health.py replaces it with the real client id of packsense-health when it creates the principal
-      run_as: {service_principal_name: "aacbd589-643b-4dab-910b-a031197dcfec"}
-      tasks:
-        - task_key: check
-          environment_key: pol_env
-          disable_auto_optimization: true
-          notebook_task:
-            notebook_path: ../notebooks/policy_check.py
-            base_parameters: {identity: packsense-health, expected_id: "aacbd589-643b-4dab-910b-a031197dcfec"}
     # Owned by the admin who deploys it: it starts the four jobs above, tests the two users, checks grants drift, then reports.
     policy:
       name: packsense-policy
@@ -139,8 +120,6 @@ resources:
           run_job_task: {job_id: "${resources.jobs.policy_deployer_dev.id}"}
         - task_key: run_publish
           run_job_task: {job_id: "${resources.jobs.policy_publish.id}"}
-        - task_key: run_health
-          run_job_task: {job_id: "${resources.jobs.policy_health.id}"}
         - task_key: pipeline_user
           environment_key: sdk_env
           disable_auto_optimization: true
@@ -172,7 +151,6 @@ resources:
             - {task_key: run_deployer}
             - {task_key: run_deployer_dev}
             - {task_key: run_publish}
-            - {task_key: run_health}
             - {task_key: pipeline_user}
             - {task_key: analyst}
             - {task_key: grants_drift}
@@ -181,4 +159,4 @@ resources:
             notebook_path: ../notebooks/policy_report.py
             base_parameters:
               ping: ${var.ping}
-              results: "run_gold={{tasks.run_gold.result_state}},run_gold_dev={{tasks.run_gold_dev.result_state}},run_deployer={{tasks.run_deployer.result_state}},run_deployer_dev={{tasks.run_deployer_dev.result_state}},run_publish={{tasks.run_publish.result_state}},run_health={{tasks.run_health.result_state}},pipeline_user={{tasks.pipeline_user.result_state}},analyst={{tasks.analyst.result_state}},grants_drift={{tasks.grants_drift.result_state}},policies_drift={{tasks.policies_drift.result_state}}"
+              results: "run_gold={{tasks.run_gold.result_state}},run_gold_dev={{tasks.run_gold_dev.result_state}},run_deployer={{tasks.run_deployer.result_state}},run_deployer_dev={{tasks.run_deployer_dev.result_state}},run_publish={{tasks.run_publish.result_state}},pipeline_user={{tasks.pipeline_user.result_state}},analyst={{tasks.analyst.result_state}},grants_drift={{tasks.grants_drift.result_state}},policies_drift={{tasks.policies_drift.result_state}}"

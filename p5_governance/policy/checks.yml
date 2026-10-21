@@ -47,6 +47,7 @@ identities:
       - {name: reads the brand scorecard, kind: allow, action: read_table, table: workspace.packsense_gold.mart_brand_scorecard}
       - {name: reads the daily quality fact, kind: allow, action: read_table, table: workspace.packsense_gold.fct_catalogue_quality_daily}
       - {name: reads the daily change fact, kind: allow, action: read_table, table: workspace.packsense_gold.fct_product_change_daily}
+      - {name: reads the pipeline health table, kind: allow, action: read_table, table: workspace.packsense_health.health_metric_daily}
       - {name: cannot read the product history, kind: deny, action: read_table, table: workspace.packsense_gold.product_history}
       - {name: cannot read the flag spans, kind: deny, action: read_table, table: workspace.packsense_gold.product_flag_spans}
       - {name: cannot read silver, kind: deny, action: read_table, table: workspace.packsense_silver.silver_manifest}
@@ -54,21 +55,6 @@ identities:
       - {name: cannot write gold, kind: deny, action: create_table, schema: workspace.packsense_gold}
       - {name: cannot read the bronze scope, kind: deny, action: list_secrets, scope: packsense}
       - {name: cannot read the gold scope, kind: deny, action: list_secrets, scope: packsense_gold}
-      - {name: cannot create a schema, kind: deny, action: create_schema}
-  packsense-health:
-    runner: notebook
-    checks:
-      - {name: reads the jobs table, kind: allow, action: read_table, table: system.lakeflow.jobs}
-      - {name: reads the job run timeline, kind: allow, action: read_table, table: system.lakeflow.job_run_timeline}
-      - {name: reads its own health table, kind: allow, action: read_table, table: workspace.packsense_health.health_metric_daily}
-      - {name: cannot read billing, kind: deny, action: read_table, table: system.billing.usage}
-      - {name: cannot read the product history, kind: deny, action: read_table, table: workspace.packsense_gold.product_history}
-      - {name: cannot read silver, kind: deny, action: read_table, table: workspace.packsense_silver.silver_manifest}
-      - {name: cannot read bronze, kind: deny, action: read_table, table: workspace.packsense_bronze.bronze_manifest}
-      - {name: cannot create tables in its schema, kind: deny, action: create_table, schema: workspace.packsense_health}
-      - {name: cannot write gold, kind: deny, action: create_table, schema: workspace.packsense_gold}
-      - {name: cannot read the bronze scope, kind: deny, action: list_secrets, scope: packsense}
-      - {name: cannot read the publish scope, kind: deny, action: list_secrets, scope: packsense_publish}
       - {name: cannot create a schema, kind: deny, action: create_schema}
   packsense-deployer:
     runner: notebook

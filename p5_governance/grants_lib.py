@@ -60,11 +60,6 @@ def validate(spec: dict) -> None:
             bad = set(privs) - PRIVILEGES[kind]
             if bad:
                 raise SpecError(f"securable {name}, {role}: privileges not allowed on a {kind}: {sorted(bad)}")
-    for role, tables in (spec.get("system_grants") or {}).items():
-        if role not in roles:
-            raise SpecError(f"system_grants: unknown principal {role}")
-        if not all(isinstance(t, str) and t.startswith("system.") and t.count(".") == 2 for t in tables):
-            raise SpecError(f"system_grants {role}: each entry must be a full system table name (system.<schema>.<table>)")
     for scope, acls in (spec.get("secret_scopes") or {}).items():
         for role, perm in acls.items():
             if role not in roles:

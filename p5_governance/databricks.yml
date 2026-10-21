@@ -45,5 +45,3 @@ permissions:
     level: CAN_VIEW
   - service_principal_name: "3af7c7cc-7ee4-4aa7-b516-df00a420327a"   # packsense-publish (marker: replaced by p6_serving/bootstrap/setup_publish.py)
     level: CAN_VIEW
-  - service_principal_name: "aacbd589-643b-4dab-910b-a031197dcfec"   # packsense-health (marker: replaced by p9_operations/bootstrap/setup_health.py)
-    level: CAN_VIEW

@@ -19,7 +19,6 @@ principals:
   packsense-gold:          {kind: service_principal, name: packsense-gold}
   packsense-gold-dev:      {kind: service_principal, name: packsense-gold-dev}
   packsense-publish:       {kind: service_principal, name: packsense-publish}
-  packsense-health:        {kind: service_principal, name: packsense-health}
   admin:                  {kind: user_from_token, env: DATABRICKS_TOKEN}
   pipeline-user:           {kind: user_from_token, env: DATABRICKS_PIPELINE_TOKEN}
   analyst:                 {kind: user_from_token, env: DATABRICKS_ANALYST_TOKEN}
@@ -28,7 +27,7 @@ securables:
   - {type: catalog, name: workspace, grants: {
       packsense-deployer: [USE_CATALOG], packsense-deployer-dev: [USE_CATALOG],
       packsense-gold: [USE_CATALOG], packsense-gold-dev: [USE_CATALOG], packsense-publish: [USE_CATALOG],
-      packsense-health: [USE_CATALOG], pipeline-user: [USE_CATALOG], analyst: [USE_CATALOG]}}
+      pipeline-user: [USE_CATALOG], analyst: [USE_CATALOG]}}
 
   # Landing (prod) and landing (dev).
   - {type: schema, name: workspace.packsense, grants: {packsense-deployer: [USE_SCHEMA], pipeline-user: [USE_SCHEMA]}}
@@ -74,10 +73,10 @@ securables:
   - {type: table, name: workspace.packsense_gold.fct_catalogue_quality_daily, grants: {packsense-publish: [SELECT]}}
   - {type: table, name: workspace.packsense_gold.fct_product_change_daily, grants: {packsense-publish: [SELECT]}}
 
-  # The pipeline-health schema (Phase B item 9; p9_operations/health_lib.py): one long table of operating facts (job runs, service reachability), made by the
-  # ADMIN (setup_health.py create-schema), so the collector needs no CREATE SCHEMA or CREATE TABLE. The publish job reads the one table for the public pipeline-health
-  # page (p6_serving/export_spec.yml). The collector's two SELECTs on system tables are outside this file's catalog: setup_health.py grant-system and a nightly policy check.
-  - {type: schema, name: workspace.packsense_health, grants: {packsense-health: [USE_SCHEMA, SELECT, MODIFY], packsense-publish: [USE_SCHEMA]}}
+  # The pipeline-health schema (Phase B item 9; p9_operations/health_lib.py): one long table of operating facts (job runs, service reachability), made and written by
+  # the ADMIN-owned job `packsense-health` (a non-admin cannot read the system tables on Free Edition: see p9_operations/health_lib.py). The publish job reads the one table
+  # for the public pipeline-health page (p6_serving/export_spec.yml).
+  - {type: schema, name: workspace.packsense_health, grants: {packsense-publish: [USE_SCHEMA]}}
   - {type: table, name: workspace.packsense_health.health_metric_daily, grants: {packsense-publish: [SELECT]}}
 
   # The silver tables gold reads (three until 2026-10-21, four since). A table-level grant is lost when the table is renamed or dropped: re-run apply_grants after a swap.
@@ -93,12 +92,6 @@ securables:
   - {type: table, name: workspace.packsense_silver.silver_existence_check, grants: {packsense-gold: [SELECT]}}
   - {type: table, name: workspace.packsense_dev_silver.silver_existence_check, grants: {packsense-gold-dev: [SELECT]}}
 
-# Databricks' own system tables, outside the catalog this file manages (so apply_grants neither adds nor compares them). The collector's two SELECTs are made by
-# p9_operations/bootstrap/setup_health.py grant-system (a test keeps that list equal to this one) and proven every night by the policy checks of packsense-health:
-# allow on these two, deny on system.billing.usage.
-system_grants:
-  packsense-health: [system.lakeflow.jobs, system.lakeflow.job_run_timeline]
-
 # Secret scopes: a scope has no per-key permission, so READ covers every secret in it. The admin manages all of them.
 secret_scopes:
   packsense:         {packsense-deployer: READ, admin: MANAGE}
@@ -106,7 +99,7 @@ secret_scopes:
   packsense_gold:    {packsense-gold: READ, admin: MANAGE}
   packsense_gold_dev: {packsense-gold-dev: READ, admin: MANAGE}
   packsense_publish: {packsense-publish: READ, admin: MANAGE}   # the Hugging Face write token for the site data repo and the publish ping URL
-  packsense_health:  {packsense-health: READ, admin: MANAGE}     # the health ping URL
+  packsense_health:  {admin: MANAGE}     # the health ping URL: only the admin-owned health job reads it
   packsense_policy:  {admin: MANAGE}     # the pipeline and analyst tokens and the policy ping URL: only the admin-owned policy job reads it
 
 # Live objects the check reads for EXTRA grants (every schema and volume of the catalog except these, and every table of the schemas

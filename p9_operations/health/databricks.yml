@@ -1,8 +1,9 @@
 # PackSense pipeline-health bundle (Phase B item 9: the capacity panel and dependency health).
 #
 # Deployed BY THE ADMIN from the laptop (like the publish and policy bundles: there is no Databricks admin credential in CI, by decision): from this
-# folder, `databricks bundle deploy` / `bundle run health_collect`. The admin must hold the Use permission on the service principal named in run_as.
-# The job runs AS `packsense-health`, which can read two system tables (jobs, run timeline) and write one schema; it reads no product data.
+# folder, `databricks bundle deploy` / `bundle run health_collect`. The job is owned by the admin and runs with the admin's rights (no run_as): Free Edition lets nobody
+# grant the system tables to another principal (GRANT on the `system` catalog needs MANAGE, which not even the admin holds; measured 2026-10-21). It reads two system
+# tables and the outside services, and writes one table in its own schema; it reads no product data.
 bundle:
   name: packsense-health
 
@@ -34,7 +35,3 @@ targets:
   prod:
     default: true
 
-# The principal must be able to READ the notebook that runs as it. Its client id is not a secret.
-permissions:
-  - service_principal_name: "aacbd589-643b-4dab-910b-a031197dcfec"   # packsense-health (marker: replaced by p9_operations/bootstrap/setup_health.py)
-    level: CAN_VIEW

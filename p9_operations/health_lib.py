@@ -1,13 +1,17 @@
 """The pipeline-health collector (roadmap Phase B item 9: the capacity panel and dependency health).
 
-Once a day a small job as the dedicated principal `packsense-health` writes operating facts about the pipeline itself into one long table,
+Once a day a small job owned by the admin (`packsense-health`; no service principal, see below) writes operating facts about the pipeline itself into one long table,
 `workspace.packsense_health.health_metric_daily` (one row per UTC day, subject and metric), from two sources that need no access to any product data:
 
   * job runs   Databricks' system tables `system.lakeflow.jobs` and `job_run_timeline` (runs, failed runs, longest run, hours since the last success, per production job);
   * services   one light request to every outside service the pipeline needs (the same list as the monthly egress check, `egress_lib`).
 
+Why the admin and not a dedicated principal: Databricks Free Edition lets nobody grant the system tables to another identity (`GRANT` on the `system` catalog needs
+MANAGE, which not even the admin holds; measured 2026-10-21), so a narrow principal cannot read them. The job is therefore admin-owned like `packsense-policy`, and reaches
+production only when the admin deploys it from the laptop.
+
 Storage size is NOT collected: `system.storage.table_metrics_history` is empty on Free Edition (measured 2026-10-21, 0 rows for the whole metastore) and `DESCRIBE DETAIL`
-needs SELECT on the table, which this principal must never have on bronze or silver. A size line needs another source and a decision (the billing storage unit is a candidate).
+needs SELECT on the table, which this job should not need on bronze or silver. A size line needs another source and a decision (the billing storage unit is a candidate).
 
 Why a long table: new metrics need no schema change, and the public export (p6_serving/export_spec.yml) picks the rows it may show.
 Nothing here is personal; billing figures are deliberately NOT collected (a decision of 2026-10-21: raw quota and spend stay off the public site).
@@ -30,7 +34,7 @@ JOB_NAMES = (
 )
 # Jobs the bundles define that the panel deliberately leaves out (the per-principal policy sub-jobs run inside packsense-policy).
 JOB_NAMES_NOT_REPORTED = (
-    "packsense-policy-gold", "packsense-policy-gold-dev", "packsense-policy-deployer", "packsense-policy-deployer-dev", "packsense-policy-publish", "packsense-policy-health",
+    "packsense-policy-gold", "packsense-policy-gold-dev", "packsense-policy-deployer", "packsense-policy-deployer-dev", "packsense-policy-publish",
 )
 LOOKBACK_DAYS = 3          # each run refreshes the last three UTC days of job rows (system tables lag by hours)
 SUCCESS_WINDOW_DAYS = 30   # "hours since the last success" looks this far back

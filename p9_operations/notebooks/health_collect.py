@@ -1,5 +1,5 @@
 # Databricks notebook source
-# Pipeline-health collector (roadmap Phase B item 9). Once a day, as the dedicated principal `packsense-health` (run_as), it writes operating facts
+# Pipeline-health collector (roadmap Phase B item 9). Once a day, in an admin-owned job (no service principal can be granted the system tables on Free Edition), it writes operating facts
 # about the pipeline into workspace.packsense_health.health_metric_daily: job runs and durations (system.lakeflow) and
 # whether every outside service answers (the same light requests as the monthly egress check). It reads no product data and no billing table.
 #
@@ -84,7 +84,7 @@ try:
     if DRY:
         print("dry_run: nothing written")
     else:
-        if not spark.catalog.tableExists(lib.FULL_TABLE):       # the admin makes the table (setup_health.py create-schema); this principal cannot create tables
+        if not spark.catalog.tableExists(lib.FULL_TABLE):       # the admin makes the table (setup_health.py create-schema)
             raise RuntimeError(f"{lib.FULL_TABLE} does not exist: run p9_operations/bootstrap/setup_health.py create-schema")
         from pyspark.sql import types as T
         schema = T.StructType([

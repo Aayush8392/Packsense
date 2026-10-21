@@ -132,8 +132,6 @@ def expected_allowed(role: str, check: dict, grants_spec: dict) -> bool:
     a = check["action"]
     if a in ("read_table", "rows_only"):
         t = check["table"]
-        if t.startswith("system."):         # Databricks' own system tables are outside the managed catalog: grants.yml lists them under `system_grants`
-            return t in (grants_spec.get("system_grants") or {}).get(role, [])
         s = schema_of(t)
         return has("catalog", cat, "USE_CATALOG") and has("schema", s, "USE_SCHEMA") and (has("table", t, "SELECT") or has("schema", s, "SELECT"))
     if a == "create_table":

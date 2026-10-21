@@ -6,15 +6,12 @@ import re
 import sys
 from pathlib import Path
 
-import pytest
 import yaml
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / "p9_operations"))
-sys.path.insert(0, str(ROOT / "p9_operations" / "bootstrap"))
 import health_lib as lib  # noqa: E402
-import setup_health as sh  # noqa: E402
 
 REAL = json.loads((HERE / "fixtures" / "health_real.json").read_text(encoding="utf-8"))
 NOW = dt.datetime.fromisoformat(REAL["now"])
@@ -69,9 +66,9 @@ def test_a_service_that_did_not_answer_is_a_zero_and_is_named_for_the_alert():
     assert lib.failures(results) == ["B (y)"]
 
 
-def test_the_sql_reads_only_the_two_system_tables_the_principal_is_granted():
+def test_the_sql_reads_only_the_two_system_tables_it_needs_and_never_billing_or_product_data():
     text = lib.job_runs_sql(TODAY) + lib.last_success_sql(TODAY)
-    assert set(re.findall(r"system\.[a-z_]+\.[a-z_]+", text)) == {"system.lakeflow.jobs", "system.lakeflow.job_run_timeline"} == set(GRANTS["system_grants"]["packsense-health"])
+    assert set(re.findall(r"system\.[a-z_]+\.[a-z_]+", text)) == {"system.lakeflow.jobs", "system.lakeflow.job_run_timeline"}
     assert "billing" not in text and "workspace." not in text
 
 
@@ -96,8 +93,10 @@ def test_every_production_job_of_the_repo_is_reported_or_deliberately_left_out()
     assert set(lib.JOB_NAMES) - names == set(), "the panel reports a job no bundle defines"
 
 
-def test_the_job_runs_as_the_health_principal_and_that_principal_may_read_its_notebook():
-    assert [p["service_principal_name"] for p in BUNDLE["permissions"]] == [JOB["run_as"]["service_principal_name"]]
+def test_the_job_is_admin_owned_so_it_has_no_run_as_and_no_principal_in_the_bundle():
+    assert "run_as" not in JOB and "permissions" not in BUNDLE
+    text = (ROOT / "p9_operations" / "health" / "databricks.yml").read_text(encoding="utf-8") + (ROOT / "p9_operations" / "health" / "resources" / "health_job.yml").read_text(encoding="utf-8")
+    assert not re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", text), "no client id may remain in the health bundle"
 
 
 def test_the_notebook_exists_is_not_retried_and_takes_no_secret_as_a_parameter():
@@ -123,22 +122,15 @@ def test_the_notebook_does_not_create_tables_and_exit_is_outside_the_try():
     assert "dbutils.notebook.exit(summary)" in tail.split("# COMMAND ----------", 1)[1]
 
 
-def test_the_setup_script_lists_the_same_system_tables_as_the_grants_file_and_nothing_wider():
-    tables = {full for kind, full, privs in sh.SYSTEM_GRANTS if kind == "table"}
-    assert tables == set(GRANTS["system_grants"]["packsense-health"])
-    assert all(privs == ["SELECT"] for kind, full, privs in sh.SYSTEM_GRANTS if kind == "table")
-    assert {(k, f) for k, f, _ in sh.SYSTEM_GRANTS if k != "table"} == {("catalog", "system"), ("schema", "system.lakeflow")}
+def test_the_setup_script_has_no_principal_or_system_grant_commands_except_the_cleanup():
+    text = (ROOT / "p9_operations" / "bootstrap" / "setup_health.py").read_text(encoding="utf-8")
+    assert "grant-system" not in text and "create-principal" not in text and "w.grants.update" not in text
+    assert "remove-principal" in text and "delete_acl" in text      # the leftover principal and its scope ACL are cleaned up, not left to show as an extra grant
 
 
-def test_the_marker_is_distinct_from_the_publish_marker_and_patches_cleanly():
-    assert sh.MARKER != "00000000-0000-0000-0000-000000000000"
-    assert sh.patch_marker(f"x: {sh.MARKER}", "3af7c7cc-7ee4-4aa7-b516-df00a420327a") == "x: 3af7c7cc-7ee4-4aa7-b516-df00a420327a"
-    with pytest.raises(ValueError):
-        sh.patch_marker("x", "not-an-id")
-
-
-def test_the_health_principal_has_no_write_right_beyond_its_own_schema_and_reads_one_scope():
-    got = {s["name"]: set(s["grants"]["packsense-health"]) for s in GRANTS["securables"] if "packsense-health" in s["grants"]}
-    assert got == {"workspace": {"USE_CATALOG"}, "workspace.packsense_health": {"USE_SCHEMA", "SELECT", "MODIFY"}}
-    assert "CREATE_TABLE" not in got["workspace.packsense_health"]
-    assert GRANTS["secret_scopes"]["packsense_health"] == {"packsense-health": "READ", "admin": "MANAGE"}
+def test_grants_file_gives_the_health_job_nothing_and_the_publish_job_one_table():
+    assert "packsense-health" not in GRANTS["principals"] and "system_grants" not in GRANTS
+    health = {s["name"]: s["grants"] for s in GRANTS["securables"] if s["name"].startswith("workspace.packsense_health")}
+    assert health == {"workspace.packsense_health": {"packsense-publish": ["USE_SCHEMA"]},
+                      "workspace.packsense_health.health_metric_daily": {"packsense-publish": ["SELECT"]}}
+    assert GRANTS["secret_scopes"]["packsense_health"] == {"admin": "MANAGE"}
