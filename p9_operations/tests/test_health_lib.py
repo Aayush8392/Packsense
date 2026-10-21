@@ -99,6 +99,15 @@ def test_the_job_is_admin_owned_so_it_has_no_run_as_and_no_principal_in_the_bund
     assert not re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", text), "no client id may remain in the health bundle"
 
 
+def test_every_sync_path_of_the_bundle_exists_and_ships_the_libraries_the_notebook_imports():
+    root = ROOT / "p9_operations" / "health"
+    shipped = [(root / p).resolve() for p in BUNDLE["sync"]["paths"]]
+    assert all(p.is_dir() for p in shipped), "a sync path does not exist (bundle validate failed on this once)"
+    text = NOTEBOOK.read_text(encoding="utf-8")
+    for module in re.findall(r"^import (\w+_lib)", text, re.M):
+        assert any((p / f"{module}.py").is_file() for p in shipped), module
+
+
 def test_the_notebook_exists_is_not_retried_and_takes_no_secret_as_a_parameter():
     task = JOB["tasks"][0]
     assert (ROOT / "p9_operations" / "health" / "resources" / task["notebook_task"]["notebook_path"]).resolve() == NOTEBOOK.resolve()

@@ -12,7 +12,7 @@ include:
 
 sync:
   paths:
-    - ../p9_operations
+    - ..                   # p9_operations itself (the bundle root is p9_operations/health): health_lib.py, egress_lib.py and the notebooks
   exclude:
     - "**/tests/**"
     - "**/bootstrap/**"
