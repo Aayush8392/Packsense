@@ -46,6 +46,23 @@ reads local files); the process-per-pair design bounds it, but that is a protect
 worth is measured only for error flags that OFF's own arithmetic rules can recompute (about 93% genuine numeric fixes at family level); warnings
 and info flags were not examined, and a numeric fix is not proof of a correct value.
 
+## Pipeline health (`health_lib.py`, `notebooks/health_collect.py`, bundle `health/`, job `packsense-health`)
+
+Phase B item 9 (the capacity panel and dependency health). Once a day (08:40 UTC, after the gold build and before the publish) the job writes one long table,
+`workspace.packsense_health.health_metric_daily` (day, subject, metric, value, unit, detail): per production job the runs, the runs that did not succeed, the longest
+run and the hours since the last success (from `system.lakeflow.jobs` and `job_run_timeline`; a run is one `run_id`, the duration is end minus start because the table's
+own duration column is empty), and per outside service whether one light request was answered (the same list as the monthly egress check) and how fast. Rows are merged by
+(day, subject, metric), so a rerun and the three-day lookback never duplicate. An unreachable service turns the task red after the rows are written. The public export
+(`p6_serving/export_spec.yml`, dataset `pipeline_health`) and the site's health page read this table.
+
+**The job is owned by the admin and has no service principal.** Measured 2026-10-21: Free Edition lets nobody grant the system tables to another identity (`GRANT` on the
+`system` catalog needs MANAGE, which not even the admin holds), so a narrow principal cannot read them (one was created, refused, and removed). Like `packsense-policy`, the
+bundle is deployed from the laptop by the admin (`cd p9_operations/health`, `bundle deploy`, `bundle run health_collect`; `--notebook-params dry_run=true` runs everything and
+writes nothing). The schema and table are made by the admin (`bootstrap/setup_health.py create-schema`); the secret scope `packsense_health` holds only the ping URL.
+
+**Not collected, on purpose:** storage size (`system.storage.table_metrics_history` is empty on Free Edition: 0 rows, measured 2026-10-21; `DESCRIBE DETAIL` needs SELECT on
+the table) and any billing, quota or spend figure (kept off the public site by decision). The history starts on 2026-10-19, the first day the first run could look back to.
+
 ## Tests
 `python -m pytest p9_operations/tests` from the repo root. The commit list, the tag list and the product slice in `tests/fixtures/` are real
 (OFF's public history and two real snapshots), exported through the repo's exit function.

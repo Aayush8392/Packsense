@@ -14,8 +14,9 @@ to upload when the licence gate finds anything; the Pages workflow verifies ever
 
 ## What is exported (`export_spec.yml`)
 
-Exactly three gold tables, a listed set of columns each, nothing else (a column that is not listed cannot leave; a test fails if a listed column is classified personal
-or internal): `brand_scorecard` (ranked brands only, no per-brand error counts), `quality_daily`, `change_daily`, plus one `site_status` row and `ATTRIBUTION.md`.
+Exactly three gold tables and one operating table, a listed set of columns each, nothing else (a column that is not listed cannot leave; a test fails if a listed column is classified personal
+or internal): `brand_scorecard` (ranked brands only, no per-brand error counts), `quality_daily`, `change_daily`, and `pipeline_health` (90 days of job runs, durations and
+whether each outside service answered, written daily by the admin-owned job `packsense-health`; a dataset with a `schema` key is read from that schema instead of gold), plus one `site_status` row and `ATTRIBUTION.md`.
 Counts of 1 to 4 in the listed count columns are blanked (small numbers). Limit, stated on the site: a blanked cell can sometimes be recovered from a total beside it.
 `export_lib.py` does the work (pure Python, tested on real rows of the DuckDB fixture); `notebooks/publish_site_data.py` reads the tables and uploads.
 
