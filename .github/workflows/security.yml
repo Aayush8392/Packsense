@@ -65,6 +65,8 @@ jobs:
       - run: pip install --no-cache-dir --require-hashes -r .github/requirements/pip-audit.lock
       - name: Audit the hash-locked requirements, transitive packages included (every version is pinned in the locks; no resolution needed)
         run: |
-          for lock in requirements-dev.lock p1_intake/requirements.lock p4_modelling/requirements.lock; do
-            pip-audit -r "$lock" --no-deps --disable-pip --require-hashes
-          done
+          pip-audit -r requirements-dev.lock --no-deps --disable-pip --require-hashes
+          pip-audit -r p1_intake/requirements.lock --no-deps --disable-pip --require-hashes
+          # PYSEC-2026-4114 (oauthlib 3.3.1) is accepted on purpose: dbt-databricks 1.12.6 caps its connector at a version that needs oauthlib < 4, and the flaw is in
+          # the server-side PKCE check, which a client does not run. The reasoning and the point to revisit are in tools/locks.py.
+          pip-audit -r p4_modelling/requirements.lock --no-deps --disable-pip --require-hashes --ignore-vuln PYSEC-2026-4114

@@ -45,7 +45,7 @@ jobs:
         run: python -m ruff check .
       - name: Lock files match their requirements inputs (tools/locks.py)
         run: |
-          pip install --no-cache-dir --require-hashes -r .github/requirements/uv.lock
+          pip install --no-cache-dir --require-hashes -r .github/requirements/uv-tool.lock
           python tools/locks.py check
 
   # Slim CI for the gold models (design 6.6): the portable models must give the same rows on DuckDB as the Databricks run recorded in

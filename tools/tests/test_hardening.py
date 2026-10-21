@@ -52,10 +52,10 @@ def test_the_audit_covers_every_lock_and_the_ci_checks_that_locks_are_fresh():
     assert "python tools/locks.py check" in (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
 
 
-def test_the_cutoff_overrides_name_only_packages_pinned_on_purpose():
+def test_the_cutoff_overrides_name_only_packages_pinned_on_purpose_or_fixed_for_an_advisory():
     pins = (ROOT / "requirements-dev.txt").read_text(encoding="utf-8")
     for pkg in locks.NEWER_OK:
-        assert f"{pkg}==" in pins
+        assert f"{pkg}==" in pins or re.fullmatch(r"PYSEC-\d{4}-\d+|GHSA-[\w-]+", locks.SECURITY_FIX.get(pkg, "")), pkg
 
 
 # --- Terraform locks ------------------------------------------------------------------------------------------------------------------------------
@@ -117,3 +117,12 @@ def test_the_ruleset_requires_tests_lint_and_engines_and_ci_has_those_jobs():
     ci = (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
     for job in required:
         assert re.search(rf"^  {job}:", ci, re.M), job
+
+
+def test_the_only_accepted_advisory_is_the_documented_oauthlib_one_and_only_on_the_gold_lock():
+    sec = (WORKFLOWS / "security.yml").read_text(encoding="utf-8")
+    ignored = re.findall(r"--ignore-vuln (\S+)", sec)
+    assert ignored == ["PYSEC-2026-4114"]
+    line = next(x for x in sec.splitlines() if "--ignore-vuln" in x)
+    assert "p4_modelling/requirements.lock" in line
+    assert "PYSEC-2026-4114" in (ROOT / "tools" / "locks.py").read_text(encoding="utf-8")
