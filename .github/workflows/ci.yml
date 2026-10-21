@@ -26,9 +26,9 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12" # the version the capture workflow runs on
-      - run: pip install --no-cache-dir -r requirements-dev.txt
+      - run: pip install --no-cache-dir --require-hashes -r requirements-dev.lock
       - name: Unit tests (real sanitised records only, no network, no Databricks)
-        run: python -m pytest p1_intake/tests p2_lakehouse/tests p3_delivery/tests p4_modelling/tests p5_governance/tests p9_operations/tests -q
+        run: python -m pytest p1_intake/tests p2_lakehouse/tests p3_delivery/tests p4_modelling/tests p5_governance/tests p7_triage_ml/tests p9_operations/tests tools/tests -q
 
   lint:
     runs-on: ubuntu-latest
@@ -40,9 +40,13 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - run: pip install --no-cache-dir -r requirements-dev.txt
+      - run: pip install --no-cache-dir --require-hashes -r requirements-dev.lock
       - name: Lint (ruff; settings in ruff.toml)
         run: python -m ruff check .
+      - name: Lock files match their requirements inputs (tools/locks.py)
+        run: |
+          pip install --no-cache-dir --require-hashes -r .github/requirements/uv.lock
+          python tools/locks.py check
 
   # Slim CI for the gold models (design 6.6): the portable models must give the same rows on DuckDB as the Databricks run recorded in
   # p4_modelling/fixtures/golden.json, and both Databricks projects (normal and fixture mode) must still parse. No secrets, no warehouse:
@@ -57,7 +61,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - run: pip install --no-cache-dir -r p4_modelling/requirements.txt -r p4_modelling/requirements-duckdb.txt
+      - run: pip install --no-cache-dir --require-hashes -r p4_modelling/requirements.lock
       - name: Parse the Databricks project (no connection)
         working-directory: p4_modelling
         env:

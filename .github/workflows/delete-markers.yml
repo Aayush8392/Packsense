@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - run: pip install --no-cache-dir -r p1_intake/requirements.txt
+      - run: pip install --no-cache-dir --require-hashes -r p1_intake/requirements.lock
       - name: Tell healthchecks.io the run started
         run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/start" || true'
       - name: Check for delete markers

@@ -75,6 +75,10 @@ resource "github_repository_ruleset" "require_ci" {
         context        = "lint"
         integration_id = 15368
       }
+      required_check {
+        context        = "engines" # the gold models give the same rows on DuckDB as on Databricks (golden file); required since 2026-10-21, after 30 of 30 pushes to main passed
+        integration_id = 15368
+      }
     }
   }
 }

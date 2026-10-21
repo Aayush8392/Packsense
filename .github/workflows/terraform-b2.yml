@@ -54,7 +54,7 @@ jobs:
           echo "Backblaze key ids are 25 characters and application keys 31; a missing secret shows length=0."
       - name: Init (state in the private B2 bucket)
         run: >
-          terraform init -input=false
+          terraform init -input=false -lockfile=readonly
           -backend-config="bucket=${TF_STATE_BUCKET}"
           -backend-config='endpoints={s3="https://s3.eu-central-003.backblazeb2.com"}'
       - run: terraform fmt -check -recursive
@@ -86,7 +86,7 @@ jobs:
           terraform_version: 1.16.5
       - name: Init
         run: >
-          terraform init -input=false
+          terraform init -input=false -lockfile=readonly
           -backend-config="bucket=${TF_STATE_BUCKET}"
           -backend-config='endpoints={s3="https://s3.eu-central-003.backblazeb2.com"}'
       - name: Apply

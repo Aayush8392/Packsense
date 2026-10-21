@@ -53,7 +53,7 @@ jobs:
           echo "TF_VAR_keepalive_deploy_key_id=$id" >> "$GITHUB_ENV"
       - name: Init (state in the private B2 bucket)
         run: >
-          terraform init -input=false
+          terraform init -input=false -lockfile=readonly
           -backend-config="bucket=${TF_STATE_BUCKET}"
           -backend-config='endpoints={s3="https://s3.eu-central-003.backblazeb2.com"}'
       - run: terraform fmt -check -recursive
@@ -90,7 +90,7 @@ jobs:
           echo "TF_VAR_keepalive_deploy_key_id=$id" >> "$GITHUB_ENV"
       - name: Init
         run: >
-          terraform init -input=false
+          terraform init -input=false -lockfile=readonly
           -backend-config="bucket=${TF_STATE_BUCKET}"
           -backend-config='endpoints={s3="https://s3.eu-central-003.backblazeb2.com"}'
       - name: Apply
