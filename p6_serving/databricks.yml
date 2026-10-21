@@ -16,6 +16,7 @@ sync:
     - ../p6_serving
     - ../p2_lakehouse
     - ../p5_governance
+    - ../p9_operations     # classification_lib (imported by the licence gate and the export) imports existence_lib and snapshot_lib, both standard library only
   exclude:
     - "**/tests/**"
     - "**/bootstrap/**"

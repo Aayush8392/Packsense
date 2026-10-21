@@ -71,3 +71,13 @@ def test_the_marker_patch_replaces_every_marker_and_refuses_a_bad_id():
 def test_every_marker_file_exists():
     for rel in sp.MARKER_FILES:
         assert (ROOT / rel).is_file(), rel
+
+
+def test_the_bundle_ships_every_folder_the_notebook_imports_from():
+    """Found 2026-10-21: the first run failed because classification_lib imports from p9_operations, which the bundle did not ship."""
+    synced = {Path(p).name for p in BUNDLE["sync"]["paths"]}
+    files = [ROOT / "p6_serving" / "export_lib.py", ROOT / "p5_governance" / "licence_gate.py", ROOT / "p5_governance" / "classification_lib.py"]
+    needed = set()
+    for f in files:
+        needed |= set(re.findall(r'"(p\d_[a-z_]+)"', f.read_text(encoding="utf-8")))
+    assert needed <= synced, f"not shipped: {sorted(needed - synced)}"
