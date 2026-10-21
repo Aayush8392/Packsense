@@ -52,3 +52,22 @@ which can only make OFF fire less, so they are not tuned away.
 agree on only 70% and the 105 g rules on 8% and 60%. `product_nutrition_sets` converts g, mg, micrograms and kg to grams and leaves any other unit NULL (macro `grams`).
 
 Of the two tables above, the first (aggregated columns) is kept as the record of why the per-source table exists; use the second.
+
+## Replay harness (`replay_lib.py`, 2026-10-21; roadmap item 6)
+
+The catalogue as OUR copy held it at the end of any past UTC day, rebuilt from `product_history` and `product_flag_spans` with no extra table:
+a period is open at T (the last second of the day) when `valid_from_t <= T` and `valid_to_t` is empty or after T; a flag span is open when
+`first_seen_t <= T` and `vanished_at_t` is empty or after T. Nothing dated after T can match either rule (the leakage guard a detector or
+the steward needs: features as of T, labels from what happened after T). The rule exists twice, in dbt macros (`p4_modelling/macros/replay.sql`)
+and in seconds in `replay_lib.py`; `tests/test_replay_lib.py` runs both sides of every boundary and checks that they agree.
+
+**Proof of consistency (not of accuracy).** Two dbt data tests run in every gold build: `replay_matches_silver` (for the first, a middle and the last
+complete day, the replayed state equals the newest silver version dated on or before the day, hash for hash, and the replayed flags equal that
+version's own flags) and `replay_matches_quality_fact` (on every complete day, open spans per severity and products held equal the daily quality
+fact). On the DuckDB fixture both pass; with the predicate off by one day both fail (39 and 543 rows). On production, 5 Oct: 60,170 products held and
+3,508 error, 275,911 warning, 267,658 info and 1 bug spans open, identical to the quality fact.
+
+**Limits.** It is the state of our copy, not of OFF: a product with no version dated on or before the day is absent (the seed arrived late and the
+capture began on 30 Sep, so early days are thin and non-India products are only those edited since), and about 35% of consecutive versions have
+unseen edits between them. Use it with the complete days (`complete_days`). `bootstrap/replay.py --day YYYY-MM-DD` prints counts only; a consumer
+reads the state itself (`state_as_of_sql`) inside Databricks. The OFF weekly snapshots were deliberately not used as a second check (user decision).

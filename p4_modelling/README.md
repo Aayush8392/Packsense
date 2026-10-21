@@ -224,3 +224,6 @@ insert-only table of `unverified` rows until then): the memory lives in the appe
   (`moved_other_type`, `confirmed_exists`, `invalid_code`, `unconfirmed`) and `unverified` are not in the fixture, because the product fixture was not regenerated for them; they pass
   through the model unchanged and the ordering rule is tested on its own in `p9_operations/tests/test_existence_lib.py`. Add real API-answered products to the product fixture's case list at the next regeneration.
 - **Access:** the gold principals read this table with a table-level SELECT (`p5_governance/grants.yml`); it exists only after the weekly candidate job has run once in each environment.
+
+## Replay (2026-10-21)
+Macros `history_as_of` and `spans_as_of` (`macros/replay.sql`) define the catalogue as held at the end of a UTC day; the data tests `replay_matches_silver` and `replay_matches_quality_fact` prove them against silver and the daily quality fact (DuckDB fixture: pass; predicate shifted by a day: fail). Library and limits: `p7_triage_ml/README.md`.
