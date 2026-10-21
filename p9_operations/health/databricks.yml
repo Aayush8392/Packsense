@@ -36,5 +36,5 @@ targets:
 
 # The principal must be able to READ the notebook that runs as it. Its client id is not a secret.
 permissions:
-  - service_principal_name: "11111111-1111-1111-1111-111111111111"   # packsense-health (marker: replaced by p9_operations/bootstrap/setup_health.py)
+  - service_principal_name: "aacbd589-643b-4dab-910b-a031197dcfec"   # packsense-health (marker: replaced by p9_operations/bootstrap/setup_health.py)
     level: CAN_VIEW
