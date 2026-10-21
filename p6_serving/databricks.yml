@@ -41,5 +41,5 @@ targets:
 
 # The principal must be able to READ the notebook that runs as it. Its client id is not a secret.
 permissions:
-  - service_principal_name: "00000000-0000-0000-0000-000000000000"   # packsense-publish (marker: replaced by bootstrap/setup_publish.py)
+  - service_principal_name: "3af7c7cc-7ee4-4aa7-b516-df00a420327a"   # packsense-publish (marker: replaced by bootstrap/setup_publish.py)
     level: CAN_VIEW

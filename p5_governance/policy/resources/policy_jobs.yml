@@ -84,15 +84,15 @@ resources:
             environment_version: "2"
             dependencies:
               - PyYAML==6.0.3
-      # 00000000-0000-0000-0000-000000000000 is a marker: p6_serving/bootstrap/setup_publish.py replaces it with the real client id of packsense-publish when it creates the principal
-      run_as: {service_principal_name: "00000000-0000-0000-0000-000000000000"}
+      # 3af7c7cc-7ee4-4aa7-b516-df00a420327a is a marker: p6_serving/bootstrap/setup_publish.py replaces it with the real client id of packsense-publish when it creates the principal
+      run_as: {service_principal_name: "3af7c7cc-7ee4-4aa7-b516-df00a420327a"}
       tasks:
         - task_key: check
           environment_key: pol_env
           disable_auto_optimization: true
           notebook_task:
             notebook_path: ../notebooks/policy_check.py
-            base_parameters: {identity: packsense-publish, expected_id: "00000000-0000-0000-0000-000000000000"}
+            base_parameters: {identity: packsense-publish, expected_id: "3af7c7cc-7ee4-4aa7-b516-df00a420327a"}
     # Owned by the admin who deploys it: it starts the four jobs above, tests the two users, checks grants drift, then reports.
     policy:
       name: packsense-policy
