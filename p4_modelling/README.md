@@ -203,6 +203,13 @@ cd p4_modelling
 ../.venv-dbt/Scripts/python bootstrap/compare_engines.py check
 ```
 
+## Per-source nutrition (`product_nutrition_sets`, since 2026-10-21)
+One row per input set (source x preparation x basis) of each product's latest version, rebuilt in full every night: 169,029 sets for 103,771 of 145,182 products on production silver
+(at most 7 sets on a product), so the table is small. OFF runs its arithmetic checks on each set (estimates excluded), whereas silver's aggregated nutrient columns mix sets; the rule verdicts
+(`p7_triage_ml/rules_lib.py`) agree with OFF's flags far better on this table (see `p7_triage_ml/README.md`). Only the core nutrients are typed columns; the full nutrient map stays in silver.
+**Units:** each nutrient in a set carries its own unit and salt and sodium are in milligrams in about 7% of the sets, so the staging models convert masses to grams (macro `grams`; an unknown unit gives NULL).
+Two staging twins (`stg_nutrition_sets`: explode and map lookup differ by engine), the portable model, two data tests (one row per set; rows match the latest version's `input_sets`).
+
 ## Existence status (`product_status`, since 2026-10-21)
 `product_status` says whether each product we hold is still in OFF's food database. It is the latest existence check per product from the silver table
 `silver_existence_check`, which two P9 pieces write: the weekly comparison with OFF's Hugging Face snapshot (a `present_in_snapshot` row for the ~97% of products the snapshot

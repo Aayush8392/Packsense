@@ -232,6 +232,27 @@
    "valid_to",
    "is_latest_observed"
   ],
+  "product_nutrition_sets": [
+   "code",
+   "last_modified_t",
+   "source",
+   "preparation",
+   "per",
+   "per_quantity",
+   "per_unit",
+   "is_estimate",
+   "energy_kj",
+   "energy_kcal",
+   "fat",
+   "saturated_fat",
+   "carbohydrates",
+   "sugars",
+   "starch",
+   "fiber",
+   "proteins",
+   "salt",
+   "sodium"
+  ],
   "product_status": [
    "code",
    "status",

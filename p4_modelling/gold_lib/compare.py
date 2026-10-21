@@ -16,6 +16,7 @@ MODELS = {
     "product_history": ["history_key"],
     "product_flag_spans": ["flag_id"],
     "product_status": ["code"],
+    "product_nutrition_sets": ["code", "source", "preparation", "per", "per_quantity"],
     "dim_brand": ["brand_key"],
     "dim_market": ["market_code"],
     "bridge_product_market": ["history_key", "market_code"],

@@ -149,6 +149,41 @@ models:
       - name: evidence_source
         description: snapshot or off_api_v2. NULL while unverified.
 
+  - name: product_nutrition_sets
+    description: >
+      The per-source nutrition of each product's latest version: one row per input set (source, preparation, basis). OFF checks each set separately (estimates
+      excluded); silver's aggregated nutrient columns mix sets. Current version only, rebuilt in full every night. A product without input sets has no rows.
+    columns:
+      - name: code
+        data_tests: [not_null]
+      - name: last_modified_t
+        data_tests: [not_null]
+      - name: source
+        description: packaging, manufacturer or estimate (OFF's own estimate).
+        data_tests: [not_null]
+      - name: preparation
+        description: as_sold or prepared.
+      - name: per
+        description: The basis the values are given for, e.g. 100g, 100ml or serving. The rules compare 100g and 100ml only.
+      - name: per_quantity
+      - name: per_unit
+      - name: is_estimate
+        description: True for OFF's own estimate; OFF leaves these out of its arithmetic checks.
+        data_tests: [not_null]
+      - name: energy_kj
+        description: kJ; from `energy-kj`, else OFF's older `energy` key.
+      - name: energy_kcal
+      - name: fat
+        description: Grams per the set's basis, like every nutrient column below.
+      - name: saturated_fat
+      - name: carbohydrates
+      - name: sugars
+      - name: starch
+      - name: fiber
+      - name: proteins
+      - name: salt
+      - name: sodium
+
   - name: bridge_product_allergen
     description: >
       Which allergens a history period declares: one row per period, allergen tag and relationship (contains = allergens_tags,
