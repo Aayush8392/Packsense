@@ -1,7 +1,10 @@
-# The two Databricks jobs of the deletion reconciliation (p9_operations/existence_lib.py says what it is and why). The lookups against OFF's API run in
+# The Databricks jobs of the deletion reconciliation and the monthly egress check (p9_operations/existence_lib.py says what it is and why). The lookups against OFF's API run in
 # Airflow on the laptop between them; Databricks never waits for the laptop.
 #   packsense-reconcile-candidates  Tuesdays 07:00 UTC, after the Monday snapshot job: reads the newest snapshot's codes, records `present_in_snapshot` for
 #                                   every product it holds and writes the list of products to ask OFF about to landing/reconcile/candidates/.
+#   packsense-reconcile-lookup      daily 10:00 UTC (since 2026-10-21): asks OFF's API about the next 500 candidates, so no laptop is needed (full-automation aim);
+#                                   Airflow stays as the second path.
+#   packsense-egress-check          the 1st of each month 05:00 UTC: one light request to every outside service the pipeline needs.
 #   packsense-reconcile-load        Thursdays 07:00 UTC: loads whatever answers the Airflow DAG left in landing/reconcile/results/ (idempotent, so a late
 #                                   laptop only means the answers arrive the week after).
 resources:
@@ -42,5 +45,41 @@ resources:
               run_id: "{{job.run_id}}"
               silver_schema: ${var.silver_schema}
               landing: ${var.landing}
+              secret_scope: ${var.secret_scope}
+              ping_healthchecks: ${var.ping}
+    reconcile_lookup:
+      name: packsense-reconcile-lookup
+      max_concurrent_runs: 1
+      timeout_seconds: 5400                    # the notebook stops itself after 45 minutes (budget_minutes); this is the outer limit
+      schedule:
+        quartz_cron_expression: "0 0 10 * * ?"  # daily 10:00 UTC, clear of the 06:45 to 08:45 UTC capture and gold window
+        timezone_id: UTC
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: lookup
+          disable_auto_optimization: true       # no automatic retry: it would ask the same codes again
+          notebook_task:
+            notebook_path: ../../p9_operations/notebooks/reconcile_lookup.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              silver_schema: ${var.silver_schema}
+              landing: ${var.landing}
+              secret_scope: ${var.secret_scope}
+              ping_healthchecks: ${var.ping}
+    egress_check:
+      name: packsense-egress-check
+      max_concurrent_runs: 1
+      timeout_seconds: 900
+      schedule:
+        quartz_cron_expression: "0 0 5 1 * ?"   # the 1st of every month, 05:00 UTC
+        timezone_id: UTC
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: egress
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../../p9_operations/notebooks/egress_check.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
               secret_scope: ${var.secret_scope}
               ping_healthchecks: ${var.ping}

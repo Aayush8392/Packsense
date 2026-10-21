@@ -176,9 +176,11 @@ def _jobs():
 
 def test_the_two_jobs_run_weekly_on_different_days_without_retry_and_pass_no_secret_as_a_parameter():
     res, jobs = _jobs()
-    assert set(jobs) == {"reconcile_candidates", "reconcile_load"}
+    assert set(jobs) == {"reconcile_candidates", "reconcile_load", "reconcile_lookup", "egress_check"}
     assert jobs["reconcile_candidates"]["schedule"]["quartz_cron_expression"] == "0 0 7 ? * TUE"      # the day after the Monday snapshot job
     assert jobs["reconcile_load"]["schedule"]["quartz_cron_expression"] == "0 0 7 ? * THU"            # two days for the laptop's DAG in between
+    assert jobs["reconcile_lookup"]["schedule"]["quartz_cron_expression"] == "0 0 10 * * ?"           # daily, after the 06:45 to 08:45 UTC window
+    assert jobs["egress_check"]["schedule"]["quartz_cron_expression"] == "0 0 5 1 * ?"                 # monthly
     for job in jobs.values():
         assert job["max_concurrent_runs"] == 1 and job["schedule"]["pause_status"] == "UNPAUSED"
         (task,) = job["tasks"]
