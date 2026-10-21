@@ -44,11 +44,11 @@ def test_the_job_is_scheduled_after_the_gold_build():
 
 def test_the_principal_reads_exactly_the_spec_tables_and_one_scope():
     spec = ex.load_spec()
-    wanted = {f"workspace.packsense_gold.{d['table']}" for d in spec["datasets"].values()}
+    wanted = {f"{d.get('schema') or 'workspace.packsense_gold'}.{d['table']}" for d in spec["datasets"].values()}
     got = {s["name"] for s in GRANTS["securables"] if s["type"] == "table" and "packsense-publish" in s["grants"]}
     assert got == wanted
     others = [s["name"] for s in GRANTS["securables"] if s["type"] != "table" and "packsense-publish" in s["grants"]]
-    assert sorted(others) == ["workspace", "workspace.packsense_gold"]
+    assert sorted(others) == ["workspace", "workspace.packsense_gold", "workspace.packsense_health"]
     for s in GRANTS["securables"]:
         if "packsense-publish" in s["grants"]:
             assert set(s["grants"]["packsense-publish"]) <= {"USE_CATALOG", "USE_SCHEMA", "SELECT"}

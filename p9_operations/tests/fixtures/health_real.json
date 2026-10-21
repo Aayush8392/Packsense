@@ -1,0 +1,1001 @@
+{
+ "now": "2026-10-21T16:39:36.813044",
+ "queries": {
+  "jobs": [
+   [
+    "2026-10-20",
+    "packsense-reconcile-load",
+    2,
+    0,
+    61
+   ],
+   [
+    "2026-10-20",
+    "packsense-reconcile-candidates",
+    1,
+    0,
+    209
+   ],
+   [
+    "2026-10-20",
+    "packsense-policy",
+    1,
+    0,
+    222
+   ],
+   [
+    "2026-10-21",
+    "packsense-egress-check",
+    1,
+    0,
+    28
+   ],
+   [
+    "2026-10-21",
+    "packsense-gold-build",
+    3,
+    0,
+    299
+   ],
+   [
+    "2026-10-21",
+    "packsense-publish",
+    3,
+    1,
+    44
+   ],
+   [
+    "2026-10-21",
+    "packsense-bronze-load",
+    1,
+    0,
+    337
+   ],
+   [
+    "2026-10-21",
+    "packsense-reconcile-lookup",
+    1,
+    0,
+    72
+   ],
+   [
+    "2026-10-19",
+    "packsense-archive",
+    3,
+    1,
+    78
+   ],
+   [
+    "2026-10-20",
+    "packsense-snapshots",
+    2,
+    1,
+    7028
+   ],
+   [
+    "2026-10-21",
+    "packsense-policy",
+    2,
+    0,
+    248
+   ],
+   [
+    "2026-10-20",
+    "packsense-gold-build",
+    3,
+    0,
+    382
+   ],
+   [
+    "2026-10-20",
+    "packsense-bronze-load",
+    1,
+    0,
+    324
+   ],
+   [
+    "2026-10-21",
+    "packsense-archive",
+    1,
+    0,
+    96
+   ],
+   [
+    "2026-10-19",
+    "packsense-policy",
+    6,
+    0,
+    220
+   ],
+   [
+    "2026-10-19",
+    "packsense-bronze-load",
+    1,
+    0,
+    323
+   ],
+   [
+    "2026-10-20",
+    "packsense-archive",
+    1,
+    0,
+    95
+   ],
+   [
+    "2026-10-19",
+    "packsense-gold-build",
+    2,
+    0,
+    363
+   ]
+  ],
+  "last": [
+   [
+    "packsense-reconcile-load",
+    "2026-10-20T21:29:16.519000"
+   ],
+   [
+    "packsense-reconcile-candidates",
+    "2026-10-20T18:33:28.476000"
+   ],
+   [
+    "packsense-policy",
+    "2026-10-21T15:58:06.305000"
+   ],
+   [
+    "packsense-egress-check",
+    "2026-10-21T10:54:27.914000"
+   ],
+   [
+    "packsense-bronze-load",
+    "2026-10-21T06:50:39.619000"
+   ],
+   [
+    "packsense-gold-build",
+    "2026-10-21T12:04:13.528000"
+   ],
+   [
+    "packsense-publish",
+    "2026-10-21T13:47:58.199000"
+   ],
+   [
+    "packsense-reconcile-lookup",
+    "2026-10-21T10:55:12.031000"
+   ],
+   [
+    "packsense-archive",
+    "2026-10-21T16:01:45.001000"
+   ],
+   [
+    "packsense-snapshots",
+    "2026-10-20T16:42:42.642000"
+   ]
+  ]
+ },
+ "rows": [
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-reconcile-load",
+   "unit": "runs",
+   "value": 2.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-reconcile-load",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-reconcile-load",
+   "unit": "seconds",
+   "value": 61.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-reconcile-candidates",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-reconcile-candidates",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-reconcile-candidates",
+   "unit": "seconds",
+   "value": 209.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-policy",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-policy",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-policy",
+   "unit": "seconds",
+   "value": 222.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-egress-check",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-egress-check",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-egress-check",
+   "unit": "seconds",
+   "value": 28.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-gold-build",
+   "unit": "runs",
+   "value": 3.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-gold-build",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-gold-build",
+   "unit": "seconds",
+   "value": 299.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-publish",
+   "unit": "runs",
+   "value": 3.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-publish",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-publish",
+   "unit": "seconds",
+   "value": 44.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-bronze-load",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-bronze-load",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-bronze-load",
+   "unit": "seconds",
+   "value": 337.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-reconcile-lookup",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-reconcile-lookup",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-reconcile-lookup",
+   "unit": "seconds",
+   "value": 72.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-archive",
+   "unit": "runs",
+   "value": 3.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-archive",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-archive",
+   "unit": "seconds",
+   "value": 78.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-snapshots",
+   "unit": "runs",
+   "value": 2.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-snapshots",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-snapshots",
+   "unit": "seconds",
+   "value": 7028.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-policy",
+   "unit": "runs",
+   "value": 2.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-policy",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-policy",
+   "unit": "seconds",
+   "value": 248.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-gold-build",
+   "unit": "runs",
+   "value": 3.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-gold-build",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-gold-build",
+   "unit": "seconds",
+   "value": 382.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-bronze-load",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-bronze-load",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-bronze-load",
+   "unit": "seconds",
+   "value": 324.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-archive",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-archive",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-archive",
+   "unit": "seconds",
+   "value": 96.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-policy",
+   "unit": "runs",
+   "value": 6.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-policy",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-policy",
+   "unit": "seconds",
+   "value": 220.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-bronze-load",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-bronze-load",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-bronze-load",
+   "unit": "seconds",
+   "value": 323.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-archive",
+   "unit": "runs",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-archive",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-20",
+   "subject": "packsense-archive",
+   "unit": "seconds",
+   "value": 95.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "runs",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-gold-build",
+   "unit": "runs",
+   "value": 2.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "failed_runs",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-gold-build",
+   "unit": "runs",
+   "value": 0.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "max_duration_seconds",
+   "metric_date": "2026-10-19",
+   "subject": "packsense-gold-build",
+   "unit": "seconds",
+   "value": 363.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "hours_since_last_success",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-reconcile-load",
+   "unit": "hours",
+   "value": 19.17
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "hours_since_last_success",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-reconcile-candidates",
+   "unit": "hours",
+   "value": 22.1
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "hours_since_last_success",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-policy",
+   "unit": "hours",
+   "value": 0.69
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "hours_since_last_success",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-egress-check",
+   "unit": "hours",
+   "value": 5.75
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "hours_since_last_success",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-bronze-load",
+   "unit": "hours",
+   "value": 9.82
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "hours_since_last_success",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-gold-build",
+   "unit": "hours",
+   "value": 4.59
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "hours_since_last_success",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-publish",
+   "unit": "hours",
+   "value": 2.86
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "hours_since_last_success",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-reconcile-lookup",
+   "unit": "hours",
+   "value": 5.74
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "hours_since_last_success",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-archive",
+   "unit": "hours",
+   "value": 0.63
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "hours_since_last_success",
+   "metric_date": "2026-10-21",
+   "subject": "packsense-snapshots",
+   "unit": "hours",
+   "value": 23.95
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": "HTTP 200",
+   "job_run_id": "fixture",
+   "metric": "reachable",
+   "metric_date": "2026-10-21",
+   "subject": "OFF delta index (the daily capture)",
+   "unit": "flag",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "response_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "OFF delta index (the daily capture)",
+   "unit": "seconds",
+   "value": 1.41
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": "HTTP 200",
+   "job_run_id": "fixture",
+   "metric": "reachable",
+   "metric_date": "2026-10-21",
+   "subject": "OFF taxonomy file (the taxonomy capture)",
+   "unit": "flag",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "response_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "OFF taxonomy file (the taxonomy capture)",
+   "unit": "seconds",
+   "value": 0.77
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": "HTTP 200",
+   "job_run_id": "fixture",
+   "metric": "reachable",
+   "metric_date": "2026-10-21",
+   "subject": "OFF product API (the reconciliation lookups)",
+   "unit": "flag",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "response_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "OFF product API (the reconciliation lookups)",
+   "unit": "seconds",
+   "value": 1.18
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": "HTTP 200",
+   "job_run_id": "fixture",
+   "metric": "reachable",
+   "metric_date": "2026-10-21",
+   "subject": "Hugging Face dataset API (the snapshot comparison)",
+   "unit": "flag",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "response_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "Hugging Face dataset API (the snapshot comparison)",
+   "unit": "seconds",
+   "value": 0.67
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": "HTTP 403",
+   "job_run_id": "fixture",
+   "metric": "reachable",
+   "metric_date": "2026-10-21",
+   "subject": "Backblaze B2 endpoint (capture upload, archive read)",
+   "unit": "flag",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "response_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "Backblaze B2 endpoint (capture upload, archive read)",
+   "unit": "seconds",
+   "value": 1.27
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": "HTTP 200",
+   "job_run_id": "fixture",
+   "metric": "reachable",
+   "metric_date": "2026-10-21",
+   "subject": "PyPI (the notebooks install DuckDB and requests)",
+   "unit": "flag",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "response_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "PyPI (the notebooks install DuckDB and requests)",
+   "unit": "seconds",
+   "value": 0.06
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": "HTTP 200",
+   "job_run_id": "fixture",
+   "metric": "reachable",
+   "metric_date": "2026-10-21",
+   "subject": "healthchecks.io (the pings)",
+   "unit": "flag",
+   "value": 1.0
+  },
+  {
+   "collected_at": "2026-10-21T16:39:36",
+   "detail": null,
+   "job_run_id": "fixture",
+   "metric": "response_seconds",
+   "metric_date": "2026-10-21",
+   "subject": "healthchecks.io (the pings)",
+   "unit": "seconds",
+   "value": 1.36
+  }
+ ],
+ "services": [
+  {
+   "detail": "HTTP 200",
+   "ok": true,
+   "seconds": 1.41,
+   "service": "OFF delta index (the daily capture)"
+  },
+  {
+   "detail": "HTTP 200",
+   "ok": true,
+   "seconds": 0.77,
+   "service": "OFF taxonomy file (the taxonomy capture)"
+  },
+  {
+   "detail": "HTTP 200",
+   "ok": true,
+   "seconds": 1.18,
+   "service": "OFF product API (the reconciliation lookups)"
+  },
+  {
+   "detail": "HTTP 200",
+   "ok": true,
+   "seconds": 0.67,
+   "service": "Hugging Face dataset API (the snapshot comparison)"
+  },
+  {
+   "detail": "HTTP 403",
+   "ok": true,
+   "seconds": 1.27,
+   "service": "Backblaze B2 endpoint (capture upload, archive read)"
+  },
+  {
+   "detail": "HTTP 200",
+   "ok": true,
+   "seconds": 0.06,
+   "service": "PyPI (the notebooks install DuckDB and requests)"
+  },
+  {
+   "detail": "HTTP 200",
+   "ok": true,
+   "seconds": 1.36,
+   "service": "healthchecks.io (the pings)"
+  }
+ ]
+}

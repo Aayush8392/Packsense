@@ -1,0 +1,40 @@
+# PackSense pipeline-health bundle (Phase B item 9: the capacity panel and dependency health).
+#
+# Deployed BY THE ADMIN from the laptop (like the publish and policy bundles: there is no Databricks admin credential in CI, by decision): from this
+# folder, `databricks bundle deploy` / `bundle run health_collect`. The admin must hold the Use permission on the service principal named in run_as.
+# The job runs AS `packsense-health`, which can read two system tables (jobs, run timeline) and write one schema; it reads no product data.
+bundle:
+  name: packsense-health
+
+include:
+  - resources/*.yml
+
+sync:
+  paths:
+    - ../p9_operations
+  exclude:
+    - "**/tests/**"
+    - "**/bootstrap/**"
+    - "**/README.md"
+    - "**/airflow/**"
+    - "**/fixtures/**"
+
+variables:
+  health_cron:
+    description: quartz cron (UTC); 08:40 is after the 08:15 gold build and before the 09:00 publish, so the site shows the same morning's health
+    default: "0 40 8 * * ?"
+  health_pause:
+    description: PAUSED until the dry run and the first real run have passed by hand; the first real run is followed by a commit that sets this to UNPAUSED
+    default: PAUSED
+  ping:
+    description: whether the notebook pings healthchecks.io ("true" or "false")
+    default: "true"
+
+targets:
+  prod:
+    default: true
+
+# The principal must be able to READ the notebook that runs as it. Its client id is not a secret.
+permissions:
+  - service_principal_name: "11111111-1111-1111-1111-111111111111"   # packsense-health (marker: replaced by p9_operations/bootstrap/setup_health.py)
+    level: CAN_VIEW

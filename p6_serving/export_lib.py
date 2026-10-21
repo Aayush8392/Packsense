@@ -61,7 +61,7 @@ def select_sql(name: str, spec: dict, schema: str) -> str:
     """The one SELECT the notebook runs for a dataset: only the listed columns, only the listed filter."""
     d = spec["datasets"][name]
     where = f" where {d['where']}" if d.get("where") else ""
-    return f"select {', '.join(d['columns'])} from {schema}.{d['table']}{where}"
+    return f"select {', '.join(d['columns'])} from {d.get('schema') or schema}.{d['table']}{where}"   # `schema` in the spec overrides the gold schema (the health table)
 
 
 def classification_problems(spec: dict) -> list[str]:
@@ -69,12 +69,21 @@ def classification_problems(spec: dict) -> list[str]:
     cls = cl.load_spec()
     gold = cl.gold_columns()
     out = []
+    tables = cl.table_columns()
+    listed = {t["name"]: t for t in cls.get("tables") or []}
     for name, d in spec["datasets"].items():
         table = d["table"]
-        if table not in gold:
+        if d.get("schema"):                 # a table outside gold: classified by classification.yml's `tables`
+            full = f"{d['schema']}.{table}"
+            if full not in listed or full not in tables:
+                out.append(f"{name}: {full} is not a classified table")
+                continue
+            rows = {r["column"]: r["class"] for r in cl.table_rows(cls, listed[full], tables[full])}
+        elif table not in gold:
             out.append(f"{name}: {table} is not a known gold model")
             continue
-        rows = {r["column"]: r["class"] for r in cl.gold_rows(cls, table, gold[table])}
+        else:
+            rows = {r["column"]: r["class"] for r in cl.gold_rows(cls, table, gold[table])}
         for c in d["columns"]:
             if c not in rows:
                 out.append(f"{name}: column {c} is not in {table}")

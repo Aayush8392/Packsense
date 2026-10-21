@@ -129,6 +129,7 @@ GRANT USE CATALOG ON CATALOG workspace TO `packsense-deployer-dev`;
 GRANT USE CATALOG ON CATALOG workspace TO `packsense-gold`;
 GRANT USE CATALOG ON CATALOG workspace TO `packsense-gold-dev`;
 GRANT USE CATALOG ON CATALOG workspace TO `packsense-publish`;
+GRANT USE CATALOG ON CATALOG workspace TO `packsense-health`;
 GRANT USE CATALOG ON CATALOG workspace TO `pipeline-user`;
 GRANT USE CATALOG ON CATALOG workspace TO `analyst`;
 GRANT USE SCHEMA ON SCHEMA workspace.packsense TO `packsense-deployer`;
@@ -164,6 +165,9 @@ GRANT SELECT ON TABLE workspace.packsense_gold.dim_market TO `analyst`;
 GRANT SELECT ON TABLE workspace.packsense_gold.mart_brand_scorecard TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_gold.fct_catalogue_quality_daily TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_gold.fct_product_change_daily TO `packsense-publish`;
+GRANT USE SCHEMA, SELECT, MODIFY ON SCHEMA workspace.packsense_health TO `packsense-health`;
+GRANT USE SCHEMA ON SCHEMA workspace.packsense_health TO `packsense-publish`;
+GRANT SELECT ON TABLE workspace.packsense_health.health_metric_daily TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_product_versions TO `packsense-gold`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_manifest TO `packsense-gold`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_taxonomy_tag TO `packsense-gold`;
@@ -182,6 +186,8 @@ GRANT SELECT ON TABLE workspace.packsense_dev_silver.silver_existence_check TO `
 -- secret scope packsense_gold_dev: MANAGE for `admin`
 -- secret scope packsense_publish: READ for `packsense-publish`
 -- secret scope packsense_publish: MANAGE for `admin`
+-- secret scope packsense_health: READ for `packsense-health`
+-- secret scope packsense_health: MANAGE for `admin`
 -- secret scope packsense_policy: MANAGE for `admin`
 ```
 <!-- grants:end -->

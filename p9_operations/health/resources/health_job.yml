@@ -1,0 +1,22 @@
+# The job `packsense-health`: daily, after the gold build and before the publish, write the pipeline-health rows (p9_operations/notebooks/health_collect.py).
+# Not retried automatically: the merge is idempotent but a retry would only repeat the outside requests of a failed service check.
+resources:
+  jobs:
+    health_collect:
+      name: packsense-health
+      max_concurrent_runs: 1
+      timeout_seconds: 1200
+      schedule:
+        quartz_cron_expression: ${var.health_cron}
+        timezone_id: UTC
+        pause_status: ${var.health_pause}
+      # marker: bootstrap/setup_health.py replaces it with the client id of packsense-health
+      run_as: {service_principal_name: "11111111-1111-1111-1111-111111111111"}
+      tasks:
+        - task_key: collect
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../../notebooks/health_collect.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              ping_healthchecks: ${var.ping}

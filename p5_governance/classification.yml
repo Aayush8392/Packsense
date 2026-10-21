@@ -78,6 +78,12 @@ tables:
       evidence_source: {class: internal}
       snapshot_sha: {class: internal}
       job_run_id: {class: internal}
+  - name: workspace.packsense_health.health_metric_daily
+    class: public
+    why: operating facts about the pipeline itself (job runs and durations, whether each outside service answered); no product data and no billing figure
+    columns:
+      collected_at: {class: internal}
+      job_run_id: {class: internal}
   - name: workspace.packsense_policy.market_access
     class: internal
     why: who may see which market (policies.yml)

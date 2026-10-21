@@ -192,6 +192,15 @@ whether each product we hold is still in OFF's food database (a barcode and a st
 | `snapshot_sha` | internal |  |
 | `job_run_id` | internal |  |
 
+### `workspace.packsense_health.health_metric_daily`: public
+
+operating facts about the pipeline itself (job runs and durations, whether each outside service answered); no product data and no billing figure. 8 columns: 6 public, 0 personal, 2 internal.
+
+| Column | Class | Note |
+|---|---|---|
+| `collected_at` | internal |  |
+| `job_run_id` | internal |  |
+
 ### `workspace.packsense_policy.market_access`: internal
 
 who may see which market (policies.yml). 2 columns: 0 public, 1 personal, 1 internal.

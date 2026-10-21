@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "p6_serving"))
 import export_lib as ex  # noqa: E402
 
 ROWS = json.loads((HERE / "fixtures" / "gold_rows.json").read_text(encoding="utf-8"))
+HEALTH = json.loads((ROOT / "p9_operations" / "tests" / "fixtures" / "health_real.json").read_text(encoding="utf-8"))["rows"]   # real collector output
 SPEC = ex.load_spec()
 STATUS = {"built_at_utc": "2026-10-21T08:30:00", "first_complete_day": "2026-10-01",
           "last_complete_day": "2026-10-15", "products_held_all": 233, "products_held_india": 60}
@@ -28,6 +29,8 @@ def datasets(rank_all_named=True):
         cols = SPEC["datasets"][name]["columns"]
         keep = [r for r in rows if (r["is_ranked"] == 1 or (rank_all_named and r["brand_name"] != "(no brand)"))] if name == "brand_scorecard" else rows
         out[name] = [{k: r[k] for k in cols} for r in keep]
+    cols = SPEC["datasets"]["pipeline_health"]["columns"]
+    out["pipeline_health"] = [{k: r[k] for k in cols} for r in HEALTH]
     return out
 
 
@@ -50,7 +53,8 @@ def test_the_ranking_floor_keeps_the_exit_functions_premise_true():
 def test_select_sql_names_its_columns_and_never_star():
     for name in SPEC["datasets"]:
         sql = ex.select_sql(name, SPEC, "workspace.packsense_gold")
-        assert "*" not in sql and sql.startswith("select ") and " from workspace.packsense_gold." in sql
+        home = SPEC["datasets"][name].get("schema") or "workspace.packsense_gold"
+        assert "*" not in sql and sql.startswith("select ") and f" from {home}." in sql
     assert "where is_ranked = 1" in ex.select_sql("brand_scorecard", SPEC, "s")
 
 
@@ -90,7 +94,7 @@ def test_the_release_folder_passes_the_gate_and_the_files_are_deterministic(tmp_
     m2 = ex.build_release(tmp_path / "b", datasets(), STATUS)
     assert [f["sha256"] for f in m1["files"]] == [f["sha256"] for f in m2["files"]]
     names = sorted(f["path"] for f in m1["files"])
-    assert names == ["ATTRIBUTION.md", "brand_scorecard.csv", "change_daily.csv", "quality_daily.csv", "site_status.csv"]
+    assert names == ["ATTRIBUTION.md", "brand_scorecard.csv", "change_daily.csv", "pipeline_health.csv", "quality_daily.csv", "site_status.csv"]
     with open(tmp_path / "a" / "brand_scorecard.csv", encoding="utf-8", newline="") as f:
         header = next(csv.reader(f))
     assert header == SPEC["datasets"]["brand_scorecard"]["columns"]

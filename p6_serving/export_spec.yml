@@ -35,3 +35,13 @@ datasets:
     text_columns: []
     count_columns: [n_products, n_periods]
     order_by: [change_date, scope, change_group, opened_by_seed]
+  pipeline_health:
+    # Operating facts about the pipeline itself (Phase B item 9), written daily by the `packsense-health` job; not a gold model, so the spec names its schema.
+    # Job runs and durations and whether each outside service answered. No billing, no quota figure, no product data. Ninety days are shown.
+    schema: workspace.packsense_health
+    table: health_metric_daily
+    where: "metric_date >= date_sub(current_date(), 90)"
+    columns: [metric_date, subject, metric, value, unit, detail]
+    text_columns: [subject, detail]
+    count_columns: []
+    order_by: [metric_date, subject, metric]
