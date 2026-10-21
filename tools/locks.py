@@ -21,7 +21,7 @@ CUTOFF = "2026-10-07T00:00:00Z"
 PYTHON = "3.12"                                   # the version the workflows run on
 SECURITY_FIX = {                                  # packages locked newer than the cutoff because pip-audit found an advisory fixed after it (found 2026-10-21)
     "certifi": "PYSEC-2026-4320",                 # fixed in 2026.10.19
-    "uv": "GHSA (Dependabot alert 4, critical)",  # 0.13.4 (2026-10-20): uv before it trusted an emSign root with compromised intermediate keys
+    "uv": "GHSA-hq85-5cpj-mr62",                 # 0.13.4 (2026-10-20): uv before it trusted an emSign root with compromised intermediate keys
 }
 NEWER_OK = {"databricks-sdk": "2026-10-21T00:00:00Z", **{pkg: "2026-10-21T00:00:00Z" for pkg in SECURITY_FIX}}   # databricks-sdk: pinned on purpose before it was two weeks old
 # Not fixable here, so accepted in .github/workflows/security.yml (`--ignore-vuln`, p4 lock only): PYSEC-2026-4114, oauthlib 3.3.1 (fixed in 4.0.0). dbt-databricks 1.12.6 caps
