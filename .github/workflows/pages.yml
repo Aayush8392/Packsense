@@ -25,6 +25,9 @@ concurrency:
 
 jobs:
   build:
+    # A push to main (a site or workflow change) is skipped until the staging dataset is configured (variable HF_SITE_REPO); a scheduled or manual
+    # run is never skipped, so a missing secret later fails loudly instead of leaving a stale site unnoticed.
+    if: github.event_name != 'push' || vars.HF_SITE_REPO != ''
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
