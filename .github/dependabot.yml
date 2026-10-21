@@ -21,9 +21,18 @@ updates:
     directory: "/p4_modelling"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "dbt-core"   # dbt-databricks 1.12.6 and 1.12.7 both require dbt-core below 1.12.6 (checked 2026-10-21 with uv): 1.12.6 cannot be installed with them
+        versions: [">=1.12.6"]
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
     ignore:
       - dependency-name: "boto3"   # held at 1.35.99: later versions changed upload checksums and may break B2 (see buildlog)
+      # the two dbt packages are watched by the /p4_modelling entry above; this entry also saw them and opened a duplicate pull request for each (2026-10-16 and 2026-10-20)
+      - dependency-name: "dbt-core"
+      - dependency-name: "dbt-databricks"
+      # ruff is a 0.x tool whose minor versions change rules: 0.8.4 to 0.17.1 gives 448 new findings on this code, so only patch releases are proposed
+      - dependency-name: "ruff"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
