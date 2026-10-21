@@ -4,7 +4,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-  # Add further ecosystems only when their manifests exist (npm for the Evidence site, more pip folders).
+  # The Evidence site's packages (P6). Evidence is held to its pinned release family: a major bump needs a build and a look at the pages, so group nothing and review each.
+  - package-ecosystem: "npm"
+    directory: "/p6_serving/site"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+  # Add further ecosystems only when their manifests exist (more pip folders).
   - package-ecosystem: "pip"
     directory: "/p1_intake"
     schedule:

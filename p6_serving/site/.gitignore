@@ -1,0 +1,13 @@
+.evidence/template
+.evidence/meta
+.svelte-kit
+build
+node_modules
+.DS_Store
+static/data
+*.options.yaml
+.env
+# the data files are fetched from the staging dataset at build time and never committed
+sources/site/*.csv
+sources/site/*.md
+sources/site/*.json

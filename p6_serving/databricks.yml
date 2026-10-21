@@ -1,0 +1,45 @@
+# PackSense public-site publish bundle (P6, B0): the job that turns gold aggregates into the checked files of the public site.
+#
+# Deployed BY THE ADMIN from the laptop (like the policy bundle: there is no Databricks admin credential in CI, by decision): from this folder,
+# `databricks bundle deploy` / `bundle run publish_site_data`. The admin must hold the Use permission on the service principal named in run_as.
+# The job runs AS `packsense-publish`, which can read exactly three gold tables and one secret scope (p5_governance/grants.yml); no principal secret
+# is stored anywhere. It uploads to a private Hugging Face dataset; the Pages workflow reads that dataset (design: a staging store between
+# Databricks and GitHub, so no GitHub token lives in Databricks and no Databricks credential lives in GitHub).
+bundle:
+  name: packsense-publish
+
+include:
+  - resources/*.yml
+
+sync:
+  paths:
+    - ../p6_serving
+    - ../p2_lakehouse
+    - ../p5_governance
+  exclude:
+    - "**/tests/**"
+    - "**/bootstrap/**"
+    - "**/README.md"
+    - "**/fixtures/**"
+    - p2_lakehouse/notebooks/**
+    - p5_governance/policy/**
+
+variables:
+  publish_cron:
+    description: quartz cron (UTC); 09:00 is after the 08:15 gold build (about 4 minutes) with room for a slow day
+    default: "0 0 9 * * ?"
+  publish_pause:
+    description: PAUSED until the first run by hand has passed (the Hugging Face repo and token must exist first)
+    default: PAUSED
+  ping:
+    description: whether the notebook pings healthchecks.io ("true" or "false")
+    default: "true"
+
+targets:
+  prod:
+    default: true
+
+# The principal must be able to READ the notebook that runs as it. Its client id is not a secret.
+permissions:
+  - service_principal_name: "00000000-0000-0000-0000-000000000000"   # packsense-publish (marker: replaced by bootstrap/setup_publish.py)
+    level: CAN_VIEW

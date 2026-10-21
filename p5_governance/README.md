@@ -128,6 +128,7 @@ GRANT USE CATALOG ON CATALOG workspace TO `packsense-deployer`;
 GRANT USE CATALOG ON CATALOG workspace TO `packsense-deployer-dev`;
 GRANT USE CATALOG ON CATALOG workspace TO `packsense-gold`;
 GRANT USE CATALOG ON CATALOG workspace TO `packsense-gold-dev`;
+GRANT USE CATALOG ON CATALOG workspace TO `packsense-publish`;
 GRANT USE CATALOG ON CATALOG workspace TO `pipeline-user`;
 GRANT USE CATALOG ON CATALOG workspace TO `analyst`;
 GRANT USE SCHEMA ON SCHEMA workspace.packsense TO `packsense-deployer`;
@@ -153,12 +154,16 @@ GRANT SELECT ON SCHEMA workspace.packsense_dev_snapshots TO `admin`;
 GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_gold TO `packsense-gold`;
 GRANT SELECT ON SCHEMA workspace.packsense_gold TO `admin`;
 GRANT USE SCHEMA ON SCHEMA workspace.packsense_gold TO `analyst`;
+GRANT USE SCHEMA ON SCHEMA workspace.packsense_gold TO `packsense-publish`;
 GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_dev_gold TO `packsense-gold-dev`;
 GRANT SELECT ON SCHEMA workspace.packsense_dev_gold TO `admin`;
 GRANT USE SCHEMA, EXECUTE ON SCHEMA workspace.packsense_policy TO `packsense-gold`;
 GRANT USE SCHEMA, EXECUTE ON SCHEMA workspace.packsense_policy TO `packsense-gold-dev`;
 GRANT SELECT ON TABLE workspace.packsense_gold.bridge_product_market TO `analyst`;
 GRANT SELECT ON TABLE workspace.packsense_gold.dim_market TO `analyst`;
+GRANT SELECT ON TABLE workspace.packsense_gold.mart_brand_scorecard TO `packsense-publish`;
+GRANT SELECT ON TABLE workspace.packsense_gold.fct_catalogue_quality_daily TO `packsense-publish`;
+GRANT SELECT ON TABLE workspace.packsense_gold.fct_product_change_daily TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_product_versions TO `packsense-gold`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_manifest TO `packsense-gold`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_taxonomy_tag TO `packsense-gold`;
@@ -175,6 +180,8 @@ GRANT SELECT ON TABLE workspace.packsense_dev_silver.silver_existence_check TO `
 -- secret scope packsense_gold: MANAGE for `admin`
 -- secret scope packsense_gold_dev: READ for `packsense-gold-dev`
 -- secret scope packsense_gold_dev: MANAGE for `admin`
+-- secret scope packsense_publish: READ for `packsense-publish`
+-- secret scope packsense_publish: MANAGE for `admin`
 -- secret scope packsense_policy: MANAGE for `admin`
 ```
 <!-- grants:end -->

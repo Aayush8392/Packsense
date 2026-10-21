@@ -1,0 +1,37 @@
+# The public export contract (P6, B0): exactly which gold tables and columns may reach the public site, and under which rules.
+# Everything here is PUBLIC-class (DATA_CLASSIFICATION.md): aggregates only, no product-grain row, no contributor code, no image.
+# export_lib.py reads this file; a column that is not listed cannot be exported, and a test fails when a listed column is classified
+# personal or internal. Changing this file is a change to what the world can see: it goes through a pull request like any code.
+version: 1
+source_name: Open Food Facts
+licence: ODbL-1.0
+attribution: >-
+  Contains data from Open Food Facts (https://openfoodfacts.org), available under the Open Database License
+  (https://opendatacommons.org/licenses/odbl/1-0/). This site describes our own copy of the data at the stated build time,
+  not Open Food Facts itself.
+# A count of 1 to 4 is blanked (and counted in `suppressed_cells`) in every listed count column: small cells identify too much.
+# Limit, stated on the site: a blanked cell can sometimes be recovered from a total beside it; this is not formal disclosure control.
+suppress_below: 5
+
+datasets:
+  brand_scorecard:
+    table: mart_brand_scorecard
+    where: "is_ranked = 1"          # a named brand with at least 30 products; the floor is the dbt var scorecard_min_products
+    columns: [scope, brand_name, as_of_date, n_products, n_with_nutrition, n_with_nutriscore, n_with_nova, n_with_quantity,
+              n_with_ingredients, n_with_categories, n_with_labels, coverage_points]
+    # Deliberately NOT exported: open_error_spans, open_warning_spans, n_products_with_error_flag (no per-brand error counts in public).
+    text_columns: [brand_name]      # passed through the exit function
+    count_columns: []               # every row has at least 30 products
+    order_by: [scope, brand_name]
+  quality_daily:
+    table: fct_catalogue_quality_daily
+    columns: [snapshot_date, scope, severity, flag_family, open_spans, opened_on_known_product, carried_in, vanished, n_products_held]
+    text_columns: [flag_family]     # a taxonomy tag such as en:nutrition-value-total-over-105
+    count_columns: [open_spans, opened_on_known_product, carried_in, vanished]
+    order_by: [snapshot_date, scope, severity, flag_family]
+  change_daily:
+    table: fct_product_change_daily
+    columns: [change_date, scope, change_group, opened_by_seed, n_products, n_periods, unseen_edits]
+    text_columns: []
+    count_columns: [n_products, n_periods]
+    order_by: [change_date, scope, change_group, opened_by_seed]

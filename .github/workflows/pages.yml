@@ -1,0 +1,75 @@
+name: Build and publish the site (GitHub Pages)
+
+# The public site (p6_serving/site, Evidence) is built from the checked files that the Databricks job `packsense-publish` uploads to a private Hugging Face
+# dataset. This workflow holds only a READ token for that one dataset (secret HF_SITE_READ_TOKEN): no Databricks credential lives in GitHub, and no GitHub
+# token lives in Databricks. The files are verified against their manifest and the licence gate runs on them again before anything is built.
+# Not run for pull requests (it holds a secret). The schedule is a nominal 10:00 UTC; GitHub starts scheduled workflows hours late, which is accepted:
+# the data is rebuilt at 09:00 UTC and a late site build only delays the page.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 10 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "p6_serving/site/**"
+      - "p6_serving/fetch_site_data.py"
+      - ".github/workflows/pages.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Fetch the checked site data (read-only token, verified against the manifest)
+        env:
+          HF_SITE_READ_TOKEN: ${{ secrets.HF_SITE_READ_TOKEN }}
+          HF_SITE_REPO: ${{ vars.HF_SITE_REPO }}
+        run: python p6_serving/fetch_site_data.py "$HF_SITE_REPO" site_release
+      - name: Licence gate on the fetched files (a second, independent check)
+        run: |
+          pip install --no-cache-dir --require-hashes -r requirements-dev.lock
+          python p5_governance/bootstrap/check_release.py site_release
+      - name: Put the data files where Evidence reads them
+        run: cp site_release/*.csv p6_serving/site/sources/site/
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: p6_serving/site/package-lock.json
+      - name: Install the pinned packages and build
+        working-directory: p6_serving/site
+        run: |
+          npm ci --no-audit --no-fund
+          npm run sources:strict
+          npm run build:strict
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: p6_serving/site/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

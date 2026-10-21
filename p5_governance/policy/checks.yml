@@ -41,6 +41,20 @@ identities:
       - {name: cannot read prod silver, kind: deny, action: read_table, table: workspace.packsense_silver.silver_manifest}
       - {name: cannot read the bronze scope, kind: deny, action: list_secrets, scope: packsense}
       - {name: cannot create a schema, kind: deny, action: create_schema}
+  packsense-publish:
+    runner: notebook
+    checks:
+      - {name: reads the brand scorecard, kind: allow, action: read_table, table: workspace.packsense_gold.mart_brand_scorecard}
+      - {name: reads the daily quality fact, kind: allow, action: read_table, table: workspace.packsense_gold.fct_catalogue_quality_daily}
+      - {name: reads the daily change fact, kind: allow, action: read_table, table: workspace.packsense_gold.fct_product_change_daily}
+      - {name: cannot read the product history, kind: deny, action: read_table, table: workspace.packsense_gold.product_history}
+      - {name: cannot read the flag spans, kind: deny, action: read_table, table: workspace.packsense_gold.product_flag_spans}
+      - {name: cannot read silver, kind: deny, action: read_table, table: workspace.packsense_silver.silver_manifest}
+      - {name: cannot read bronze, kind: deny, action: read_table, table: workspace.packsense_bronze.bronze_manifest}
+      - {name: cannot write gold, kind: deny, action: create_table, schema: workspace.packsense_gold}
+      - {name: cannot read the bronze scope, kind: deny, action: list_secrets, scope: packsense}
+      - {name: cannot read the gold scope, kind: deny, action: list_secrets, scope: packsense_gold}
+      - {name: cannot create a schema, kind: deny, action: create_schema}
   packsense-deployer:
     runner: notebook
     checks:

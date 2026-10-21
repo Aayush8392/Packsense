@@ -1,0 +1,22 @@
+# The job `packsense-publish`: daily, after the gold build, publish the checked public site data (p6_serving/notebooks/publish_site_data.py).
+# Not retried automatically: the upload is one commit, and a retry after a gate violation would only repeat it.
+resources:
+  jobs:
+    publish_site_data:
+      name: packsense-publish
+      max_concurrent_runs: 1
+      timeout_seconds: 1800
+      schedule:
+        quartz_cron_expression: ${var.publish_cron}
+        timezone_id: UTC
+        pause_status: ${var.publish_pause}
+      # marker: bootstrap/setup_publish.py replaces it with the client id of packsense-publish
+      run_as: {service_principal_name: "00000000-0000-0000-0000-000000000000"}
+      tasks:
+        - task_key: publish
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../notebooks/publish_site_data.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              ping_healthchecks: ${var.ping}

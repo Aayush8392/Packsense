@@ -43,3 +43,5 @@ permissions:
     level: CAN_VIEW
   - service_principal_name: "05620ebf-cd4d-4b0a-88ad-029915441965"   # packsense-gold-dev
     level: CAN_VIEW
+  - service_principal_name: "00000000-0000-0000-0000-000000000000"   # packsense-publish (marker: replaced by p6_serving/bootstrap/setup_publish.py)
+    level: CAN_VIEW
