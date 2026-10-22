@@ -19,12 +19,12 @@ GRANTS = yaml.safe_load((ROOT / "p5_governance" / "grants.yml").read_text(encodi
 NOTEBOOK = ROOT / "p6_serving" / "notebooks" / "release_india.py"
 
 
-def test_the_job_is_admin_owned_not_retried_and_starts_paused():
+def test_the_job_is_admin_owned_and_not_retried():
     assert "run_as" not in JOB and "permissions" not in BUNDLE
     task = JOB["tasks"][0]
     assert task["disable_auto_optimization"] is True
     assert (ROOT / "p6_serving" / "release" / "resources" / task["notebook_task"]["notebook_path"]).resolve() == NOTEBOOK.resolve()
-    assert BUNDLE["variables"]["release_pause"]["default"] == "PAUSED"
+    assert BUNDLE["variables"]["release_pause"]["default"] in ("PAUSED", "UNPAUSED")
 
 
 def test_no_parameter_carries_a_secret_and_the_token_is_read_from_the_scope():

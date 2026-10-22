@@ -58,7 +58,7 @@ A monthly, versioned, product-grain data release of the India catalogue (ODbL) o
 - **Ordinary words:** a name counts as an ordinary word when it is a whole word in the text of 10 or more products of the WHOLE catalogue (all markets), not only the exported
   rows (`release_lib.catalogue_ordinary_names`, passed to `egress.prepare_for_export(ordinary_extra=...)`). This closes the gap that a small export over-redacted.
 - **Last step:** the licence gate runs on the rendered folder; a violation raises and nothing is uploaded. The upload is one commit plus a tag `vYYYY-MM-DD`.
-- **Schedule:** monthly (the 3rd, 10:30 UTC), PAUSED until the first dry run and the first real release are checked.
+- **Schedule:** monthly (the 3rd, 10:30 UTC), UNPAUSED since 2026-10-22 (it started paused until the first releases were checked).
 - **Setup (admin, hidden prompts):** `setup_release.py create-scope`, `put-secret --name hf_release_token`, `put-secret --name healthchecks_release_ping_url`; then `apply_grants.py check`
   (the scope is in `grants.yml`) and a redeploy of the policy bundle.
 - **Limits stated in the data card:** a snapshot of crowd-edited data; phone-number shapes are not scrubbed; the personal-data claim is a measured bound (`PRIVACY_AUDIT.md`), not a guarantee.
