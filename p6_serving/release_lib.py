@@ -14,6 +14,7 @@ The contributor names are plain text read from bronze by the notebook and passed
 from __future__ import annotations
 
 import csv
+import decimal
 import hashlib
 import io
 import json
@@ -37,6 +38,13 @@ import licence_gate  # noqa: E402
 SPEC_PATH = HERE / "release_spec.yml"
 MANIFEST = licence_gate.MANIFEST_NAME
 FORBIDDEN_COLUMN = re.compile(r"(?i)(?:^|_)(?:images?|img|photos?|picture|ingredients?_text|ingredients_tags)(?:_|$)")
+
+
+# An Indian mobile number: an optional +91 / 91 / 0 prefix, then ten digits starting 6 to 9, in one block or split 5+5, with a space or hyphen. Silver does not scrub phone shapes
+# (a liberal pattern would also hit dates, lot numbers and barcodes, PRIVACY_AUDIT.md), but a PUBLIC product-grain file must not carry one in a name or brand: the value is blanked
+# and counted. Digits next to the match (a 13-digit barcode, a longer number) are not a match.
+PHONE_SHAPE = re.compile(r"(?<![\d.])(?:(?:\+?91|0)[\s-]?)?[6-9]\d{4}[\s-]?\d{5}(?![\d])")
+PHONE_CHECKED_COLUMNS = ("product_name", "brands")
 
 
 class ReleaseRefused(export_lib.ExportRefused):
@@ -105,6 +113,19 @@ def catalogue_ordinary_names(catalogue_rows: list[dict], handles, c: dict | None
 # ---------------------------------------------------------------------------------------------------------------------------------------------
 # Rendering
 # ---------------------------------------------------------------------------------------------------------------------------------------------
+def cell(v) -> str:
+    """One value as it is written in the CSV. A float is shown with at most 10 significant digits and never in exponent notation (0.07100000000000001 becomes 0.071,
+    4.8e-05 becomes 0.000048): the long tails are floating-point noise from silver's unit conversions, not information."""
+    if v is None:
+        return ""
+    if isinstance(v, bool) or isinstance(v, int):
+        return str(v)
+    if isinstance(v, float):
+        s = f"{v:.10g}"
+        return format(decimal.Decimal(s), "f") if "e" in s.lower() else s
+    return str(v)
+
+
 def render_csv(rows: list[dict], columns: list[str], array_columns, sep: str) -> bytes:
     arrays = set(array_columns)
     buf = io.StringIO(newline="")
@@ -114,12 +135,10 @@ def render_csv(rows: list[dict], columns: list[str], array_columns, sep: str) ->
         out = []
         for col in columns:
             v = r[col]
-            if v is None:
-                out.append("")
-            elif col in arrays:
+            if v is not None and col in arrays:
                 out.append(sep.join(str(x) for x in v))
             else:
-                out.append(v)
+                out.append(cell(v))
         w.writerow(out)
     return buf.getvalue().encode("utf-8")
 
@@ -151,18 +170,32 @@ def release_stats(rows: list[dict], columns: list[str]) -> dict:
 def data_card(spec: dict, version: str, built_at: str, stats: dict, report: dict) -> bytes:
     r, d = spec["release"], spec["datasets"]["india_products"]
     total = stats["rows"]
+    sep = r["array_separator"]
     lines = [
         _front_matter(spec) + f"# {r['title']} (release {version})\n",
         " ".join(spec["attribution"].split()) + "\n",
-        "## What this is\n",
-        " ".join(r["scope_note"].split()) + "\n",
-        f"Built at {built_at} UTC. {total:,} products. File: `{r['data_file']}` (UTF-8 CSV, one row per product, sorted by barcode; list columns are joined by `{r['array_separator']}`).\n",
+        "## What is this?\n",
+        f"A list of {total:,} packaged products sold in India, with their barcode, name, brand, pack size, nutrition values and quality flags. "
+        "It is a cleaned copy of what the Open Food Facts community has entered, taken at the time stated below. "
+        "It is meant for people who build apps or analyses on top of product data, and for anyone who wants to see how complete the data is.\n",
+        f"Built at {built_at} UTC. One file: `{r['data_file']}` (a plain CSV, one row per product, sorted by barcode).\n",
+        "## What to know before you use it\n",
+        "- **Anyone can edit Open Food Facts**, so values can be missing, wrong or out of date. Many rows have only a barcode and a name. Nothing here is checked against the real pack.",
+        "- **Not everything is food.** Open Food Facts users also add cosmetics, medicines, electronics and pet food, and we do not remove them. Some rows are completely empty.",
+        "- **A product may have changed** on Open Food Facts since the build time. We take a daily copy and can miss edits made between two copies.",
+        f"- **Lists are joined by `{sep}`** (for example several categories in one cell). An empty cell means we have no value.",
+        "- **Quality flags** (`open_error_flags`, `open_warning_flags`, `open_info_flags`) are counts of the warnings that Open Food Facts' own checks raised and that were still open at our last look. "
+        "A flag means the data looks inconsistent. It does not mean a value is wrong, and no flag does not mean it is right.",
+        "- **`existence_status`** says what our last check found: `present_in_snapshot` (listed in a recent Open Food Facts snapshot), `confirmed_exists` (their API confirmed it), "
+        "`unverified` (not checked yet; do not read it as 'exists'), `invalid_code` or `unconfirmed`. Products that Open Food Facts told us are gone, or moved to another of its databases, are left out.",
+        "- **`last_modified_t`** is the time of the newest edit we saw, as a Unix timestamp (seconds since 1970).\n",
         "## What is not in it\n",
-        "No product images and no image links. No ingredient text (only OFF itself holds it). No contributor names or codes. No per-product editor counts. "
-        "Free text (product name, brand, tags) went through a scrub for emails, links, handles, Aadhaar, PAN and GSTIN patterns and a replacement of known contributor "
-        "names of eight or more characters that are not ordinary words; this lowers the chance that personal data remains, it does not guarantee it "
-        "(see PRIVACY_AUDIT.md in the PackSense repository for the measured bound). Phone-number shapes are NOT scrubbed.\n",
-        "## Columns\n",
+        "No pictures or picture links. No ingredient text. No names or codes of the people who edited a product. "
+        "Free text (name, brand, tags) was cleaned: emails, links, social handles and Indian ID numbers were removed, known contributor usernames of eight or more letters were replaced by `‹user›`, "
+        "and a name or brand that looks like an Indian mobile number was left empty. This lowers the chance that personal data remains. It cannot guarantee it: for example, "
+        "a person's own name typed as a product name cannot be told apart from a real product name. If you find personal data in the file, please tell us so we can remove it.\n",
+        "## The columns\n",
+        "The table shows how many rows have a value in each column.\n",
         "| column | rows filled | share |", "|---|---|---|",
     ]
     for col in d["columns"]:
@@ -170,20 +203,14 @@ def data_card(spec: dict, version: str, built_at: str, stats: dict, report: dict
         lines.append(f"| `{col}` | {n:,} | {_share(n, total)} |")
     lines += [
         "",
-        f"Products with a nutrition table: {stats['with_nutrition']:,} ({_share(stats['with_nutrition'], total)}). With a Nutri-Score grade: {stats['with_nutriscore']:,} "
-        f"({_share(stats['with_nutriscore'], total)}). With at least one open error-level quality flag from Open Food Facts' own checks: {stats['with_error_flag']:,}.\n",
-        "`existence_status` is what our last check said: `present_in_snapshot` (listed in a weekly Open Food Facts snapshot), `confirmed_exists` (its API answered), "
-        "`unverified` (no check yet; do not read it as 'exists'), `invalid_code`, `unconfirmed`. Products confirmed gone or moved to another Open * Facts database are left out. "
-        "`open_*_flags` count the quality flags that Open Food Facts' own checks recorded and that were still open at our last observation; they say the data is "
-        "*flagged*, not that a value is wrong or right. `last_modified_t` is the Unix time of the newest edit we saw.\n",
-        "## Known limits\n",
-        "- A snapshot of crowd-edited data: values may have changed on Open Food Facts since the build time, and our daily capture can miss edits made between two files.",
-        "- Open Food Facts publishes one record per product per day, so same-day edits are not recoverable.",
-        "- About a quarter of the quality flags are generated in code by OFF and are counted like the others.",
-        f"- Exit report: {json.dumps({k: report[k] for k in sorted(report)})}.\n",
+        f"{stats['with_nutrition']:,} products ({_share(stats['with_nutrition'], total)}) have a nutrition table, {stats['with_nutriscore']:,} ({_share(stats['with_nutriscore'], total)}) have a Nutri-Score grade, "
+        f"and {stats['with_error_flag']:,} have at least one open error-level flag.\n",
         "## Licence\n",
-        "The database is available under the Open Database License (ODbL 1.0): attribute Open Food Facts, share any adapted database under the same licence, keep it open. "
-        "Individual contents are under the Database Contents License. See https://opendatacommons.org/licenses/odbl/1-0/ and https://openfoodfacts.org/terms-of-use.\n",
+        "The database is available under the Open Database License (ODbL 1.0): you may use and share it, you must credit Open Food Facts, and if you share a changed version of the database you must keep it under the same licence. "
+        "The individual entries are under the Database Contents License. See https://opendatacommons.org/licenses/odbl/1-0/ and https://openfoodfacts.org/terms-of-use.\n",
+        "## How it was made\n",
+        "Built by the PackSense project from its daily copy of Open Food Facts. The numbers in this card are computed from the file itself. "
+        f"What the privacy cleaning did in this release: {json.dumps({k: report[k] for k in sorted(report)})}.\n",
     ]
     return ("\n".join(lines)).encode("utf-8")
 
@@ -217,8 +244,15 @@ def clean_rows(rows: list[dict], spec: dict, handles, ordinary_extra, brand_exem
     work = [{k: export_lib._clean(r[k]) for k in cols} for r in rows]
     clean, rep = egress.prepare_for_export(work, c, handles, brand_exempt=brand_exempt, ordinary_extra=ordinary_extra)
     clean = [{k: r[k] for k in cols} for r in clean]
+    report = dict(rep)
+    report["phone_shaped_blanked"] = 0
+    for r in clean:
+        for col in PHONE_CHECKED_COLUMNS:
+            if isinstance(r.get(col), str) and PHONE_SHAPE.search(r[col]):
+                r[col] = None
+                report["phone_shaped_blanked"] += 1
     clean.sort(key=lambda r: tuple("" if r[k] is None else str(r[k]) for k in d["order_by"]))
-    return clean, dict(rep)
+    return clean, report
 
 
 def build_release(folder: str | Path, rows: list[dict], version: str, built_at: str, handles, ordinary_extra, spec: dict | None = None,
@@ -274,7 +308,7 @@ def rendered_rows(rows: list[dict], spec: dict) -> list[dict]:
     arrays = set(d.get("array_columns", []))
     out = []
     for r in rows:
-        out.append({c: ("" if r[c] is None else sep.join(str(x) for x in r[c]) if c in arrays else str(r[c])) for c in d["columns"]})
+        out.append({c: (sep.join(str(x) for x in r[c]) if r[c] is not None and c in arrays else cell(r[c])) for c in d["columns"]})
     return out
 
 

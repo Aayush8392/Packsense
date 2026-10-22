@@ -54,12 +54,14 @@ dbutils.widgets.text("hf_repo", SPEC["release"]["hf_repo"])
 dbutils.widgets.text("secret_scope", SPEC["release"]["secret_scope"])
 dbutils.widgets.text("ping_healthchecks", "true")
 dbutils.widgets.text("dry_run", "false")
+dbutils.widgets.text("squash_history", "false")   # true: redo the FIRST release (delete the old tags, squash the repo history, no changelog comparison)
 GOLD = dbutils.widgets.get("gold_schema").strip()
 BRONZE = dbutils.widgets.get("bronze_table").strip()
 HF_REPO = dbutils.widgets.get("hf_repo").strip()
 SCOPE = dbutils.widgets.get("secret_scope").strip()
 PING = dbutils.widgets.get("ping_healthchecks").strip().lower() == "true"
 DRY = dbutils.widgets.get("dry_run").strip().lower() == "true"
+SQUASH = dbutils.widgets.get("squash_history").strip().lower() == "true"
 RUN_ID = dbutils.widgets.get("run_id")
 C = silver_contract.load()
 
@@ -101,7 +103,8 @@ try:
     # 2. The whole catalogue's text (all markets, the newest period of each product): the base of the ordinary-word count.
     cat = spark.table(f"{GOLD}.product_history").where("is_latest_observed = 1").select("product_name", "brands")
     catalogue = [{"product_name": r["product_name"], "brands": r["brands"]} for r in cat.collect()]
-    print("catalogue products for the ordinary-word count:", len(catalogue))
+    n_catalogue = len(catalogue)
+    print("catalogue products for the ordinary-word count:", n_catalogue)
 
     # 3. Contributor names from bronze, in memory only (the same fields and filter as the fixture export, p4_modelling/notebooks/export_fixture.py).
     SCALARS = ["creator", "last_editor", "last_modified_by", "last_checker", "owner", "owner_imported"]
@@ -126,6 +129,7 @@ try:
     handles = rl.candidate_names(handles, exported_text)
     del exported_text
     print("names ordinary across the catalogue:", len(ordinary_extra), "; names that can occur in the exported text:", len(handles))
+    counts = {"mart_rows": len(rows), "catalogue_products": n_catalogue, "ordinary_names": len(ordinary_extra), "candidate_names": len(handles)}
 
     # 5. Each exported version's OWN contributor names (a producer may stay in its own brand).
     wanted = {(r["code"], r["last_modified_t"]) for r in rows}
@@ -134,12 +138,15 @@ try:
     for b in bronze.join(F.broadcast(pair_df), ["code", "last_modified_t"], "inner").select("code", "last_modified_t", "raw_json").toLocalIterator():
         own[(b["code"], b["last_modified_t"])] = personal.own_handles(json.loads(b["raw_json"]), C["personal_source_fields"], C["own_handle_redaction"]["min_length"])
     print("exported versions with a bronze record:", len(own), "of", len(wanted))
+    counts.update({"versions_with_bronze_record": len(own), "versions_wanted": len(wanted)})
 
     # 6. The previous release (for the changelog), if there is one.
-    from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
+    from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi, hf_hub_download
     api = HfApi(token=dbutils.secrets.get(SCOPE, "hf_release_token"))
     previous, previous_version = None, None
     try:
+        if SQUASH:
+            raise FileNotFoundError("squash_history: this run redoes the first release, so nothing is compared")
         pm = json.load(open(hf_hub_download(HF_REPO, "release_manifest.json", repo_type="dataset", token=api.token), encoding="utf-8"))
         previous_version = pm.get("release_version")
         previous = rl.read_csv_rows(open(hf_hub_download(HF_REPO, SPEC["release"]["data_file"], repo_type="dataset", token=api.token), "rb").read())
@@ -160,13 +167,27 @@ try:
     else:
         info = api.repo_info(repo_id=HF_REPO, repo_type="dataset")
         print("target repo is private:", info.private, "(the release is meant to be public)")
+        if SQUASH:
+            for ref in api.list_repo_refs(repo_id=HF_REPO, repo_type="dataset").tags:
+                api.delete_tag(repo_id=HF_REPO, repo_type="dataset", tag=ref.name)
+            # empty the repo first, THEN squash: squashing alone would keep the old files in the one remaining commit
+            gone = [CommitOperationDelete(path_in_repo=f) for f in api.list_repo_files(repo_id=HF_REPO, repo_type="dataset") if f != ".gitattributes"]
+            if gone:
+                api.create_commit(repo_id=HF_REPO, repo_type="dataset", operations=gone, commit_message="empty the repo before the history is squashed")
+            api.super_squash_history(repo_id=HF_REPO, repo_type="dataset")
+            print("old files deleted, history squashed and old tags deleted")
         ops = [CommitOperationAdd(path_in_repo=n, path_or_fileobj=os.path.join(folder, n)) for n in sorted(os.listdir(folder))]
         commit = api.create_commit(repo_id=HF_REPO, repo_type="dataset", operations=ops,
                                    commit_message=f"India release {version} (job run {RUN_ID})")
         api.create_tag(repo_id=HF_REPO, repo_type="dataset", tag=f"v{version}", revision=commit.oid, tag_message=f"India release {version}")
         summary = f"published release {version}: {len(rows)} products, {len(ops)} files"
         print(summary)
+    counts.update({"summary": summary, "files": [(f["path"], f.get("rows")) for f in manifest["files"]], "exit_report": manifest["reports"]["india_products"]})
     ping("", summary)
 except Exception as e:
     ping("/fail", f"{type(e).__name__}: {str(e)[:400]}")
     raise
+
+# COMMAND ----------
+# The counts of this run (no name, no product value), returned so that `bundle run` prints them. Kept outside the try: dbutils.notebook.exit raises to leave the notebook.
+dbutils.notebook.exit(json.dumps(counts, default=str))

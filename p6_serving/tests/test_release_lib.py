@@ -139,7 +139,8 @@ def test_the_data_card_and_changelog_carry_the_attribution_and_the_real_numbers(
     log = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
     for text in (card, log):
         assert "Open Food Facts" in text and "Open Database License" in text and "openfoodfacts.org" in text
-    assert f"{len(ROWS):,} products" in card and "license: odbl" in card
+    assert f"{len(ROWS):,} packaged products" in card and "license: odbl" in card
+    assert "Not everything is food" in card and "mobile number" in card
     assert "First release" in log
 
 
@@ -168,3 +169,39 @@ def test_a_gate_violation_raises_and_nothing_is_handed_back(tmp_path):
     spec["attribution"] = "Some data."          # no Open Food Facts, no licence name
     with pytest.raises(rl.ReleaseRefused):
         rl.build_release(tmp_path, copy.deepcopy(ROWS), "v1", BUILT, (), (), spec)
+
+
+def test_a_phone_shaped_name_or_brand_is_blanked_and_counted_but_barcodes_and_normal_names_are_not(tmp_path):
+    rows = copy.deepcopy(ROWS)
+    rows[1]["product_name"] = "77395 88222"                     # a real product name from the fixture era: the 10-digit mobile shape seen in production
+    rows[2]["brands"] = "+91 98765 43210"
+    rows[3]["product_name"] = "8901063368675"                  # a 13-digit barcode used as a name stays
+    rows[4]["product_name"] = rows[4]["product_name"] + " 500g 2024"
+    m = build(tmp_path, rows)
+    got = {r["code"]: r for r in csv_rows(tmp_path)}
+    assert got[rows[1]["code"]]["product_name"] == "" and got[rows[2]["code"]]["brands"] == ""
+    assert got[rows[3]["code"]]["product_name"] == "8901063368675"
+    assert "500g 2024" in got[rows[4]["code"]]["product_name"]
+    assert m["reports"]["india_products"]["phone_shaped_blanked"] == 2
+
+
+def test_phone_shape_matches_the_formats_seen_and_not_longer_numbers():
+    ok = ["9876543210", "98765 43210", "98765-43210", "+91 98765 43210", "+919876543210", "09876543210", "call 9876543210 now"]
+    no = ["8901063368675", "12345678901234", "5876543210", "500g", "2036123/0.24", "02 FEB 2024", "98765432101"]
+    assert all(rl.PHONE_SHAPE.search(x) for x in ok)
+    assert not any(rl.PHONE_SHAPE.search(x) for x in no)
+
+
+def test_numbers_are_written_without_float_noise_or_exponents():
+    assert rl.cell(0.07100000000000001) == "0.071"
+    assert rl.cell(4.8e-05) == "0.000048"
+    assert rl.cell(700.0) == "700" and rl.cell(1688.4) == "1688.4" and rl.cell(0.0) == "0"
+    assert rl.cell(396.89332375000004) == "396.8933238" and rl.cell(1792471579) == "1792471579" and rl.cell(None) == "" and rl.cell("x") == "x"
+
+
+def test_the_csv_holds_no_exponent_numbers(tmp_path):
+    rows = copy.deepcopy(ROWS)
+    rows[0]["sodium"] = 4.8e-05
+    build(tmp_path, rows)
+    text = (tmp_path / "india_products.csv").read_text(encoding="utf-8")
+    assert "e-0" not in text and "0.000048" in text
