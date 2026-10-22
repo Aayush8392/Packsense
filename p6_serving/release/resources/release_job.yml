@@ -1,0 +1,20 @@
+# The job `packsense-release`: monthly, build the India data release and publish it (p6_serving/notebooks/release_india.py).
+# Owned by the admin who deploys it (no run_as, see databricks.yml). Not retried automatically: the upload is one commit, and a retry after a gate violation would only repeat it.
+resources:
+  jobs:
+    release_india:
+      name: packsense-release
+      max_concurrent_runs: 1
+      timeout_seconds: 3600
+      schedule:
+        quartz_cron_expression: ${var.release_cron}
+        timezone_id: UTC
+        pause_status: ${var.release_pause}
+      tasks:
+        - task_key: release
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../../notebooks/release_india.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              ping_healthchecks: ${var.ping}

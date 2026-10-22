@@ -1,0 +1,41 @@
+# PackSense India release bundle (Phase B item 11): the job that builds the monthly India data release and publishes it to the public Hugging Face dataset.
+#
+# Deployed BY THE ADMIN from the laptop (there is no Databricks admin credential in CI, by decision): from this folder, `databricks bundle deploy` /
+# `bundle run release_india`. The job is owned by the admin and has no run_as: the exit function needs the plaintext contributor names that only bronze holds, and
+# a narrower identity cannot read them. The names exist in the job's memory only while the release is built; the Hugging Face write token sits in the admin-only
+# scope `packsense_release`. The job starts PAUSED: the owner un-pauses it after the first dry run and the first real release have been checked.
+bundle:
+  name: packsense-release
+
+include:
+  - resources/*.yml
+
+sync:
+  paths:
+    - ../../p6_serving
+    - ../../p2_lakehouse
+    - ../../p5_governance
+    - ../../p9_operations     # classification_lib (imported by the licence gate and the export) imports existence_lib and snapshot_lib, both standard library only
+  exclude:
+    - "**/tests/**"
+    - "**/bootstrap/**"
+    - "**/README.md"
+    - "**/fixtures/**"
+    - "**/site/**"
+    - p2_lakehouse/notebooks/**
+    - p5_governance/policy/**
+
+variables:
+  release_cron:
+    description: quartz cron (UTC); the 3rd of each month at 10:30, after the 08:15 gold build, the 09:00 publish and the 10:00 lookups of that day
+    default: "0 30 10 3 * ?"
+  release_pause:
+    description: PAUSED until the first dry run and the first real release are checked by the owner; then set to UNPAUSED and redeploy
+    default: PAUSED
+  ping:
+    description: whether the notebook pings healthchecks.io ("true" or "false")
+    default: "true"
+
+targets:
+  prod:
+    default: true

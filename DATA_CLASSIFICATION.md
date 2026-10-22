@@ -211,7 +211,7 @@ who may see which market (policies.yml). 2 columns: 0 public, 1 personal, 1 inte
 
 ## Gold (the 20 portable models)
 
-Every column is **public** unless listed below. 233 columns: 233 public, 0 personal, 0 internal. Gold holds no personal column (a test enforces it): contributor codes stay in silver and gold gets only counts derived from them.
+Every column is **public** unless listed below. 269 columns: 269 public, 0 personal, 0 internal. Gold holds no personal column (a test enforces it): contributor codes stay in silver and gold gets only counts derived from them.
 
 | Model | Columns |
 |---|---|
@@ -230,6 +230,7 @@ Every column is **public** unless listed below. 233 columns: 233 public, 0 perso
 | `fct_product_change_daily` | 9 |
 | `mart_allergen_change_log` | 9 |
 | `mart_brand_scorecard` | 18 |
+| `mart_india_release` | 36 |
 | `product_flag_spans` | 11 |
 | `product_history` | 61 |
 | `product_nutrition_sets` | 19 |

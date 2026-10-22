@@ -30,7 +30,7 @@ COLUMNS = ("metric_date", "subject", "metric", "value", "unit", "detail", "colle
 JOB_NAMES = (
     "packsense-bronze-load", "packsense-gold-build", "packsense-publish", "packsense-archive", "packsense-policy",
     "packsense-snapshots", "packsense-reconcile-candidates", "packsense-reconcile-load", "packsense-reconcile-lookup",
-    "packsense-egress-check", "packsense-health",
+    "packsense-egress-check", "packsense-health", "packsense-release",
 )
 # Jobs the bundles define that the panel deliberately leaves out (the per-principal policy sub-jobs run inside packsense-policy).
 JOB_NAMES_NOT_REPORTED = (

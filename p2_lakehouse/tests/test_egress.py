@@ -80,6 +80,15 @@ def test_ordinary_words_that_are_also_names_are_left_alone():
     assert report["ordinary_names_left_alone"] == 1 and report["names_replaced"] == 1
 
 
+def test_a_catalogue_wide_ordinary_name_is_left_alone_even_when_the_batch_is_too_small_to_show_it():
+    rows = silver_rows([product(1, "Chocolatier noir"), product(2, "Rare user_00077 cake")])
+    small, _ = egress.prepare_for_export(rows, C, handles={"chocolatier", "user_00077"})
+    assert small[-2]["product_name"] == f"{SENTINEL} noir"                       # in the batch alone the name looks rare, so it is replaced
+    wide, report = egress.prepare_for_export(rows, C, handles={"chocolatier", "user_00077"}, ordinary_extra={"Chocolatier"})
+    assert wide[-2]["product_name"] == "Chocolatier noir" and wide[-1]["product_name"] == f"Rare {SENTINEL} cake"
+    assert report["ordinary_names_left_alone"] == 1 and report["names_replaced"] == 1
+
+
 def test_a_name_that_is_the_products_own_brand_account_can_be_kept_in_brands_only():
     rows = silver_rows([product(1, "Cake user_00088", brands="user_00088 foods")])
     code = rows[-1]["code"]

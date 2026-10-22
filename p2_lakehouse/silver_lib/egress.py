@@ -47,10 +47,12 @@ def ordinary_names(rows: list, text_cols: list, handles, min_length: int, min_pr
     return {n for n, k in df.items() if k >= min_products}
 
 
-def prepare_for_export(rows: list, c: dict, handles, brand_exempt=None):
+def prepare_for_export(rows: list, c: dict, handles, brand_exempt=None, ordinary_extra=None):
     """rows: dicts of silver columns. handles: iterable of plain contributor names known to the caller.
 
     brand_exempt: optional {(code, last_modified_t): set of names} whose appearance in `brands` is the product's own branding.
+    ordinary_extra: optional set of normalised names that are ordinary words across the WHOLE catalogue (computed by the caller over every product, not only
+    the exported rows). The in-batch count alone over-redacts on a small export; this set is added to it, so the export treats a name as ordinary if EITHER says so.
     Returns (clean rows, report). Raises EgressRefused if anything that must not leave is still present.
     """
     eg = c["egress"]
@@ -61,6 +63,7 @@ def prepare_for_export(rows: list, c: dict, handles, brand_exempt=None):
     handles = {personal.normalise(h) for h in handles if isinstance(h, str)}
     long_names = {h for h in handles if len(h) >= min_len}
     ordinary = ordinary_names(rows, text_cols, long_names, min_len, eg["ordinary_word_min_products"])
+    ordinary = ordinary | {personal.normalise(x) for x in (ordinary_extra or ()) if isinstance(x, str)}
     names = long_names - ordinary
     sentinel = c["own_handle_redaction"]["sentinel"]
     replacement = c["scrub"]["replacement"]

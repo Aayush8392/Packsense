@@ -185,6 +185,7 @@ GRANT SELECT ON TABLE workspace.packsense_dev_silver.silver_existence_check TO `
 -- secret scope packsense_publish: READ for `packsense-publish`
 -- secret scope packsense_publish: MANAGE for `admin`
 -- secret scope packsense_health: MANAGE for `admin`
+-- secret scope packsense_release: MANAGE for `admin`
 -- secret scope packsense_policy: MANAGE for `admin`
 ```
 <!-- grants:end -->

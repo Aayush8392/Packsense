@@ -34,6 +34,7 @@ MODELS = {
     "fct_product_change_daily": ["fact_key"],
     "fct_catalogue_quality_daily": ["fact_key"],
     "mart_brand_scorecard": ["scorecard_key"],
+    "mart_india_release": ["code"],
 }
 
 _TS = re.compile(r"^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})")

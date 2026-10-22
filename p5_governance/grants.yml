@@ -100,6 +100,7 @@ secret_scopes:
   packsense_gold_dev: {packsense-gold-dev: READ, admin: MANAGE}
   packsense_publish: {packsense-publish: READ, admin: MANAGE}   # the Hugging Face write token for the site data repo and the publish ping URL
   packsense_health:  {admin: MANAGE}     # the health ping URL: only the admin-owned health job reads it
+  packsense_release: {admin: MANAGE}     # the Hugging Face write token of the public India release and its ping URL: only the admin-owned release job reads it
   packsense_policy:  {admin: MANAGE}     # the pipeline and analyst tokens and the policy ping URL: only the admin-owned policy job reads it
 
 # Live objects the check reads for EXTRA grants (every schema and volume of the catalog except these, and every table of the schemas

@@ -1,0 +1,40 @@
+# The India release contract (Phase B item 11): exactly which gold table and columns leave in the monthly India data release, and under which rules.
+# Same shape as export_spec.yml (export_lib.load_spec reads it), plus the `release:` block below. A column that is not listed cannot be released;
+# a test fails when a listed column is classified personal or internal, or looks like an image or an ingredient text.
+# Changing this file changes what the world can download: it goes through a pull request like any code.
+version: 1
+source_name: Open Food Facts
+licence: ODbL-1.0
+attribution: >-
+  Contains data from Open Food Facts (https://openfoodfacts.org), available under the Open Database License
+  (https://opendatacommons.org/licenses/odbl/1-0/). This release describes our own copy of the data at the stated build time,
+  not Open Food Facts itself; the individual contents are under the Database Contents License and product images (not included) have their own licences.
+suppress_below: 5          # unused for product rows (no aggregate counts); the export library requires the key
+
+release:
+  hf_repo: Anonymous8392/packsense-india       # the PUBLIC dataset; created and its write token stored by the owner (bootstrap/setup_release.py)
+  secret_scope: packsense_release               # admin-only scope: hf_release_token and healthchecks_release_ping_url
+  data_file: india_products.csv
+  array_separator: "|"                          # tag lists are written joined by this character
+  title: PackSense India product catalogue
+  # the sentence the data card and the changelog carry about scope and limits; stated once so the two cannot drift apart
+  scope_note: >-
+    One row per India product as we last observed it (the newest edit seen by our daily capture of Open Food Facts' delta files, plus a one-time seed
+    of India products). Products Open Food Facts told us are gone are left out. A product may be newer or older on Open Food Facts than in this file.
+
+datasets:
+  india_products:
+    table: mart_india_release
+    columns: [code, product_name, brands, quantity_amount, quantity_unit, product_quantity, product_quantity_unit, serving_amount, serving_unit,
+              pnns_groups_1, pnns_groups_2, nutrition_format, nutrition_per, nutrition_preparation,
+              energy_kj, energy_kcal, fat, saturated_fat, carbohydrates, sugars, fiber, proteins, salt, sodium,
+              nutriscore_grade, nova_group, environmental_score_grade,
+              categories_tags, labels_tags, allergens_tags, traces_tags,
+              open_error_flags, open_warning_flags, open_info_flags, existence_status, last_modified_t]
+    # Deliberately NOT released: images and image URLs, ingredient text (silver keeps only a fingerprint), every hashed contributor column, editor counts.
+    # These columns go through the exit function (scrub patterns, catalogue-wide ordinary words, residue scan); the rest are numbers, codes or enums.
+    text_columns: [product_name, brands, quantity_unit, product_quantity_unit, serving_unit, pnns_groups_1, pnns_groups_2, categories_tags, labels_tags,
+                   allergens_tags, traces_tags]
+    array_columns: [categories_tags, labels_tags, allergens_tags, traces_tags]
+    count_columns: []
+    order_by: [code]

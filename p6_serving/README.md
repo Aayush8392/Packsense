@@ -46,6 +46,23 @@ daily changes, pipeline health, about (licence, method, limits). Every page carr
 fetched at build time and never committed. To preview with the committed test rows: build a release from `tests/fixtures/gold_rows.json` with `export_lib.build_release`, copy the CSV
 files into `site/sources/site/`, then `npm run dev` in `site/`.
 
+## The India release (`release_spec.yml`, `release_lib.py`, `release/`; Phase B item 11, built 2026-10-22)
+
+A monthly, versioned, product-grain data release of the India catalogue (ODbL) on a PUBLIC Hugging Face dataset (`release.hf_repo` in the spec). One CSV, a generated data card
+(`README.md` of the dataset) and a generated changelog; both carry the Open Food Facts attribution and numbers computed from the release itself.
+
+- **Source:** the gold mart `mart_india_release`: one row per India product as last observed, without the products OFF said are gone (`confirmed_not_found`, `moved_other_type`).
+  No images, no ingredient text, no hashed contributor column, no editor count. Tag lists are written joined by `|`.
+- **Identity:** the job `packsense-release` is ADMIN-owned (no `run_as`), deployed from the laptop (`cd p6_serving/release`, `bundle deploy`). The exit function needs the plaintext
+  contributor names, which only bronze holds, and no narrower identity may read them. The names live in the job's memory while the release is built and are never written or printed.
+- **Ordinary words:** a name counts as an ordinary word when it is a whole word in the text of 10 or more products of the WHOLE catalogue (all markets), not only the exported
+  rows (`release_lib.catalogue_ordinary_names`, passed to `egress.prepare_for_export(ordinary_extra=...)`). This closes the gap that a small export over-redacted.
+- **Last step:** the licence gate runs on the rendered folder; a violation raises and nothing is uploaded. The upload is one commit plus a tag `vYYYY-MM-DD`.
+- **Schedule:** monthly (the 3rd, 10:30 UTC), PAUSED until the first dry run and the first real release are checked.
+- **Setup (admin, hidden prompts):** `setup_release.py create-scope`, `put-secret --name hf_release_token`, `put-secret --name healthchecks_release_ping_url`; then `apply_grants.py check`
+  (the scope is in `grants.yml`) and a redeploy of the policy bundle.
+- **Limits stated in the data card:** a snapshot of crowd-edited data; phone-number shapes are not scrubbed; the personal-data claim is a measured bound (`PRIVACY_AUDIT.md`), not a guarantee.
+
 ## Tests
 
 `python -m pytest p6_serving/tests`: the column rule, the exit function, suppression, deterministic files, the gate stopping an image and a future date, the bundle wiring and

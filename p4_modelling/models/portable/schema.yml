@@ -395,3 +395,22 @@ models:
           - accepted_values:
               arguments:
                 values: [0, 1]
+
+  - name: mart_india_release
+    description: >
+      India release mart: one row per India product as last observed (latest period lists the canonical India tag), without the products OFF said are gone
+      (confirmed_not_found, moved_other_type). Input of the monthly India release; nothing is published from this table directly (the release job runs the
+      exit function and the licence gate). No image, no ingredient text, no hashed column, no editor count.
+    columns:
+      - name: code
+        data_tests: [unique, not_null]
+      - name: existence_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['unverified', 'present_in_snapshot', 'confirmed_exists', 'invalid_code', 'unconfirmed']
+      - name: last_modified_t
+        data_tests: [not_null]
+      - name: open_error_flags
+        data_tests: [not_null]
