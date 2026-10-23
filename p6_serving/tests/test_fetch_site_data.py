@@ -4,6 +4,7 @@ import io
 import json
 import sys
 import urllib.error
+import urllib.parse
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,7 @@ def fake(files: dict, seen: list):
     def opener(req, timeout=0):
         seen.append(req)
         name = req.full_url.split("/resolve/main/site%2F")[-1] if "site%2F" in req.full_url else req.full_url.split("/resolve/main/site/")[-1]
+        name = urllib.parse.unquote(name)
         if name not in files:
             raise urllib.error.HTTPError(req.full_url, 404, "nf", {}, None)
         return Resp(files[name])
@@ -58,7 +60,7 @@ def test_a_missing_file_is_refused(tmp_path):
         fs.fetch("o/r", tmp_path, "tok", fake(files, []))
 
 
-@pytest.mark.parametrize("bad", ["../x.csv", "sub/x.csv", "", "..\\x.csv"])
+@pytest.mark.parametrize("bad", ["../x.csv", "a/b/x.csv", "cards/../x.csv", "/x.csv", "", "..\\x.csv", "cards/.."])
 def test_a_path_outside_the_folder_is_refused(tmp_path, bad):
     files = release(files=[{"path": bad, "kind": "data"}])
     with pytest.raises(fs.FetchError, match="refusing path"):

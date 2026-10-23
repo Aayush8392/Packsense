@@ -24,6 +24,18 @@ Counts of 1 to 4 in the listed count columns are blanked (small numbers). Limit,
 word in the text of 10+ products). Every exported brand has at least 30 products, so every word of its name is ordinary by the exit function's own definition. A
 test keeps the ranking floor at or above the contract's threshold. What the exit does here is the pattern scrub and the residue scan.
 
+## Product cards for the barcode lookup (`card_shards` in `export_spec.yml`; roadmap Phase B item 12, 2026-10-23)
+
+The same publish job also writes one small file per barcode prefix from the gold table `mart_product_card` (derived facts only: no product text, no image, no contributor data; every value is an
+enumerated code, a small count or a time). The first 3 digits of a barcode name the file (`cards/406.csv`); any file larger than 150 KB is split by one more digit, repeatedly (up to 6 digits), and
+`cards/splits.json` lists the prefixes that were split. **The lookup rule** (`licence_gate.shard_for`, written out in the app): take the first 3 digits; while that prefix is in the split list, take one more
+digit; fetch `cards/<prefix>.csv`; a missing file means "not in our copy". Sizes measured on production on 2026-10-23: 155,134 cards are 14.2 MB as text (about 91 bytes each); the `890` (India) prefix alone
+holds 20,062 cards. A year of growth is estimated at 0.8 to 2.0 million cards (inferred from three weeks), which is why the shards are adaptive: no file ever exceeds the cap, however many cards there are.
+Only barcodes of 8 to 14 digits are published (the number dropped is in the manifest report). The licence gate has its own rule set for card files (exact columns, value domains, sorted unique barcodes that
+belong to their file by the lookup rule, a size cap, no free text; the barcode column is left out of the Aadhaar-pattern re-scan because a 12 or 13 digit barcode looks like an Aadhaar number). The files go to the
+staging dataset in the same commit (stale shards are deleted in it), `fetch_site_data.py` fetches them in parallel and verifies every one against the manifest, and `pages.yml` copies them to `/cards/` on the site.
+The publish principal needs `SELECT` on `mart_product_card` (`p5_governance/grants.yml`, with a nightly policy check). The card wording and the traffic-light codes are in the p4 README.
+
 ## Identity
 
 The job runs AS `packsense-publish` (a dedicated principal, `run_as`, no stored secret). Its grants are in `p5_governance/grants.yml`: SELECT on the three tables, USE on

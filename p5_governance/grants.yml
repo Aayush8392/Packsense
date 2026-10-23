@@ -76,6 +76,7 @@ securables:
   - {type: table, name: workspace.packsense_gold.mart_brand_scorecard, grants: {packsense-publish: [SELECT]}}
   - {type: table, name: workspace.packsense_gold.fct_catalogue_quality_daily, grants: {packsense-publish: [SELECT]}}
   - {type: table, name: workspace.packsense_gold.fct_product_change_daily, grants: {packsense-publish: [SELECT]}}
+  - {type: table, name: workspace.packsense_gold.mart_product_card, grants: {packsense-publish: [SELECT]}}     # the product cards of the barcode lookup (2026-10-23)
 
   # The pipeline-health schema (Phase B item 9; p9_operations/health_lib.py): one long table of operating facts (job runs, service reachability), made and written by
   # the ADMIN-owned job `packsense-health` (a non-admin cannot read the system tables on Free Edition: see p9_operations/health_lib.py). The publish job reads the one table

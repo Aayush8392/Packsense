@@ -45,3 +45,15 @@ datasets:
     text_columns: [subject, detail]
     count_columns: []
     order_by: [metric_date, subject, metric]
+
+# The product cards behind the barcode lookup (roadmap Phase B item 12; gold mart_product_card): one small file per barcode prefix, fetched by the browser.
+# Derived facts only: no product text, no image, no contributor data; every value is an enumerated code or a small count or a time (the licence gate checks the
+# rendered files against its own copy of these domains). Not a `datasets` entry: the rows are product-grain, so they get their own builder and their own gate rules.
+#   Shards: the first 3 digits of the barcode name the file; any file larger than split_above_bytes is split by one more digit, repeatedly (to 6 digits at most);
+#   cards/splits.json lists the prefixes that were split. The lookup rule (licence_gate.shard_for) is: take 3 digits; while the prefix is in the list, take one more.
+#   Only barcodes of 8 to 14 digits are published (the rest are not barcodes); the number dropped is reported.
+card_shards:
+  table: mart_product_card
+  columns: [code, existence_status, light, things_flagged, off_error, off_bug, off_warning, off_info, rules_checkable, rules_failed,
+            fields_filled, versions_kept, last_edit_t, first_version_edited_t, first_period_from_seed, in_india]
+  split_above_bytes: 150000

@@ -54,6 +54,12 @@ def load_spec(path: Path = SPEC_PATH) -> dict:
         for key in ("text_columns", "count_columns", "order_by"):
             if not set(d[key]) <= set(d["columns"]):
                 raise ValueError(f"dataset {name}: {key} names a column that is not exported")
+    cs = spec.get("card_shards")
+    if cs is not None:
+        if cs["columns"] != licence_gate.CARD_COLUMNS:
+            raise ValueError("card_shards: the columns must equal the licence gate's CARD_COLUMNS, in the same order")
+        if not 10_000 <= int(cs["split_above_bytes"]) < licence_gate.CARD_MAX_BYTES:
+            raise ValueError("card_shards: split_above_bytes must be between 10,000 and the gate's hard cap")
     return spec
 
 
@@ -89,7 +95,24 @@ def classification_problems(spec: dict) -> list[str]:
                 out.append(f"{name}: column {c} is not in {table}")
             elif rows[c] != "public":
                 out.append(f"{name}: column {c} is classified {rows[c]}")
+    cs = spec.get("card_shards")
+    if cs:
+        if cs["table"] not in gold:
+            out.append(f"card_shards: {cs['table']} is not a known gold model")
+        else:
+            rows = {r["column"]: r["class"] for r in cl.gold_rows(cls, cs["table"], gold[cs["table"]])}
+            for c in cs["columns"]:
+                if c not in rows:
+                    out.append(f"card_shards: column {c} is not in {cs['table']}")
+                elif rows[c] != "public":
+                    out.append(f"card_shards: column {c} is classified {rows[c]}")
     return out
+
+
+def card_select_sql(spec: dict, schema: str) -> str:
+    """The one SELECT for the cards: only the listed columns of the one table."""
+    cs = spec["card_shards"]
+    return f"select {', '.join(cs['columns'])} from {schema}.{cs['table']}"
 
 
 def _clean(v):
@@ -135,6 +158,48 @@ def render_csv(rows: list[dict], columns: list[str]) -> bytes:
     return buf.getvalue().encode("utf-8")
 
 
+def build_card_files(rows: list[dict], spec: dict) -> tuple[dict[str, bytes], dict]:
+    """The card shards as {path: bytes} (cards/<prefix>.csv and cards/splits.json) plus a report. Deterministic: sorted rows, LF, UTF-8, no timestamps.
+
+    Only barcodes of 8 to 14 digits are kept. The files are made by the lookup rule of licence_gate.shard_for: the first 3 digits name a file; a file larger than
+    split_above_bytes is split by one more digit, repeatedly, up to CARD_MAX_DEPTH digits; a file that is still too large there is refused."""
+    cs = spec["card_shards"]
+    cols = cs["columns"]
+    limit = int(cs["split_above_bytes"])
+    for r in rows:
+        if set(r) != set(cols):
+            raise ExportRefused(f"card_shards: a row has columns {sorted(set(r) ^ set(cols))} that differ from the spec")
+    kept = sorted(({k: _clean(r[k]) for k in cols} for r in rows if licence_gate.CARD_CODE.match(str(r["code"]))), key=lambda r: str(r["code"]))
+    dropped = len(rows) - len(kept)
+    files: dict[str, bytes] = {}
+    splits: set[str] = set()
+
+    def emit(prefix: str, group: list[dict]) -> None:
+        data = render_csv(group, cols)
+        if len(data) > limit and len(prefix) < licence_gate.CARD_MAX_DEPTH:
+            splits.add(prefix)
+            by_next: dict[str, list[dict]] = {}
+            for r in group:
+                by_next.setdefault(str(r["code"])[: len(prefix) + 1], []).append(r)
+            for nxt in sorted(by_next):
+                emit(nxt, by_next[nxt])
+            return
+        if len(data) > licence_gate.CARD_MAX_BYTES:
+            raise ExportRefused(f"card_shards: the shard {prefix} is still {len(data)} bytes at {len(prefix)} digits")
+        files[f"cards/{prefix}.csv"] = data
+
+    base: dict[str, list[dict]] = {}
+    for r in kept:
+        base.setdefault(str(r["code"])[: licence_gate.CARD_BASE_DEPTH], []).append(r)
+    for prefix in sorted(base):
+        emit(prefix, base[prefix])
+    files[licence_gate.CARD_INDEX_PATH] = (json.dumps({"version": 1, "splits": sorted(splits)}, sort_keys=True) + "\n").encode("utf-8")
+    sizes = [len(v) for k, v in files.items() if k != licence_gate.CARD_INDEX_PATH]
+    report = {"cards_in": len(rows), "cards_published": len(kept), "dropped_not_a_barcode": dropped, "shards": len(sizes), "splits": len(splits),
+              "largest_shard_bytes": max(sizes) if sizes else 0, "total_bytes": sum(sizes)}
+    return files, report
+
+
 def attribution_page(spec: dict, status: dict) -> bytes:
     text = (
         "# About this data\n\n"
@@ -146,12 +211,12 @@ def attribution_page(spec: dict, status: dict) -> bytes:
 
 
 def build_release(folder: str | Path, datasets: dict[str, list[dict]], status: dict, spec: dict | None = None,
-                  today: dt.date | None = None, c: dict | None = None) -> dict:
+                  today: dt.date | None = None, c: dict | None = None, cards: list[dict] | None = None) -> dict:
     """Write the release folder (data files, ATTRIBUTION.md, release_manifest.json), then run the licence gate on it.
 
     datasets: {name: rows read from gold}. status: built_at_utc, first_complete_day, last_complete_day (ISO strings) and one row
     of counts (`site_status`, written as its own file). Raises ExportRefused when the gate reports anything; the folder is then left for
-    inspection and must not be published. Returns the manifest.
+    inspection and must not be published. Returns the manifest. `cards`: the rows of the card table (spec section card_shards); None leaves the cards out.
     """
     spec = spec or load_spec()
     folder = Path(folder)
@@ -168,6 +233,18 @@ def build_release(folder: str | Path, datasets: dict[str, list[dict]], status: d
         (folder / f"{name}.csv").write_bytes(data)
         files.append({"path": f"{name}.csv", "kind": "data", "rows": len(rows), "sha256": hashlib.sha256(data).hexdigest()})
         reports[name] = rep
+    if cards is not None:
+        card_files, card_report = build_card_files(cards, spec)
+        for path, data in sorted(card_files.items()):
+            target = folder / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+            is_index = path == licence_gate.CARD_INDEX_PATH
+            entry = {"path": path, "kind": "card_index" if is_index else "card", "sha256": hashlib.sha256(data).hexdigest()}
+            if not is_index:
+                entry["rows"] = data.count(b"\n") - 1
+            files.append(entry)
+        reports["card_shards"] = card_report
     status_cols = list(status)
     data = render_csv([status], status_cols)
     (folder / "site_status.csv").write_bytes(data)

@@ -45,6 +45,7 @@ def test_the_job_is_scheduled_after_the_gold_build():
 def test_the_principal_reads_exactly_the_spec_tables_and_one_scope():
     spec = ex.load_spec()
     wanted = {f"{d.get('schema') or 'workspace.packsense_gold'}.{d['table']}" for d in spec["datasets"].values()}
+    wanted.add(f"workspace.packsense_gold.{spec['card_shards']['table']}")        # the product cards of the barcode lookup
     got = {s["name"] for s in GRANTS["securables"] if s["type"] == "table" and "packsense-publish" in s["grants"]}
     assert got == wanted
     others = [s["name"] for s in GRANTS["securables"] if s["type"] != "table" and "packsense-publish" in s["grants"]]
@@ -57,8 +58,8 @@ def test_the_principal_reads_exactly_the_spec_tables_and_one_scope():
 
 def test_the_notebook_reads_only_through_the_specs_select():
     text = NOTEBOOK.read_text(encoding="utf-8")
-    assert "ex.select_sql(" in text and "product_history" not in text
-    assert "spark.sql(" in text and text.count("spark.sql(") == 1
+    assert "ex.select_sql(" in text and "ex.card_select_sql(" in text and "product_history" not in text
+    assert text.count("spark.sql(") == 2        # the datasets loop and the cards, each through the spec's own select
 
 
 def test_the_marker_patch_replaces_every_marker_and_refuses_a_bad_id():

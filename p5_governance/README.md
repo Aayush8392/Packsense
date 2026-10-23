@@ -165,6 +165,7 @@ GRANT SELECT ON TABLE workspace.packsense_gold.dim_market TO `analyst`;
 GRANT SELECT ON TABLE workspace.packsense_gold.mart_brand_scorecard TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_gold.fct_catalogue_quality_daily TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_gold.fct_product_change_daily TO `packsense-publish`;
+GRANT SELECT ON TABLE workspace.packsense_gold.mart_product_card TO `packsense-publish`;
 GRANT USE SCHEMA ON SCHEMA workspace.packsense_health TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_health.health_metric_daily TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_product_versions TO `packsense-gold`;

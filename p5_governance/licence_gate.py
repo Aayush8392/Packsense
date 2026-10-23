@@ -12,7 +12,11 @@ link, mention the licence and link to the ODbL, and the page's example wording i
   5. a data file holds no column that the classification marks personal or internal (hashed contributor codes, lineage), and no `_hmac` column;
   6. a page (html, md, txt) carries the attribution itself;
   7. every listed file exists, and when the manifest gives a sha256 it matches;
-  8. the rendered text is scanned again for the contract's scrub patterns (email, social link, @handle, Aadhaar, PAN, GSTIN, obfuscated email): one hit is a violation.
+  8. the rendered text is scanned again for the contract's scrub patterns (email, social link, @handle, Aadhaar, PAN, GSTIN, obfuscated email): one hit is a violation;
+  9. a CARD file (the product-card shards of the barcode lookup, `cards/<prefix>.csv`, and their `cards/splits.json`) has exactly the card columns, a barcode of 8 to 14
+     digits, values inside their declared domains (enumerated codes, small non-negative counts, plausible Unix times), sorted unique barcodes that all belong to the
+     file by the lookup rule `shard_for`, a size under the hard cap, and no free text anywhere (the barcode column is left out of the pattern re-scan, because a
+     12 or 13 digit barcode looks like an Aadhaar number).
 
 It returns violations as text and never repeats a matched value (a hit is reported as a count and a pattern name). NOT WIRED into a real export yet: no export exists until P6,
 which must call check_release() as the last step before publishing and fail the run on any violation. This module is the gate; the wiring is P6's job."""
@@ -37,7 +41,30 @@ from silver_lib import personal  # noqa: E402
 MANIFEST_NAME = "release_manifest.json"
 SCORE_KEYS = {"barcode", "score", "provenance"}
 REQUIRED_SCORE_KEYS = {"barcode", "score", "provenance"}
-KINDS = {"score", "data", "page"}
+KINDS = {"score", "data", "page", "card", "card_index"}
+# --- the product-card shards (roadmap Phase B item 12) ---------------------------------------------------------------------------------------------------
+# The gate holds its own copy of what a card file may contain (it checks the RENDERED output, never the spec that produced it); a test ties it to export_spec.yml.
+CARD_COLUMNS = ["code", "existence_status", "light", "things_flagged", "off_error", "off_bug", "off_warning", "off_info", "rules_checkable", "rules_failed",
+                "fields_filled", "versions_kept", "last_edit_t", "first_version_edited_t", "first_period_from_seed", "in_india"]
+CARD_EXISTENCE = {"unverified", "present_in_snapshot", "confirmed_exists", "confirmed_not_found", "moved_other_type", "invalid_code", "unconfirmed"}
+CARD_LIGHTS = {"several_flagged", "one_flagged", "none_flagged", "not_enough_data"}
+CARD_INT_RANGES = {"things_flagged": (0, 10000), "off_error": (0, 10000), "off_bug": (0, 10000), "off_warning": (0, 10000), "off_info": (0, 10000),
+                   "rules_checkable": (0, 11), "rules_failed": (0, 11), "fields_filled": (0, 7), "versions_kept": (1, 1000000),
+                   "last_edit_t": (946684800, 4102444800), "first_version_edited_t": (946684800, 4102444800), "first_period_from_seed": (0, 1), "in_india": (0, 1)}
+CARD_CODE = re.compile(r"^\d{8,14}$")
+CARD_PATH = re.compile(r"^cards/(\d{3,6})\.csv$")
+CARD_INDEX_PATH = "cards/splits.json"
+CARD_MAX_BYTES = 400_000          # a shard above this is refused; the builder splits a shard at about 150 KB, so this is a safety net, not the rule
+CARD_BASE_DEPTH, CARD_MAX_DEPTH = 3, 6
+
+
+def shard_for(code: str, splits) -> str:
+    """The lookup rule, shared by the builder, this gate and (written out in the app) the browser: start with the first 3 digits; while that prefix is in the
+    split list, take one more digit. The result is the file name (`cards/<result>.csv`)."""
+    p = code[:CARD_BASE_DEPTH]
+    while p in splits and len(p) < len(code):
+        p = code[: len(p) + 1]
+    return p
 ATTRIBUTION_PHRASES = ("Open Food Facts", "Open Database License")
 OFF_LINK = "openfoodfacts.org"
 ODBL_LINK = "opendatacommons.org/licenses/odbl"
@@ -138,11 +165,16 @@ def check_release(folder: str | Path, today: datetime.date | None = None) -> lis
             continue
         if IMAGE_URL.search(text):
             out.append(f"{name}: contains an image URL or image data (no product images in any public output)")
+        scan_text = text
+        if f["kind"] == "card":        # a 12 or 13 digit barcode looks like an Aadhaar number: the code column is checked by its own strict rule instead
+            scan_text = "\n".join(line.split(",", 1)[1] if "," in line else "" for line in text.splitlines())
         for pat in RESCAN:
-            n = len(patterns[pat].findall(text))
+            n = len(patterns[pat].findall(scan_text))
             if n:
                 out.append(f"{name}: {n} match(es) of the {pat} pattern in the rendered output")
         kind = f["kind"]
+        if kind in ("card", "card_index"):
+            continue                    # their own rules run once all of them are known (check_cards below)
         if kind == "page":
             if p.suffix.lower() not in TEXT_SUFFIXES:
                 out.append(f"{name}: a page must be html, md or txt")
@@ -175,6 +207,97 @@ def check_release(folder: str | Path, today: datetime.date | None = None) -> lis
             hit = sorted(c for c in cols if c in forbidden or c.endswith("_hmac"))
             if hit:
                 out.append(f"{name}: column(s) {hit} are personal or internal and must not be exported")
+    out.extend(check_cards(folder, m))
     if not attribution:
         out.append("manifest: no attribution text")
+    return out
+
+
+def check_cards(folder: Path, m: dict) -> list[str]:
+    """The card rules (9 in the module docstring). Reads the split list first, because every row must belong to the file it is in by `shard_for`."""
+    out = []
+    files = [f for f in (m.get("files") or []) if isinstance(f, dict) and f.get("kind") in ("card", "card_index")]
+    if not files:
+        return out
+    index = [f for f in files if f.get("kind") == "card_index"]
+    cards = [f for f in files if f.get("kind") == "card"]
+    if len(index) != 1 or index[0].get("path") != CARD_INDEX_PATH:
+        return [f"cards: exactly one card_index file named {CARD_INDEX_PATH} is required"]
+    splits: set[str] = set()
+    try:
+        obj = json.loads((folder / CARD_INDEX_PATH).read_text(encoding="utf-8"))
+        listed = obj["splits"]
+        if set(obj) != {"version", "splits"} or obj["version"] != 1 or not isinstance(listed, list):
+            raise ValueError("shape")
+        if any((not isinstance(s, str)) or not re.fullmatch(r"\d{3,5}", s) for s in listed) or listed != sorted(set(listed)):
+            raise ValueError("values")
+        splits = set(listed)
+    except (OSError, ValueError, KeyError, TypeError):
+        return [f"{CARD_INDEX_PATH}: must be JSON with version 1 and a sorted list of unique digit prefixes of 3 to 5 digits under the key splits"]
+    prefixes = set()
+    for f in cards:
+        name = f["path"]
+        mt = CARD_PATH.match(name)
+        if not mt:
+            out.append(f"{name}: a card file must be named cards/<3 to 6 digits>.csv")
+            continue
+        prefix = mt.group(1)
+        prefixes.add(prefix)
+        if prefix in splits:
+            out.append(f"{name}: its prefix is in the split list, so the cards belong in longer files")
+        p = folder / name
+        if not p.is_file():
+            continue                    # the generic rule above already reported it
+        if p.stat().st_size > CARD_MAX_BYTES:
+            out.append(f"{name}: larger than the {CARD_MAX_BYTES} byte cap for a card file")
+            continue                    # not parsed: an oversized file is refused on size alone
+        reader = csv.reader(io.StringIO(p.read_text(encoding="utf-8")))
+        header = next(reader, None)
+        if header != CARD_COLUMNS:
+            out.append(f"{name}: the columns must be exactly the card columns")
+            continue
+        last, bad = None, {}
+        n_rows = 0
+        try:
+            all_rows = list(reader)
+        except csv.Error:
+            out.append(f"{name}: cannot be read as csv")
+            continue
+        for row in all_rows:
+            n_rows += 1
+            if len(row) != len(CARD_COLUMNS):
+                bad["a row with the wrong number of fields"] = bad.get("a row with the wrong number of fields", 0) + 1
+                continue
+            r = dict(zip(CARD_COLUMNS, row))
+            problems = []
+            if not CARD_CODE.match(r["code"]):
+                problems.append("code is not 8 to 14 digits")
+            else:
+                if shard_for(r["code"], splits) != prefix:
+                    problems.append("a barcode is in a file it does not belong to")
+                if last is not None and r["code"] <= last:
+                    problems.append("barcodes are not sorted and unique")
+                last = r["code"]
+            if r["existence_status"] not in CARD_EXISTENCE:
+                problems.append("existence_status outside its values")
+            if r["light"] not in CARD_LIGHTS:
+                problems.append("light outside its values")
+            for col, (lo, hi) in CARD_INT_RANGES.items():
+                v = r[col]
+                if not re.fullmatch(r"\d{1,10}", v) or not lo <= int(v) <= hi:
+                    problems.append(f"{col} is not an integer in {lo} to {hi}")
+            if all(re.fullmatch(r"\d{1,10}", r[c]) for c in ("things_flagged", "off_error", "off_bug", "rules_checkable", "rules_failed")):
+                if int(r["rules_failed"]) > int(r["rules_checkable"]) or int(r["things_flagged"]) != int(r["off_error"]) + int(r["off_bug"]) + int(r["rules_failed"]):
+                    problems.append("things_flagged and the rule counts do not add up")
+            for pr in problems:
+                bad[pr] = bad.get(pr, 0) + 1
+        if n_rows == 0:
+            out.append(f"{name}: has no rows")
+        for pr, n in sorted(bad.items()):
+            out.append(f"{name}: {n} row(s): {pr}")        # a count, never a value
+    for s in sorted(splits):
+        if s in prefixes:
+            continue
+        if not any(q.startswith(s) and len(q) == len(s) + 1 for q in prefixes) and not any(q.startswith(s) and len(q) > len(s) for q in splits):
+            out.append(f"{CARD_INDEX_PATH}: the split prefix {s} has no longer files under it")
     return out

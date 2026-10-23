@@ -86,6 +86,8 @@ try:
         rows = [{k: py(v) for k, v in r.asDict().items()} for r in spark.sql(ex.select_sql(name, spec, GOLD)).collect()]
         datasets[name] = rows
         print(name, "rows read:", len(rows))
+    cards = [{k: py(v) for k, v in r.asDict().items()} for r in spark.sql(ex.card_select_sql(spec, GOLD)).collect()]
+    print("cards read:", len(cards))
 
     q = datasets["quality_daily"]
     days = sorted({r["snapshot_date"] for r in q})
@@ -101,20 +103,26 @@ try:
     print("status:", status)
 
     folder = tempfile.mkdtemp(prefix="site_release_")
-    manifest = ex.build_release(folder, datasets, status, spec)      # raises ExportRefused if the licence gate finds anything
-    print("gate passed; files:", [(f["path"], f.get("rows")) for f in manifest["files"]])
+    manifest = ex.build_release(folder, datasets, status, spec, cards=cards)      # raises ExportRefused if the licence gate finds anything
+    print("gate passed; files:", [(f["path"], f.get("rows")) for f in manifest["files"] if f["kind"] not in ("card", "card_index")])
+    print("card shards:", json.dumps(manifest["reports"]["card_shards"]))
     print("reports:", json.dumps(manifest["reports"]))
 
     if DRY:
         print("dry_run: nothing uploaded")
         summary = "dry run ok"
     else:
-        from huggingface_hub import CommitOperationAdd, HfApi
+        from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi
         api = HfApi(token=dbutils.secrets.get(SCOPE, "hf_site_token"))
-        ops = [CommitOperationAdd(path_in_repo=f"site/{n}", path_or_fileobj=os.path.join(folder, n)) for n in sorted(os.listdir(folder))]
+        names = sorted(os.path.relpath(os.path.join(d, f), folder).replace(os.sep, "/") for d, _, fs in os.walk(folder) for f in fs)
+        ops = [CommitOperationAdd(path_in_repo=f"site/{n}", path_or_fileobj=os.path.join(folder, n)) for n in names]
+        # shards that no longer exist (a prefix that stopped being split, a barcode range that emptied) are deleted in the same commit
+        stale = [f for f in api.list_repo_files(repo_id=HF_REPO, repo_type="dataset") if f.startswith("site/cards/") and f[len("site/"):] not in set(names)]
+        ops += [CommitOperationDelete(path_in_repo=f) for f in stale]
+        print("files to add:", len(names), "stale card files to delete:", len(stale))
         api.create_commit(repo_id=HF_REPO, repo_type="dataset", operations=ops,
                           commit_message=f"site data {status['built_at_utc']} (job run {RUN_ID})")
-        summary = f"published {len(ops)} files, built {status['built_at_utc']}"
+        summary = f"published {len(names)} files ({len(stale)} stale deleted), built {status['built_at_utc']}"
         print(summary)
     ping("", summary)
 except Exception as e:

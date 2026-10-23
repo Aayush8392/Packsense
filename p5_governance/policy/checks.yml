@@ -47,6 +47,7 @@ identities:
       - {name: reads the brand scorecard, kind: allow, action: read_table, table: workspace.packsense_gold.mart_brand_scorecard}
       - {name: reads the daily quality fact, kind: allow, action: read_table, table: workspace.packsense_gold.fct_catalogue_quality_daily}
       - {name: reads the daily change fact, kind: allow, action: read_table, table: workspace.packsense_gold.fct_product_change_daily}
+      - {name: reads the product cards, kind: allow, action: read_table, table: workspace.packsense_gold.mart_product_card}
       - {name: reads the pipeline health table, kind: allow, action: read_table, table: workspace.packsense_health.health_metric_daily}
       - {name: cannot read the product history, kind: deny, action: read_table, table: workspace.packsense_gold.product_history}
       - {name: cannot read the flag spans, kind: deny, action: read_table, table: workspace.packsense_gold.product_flag_spans}

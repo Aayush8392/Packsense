@@ -10,14 +10,18 @@ the publish job ran it before uploading).
 import hashlib
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 MANIFEST = "release_manifest.json"
 PREFIX = "site/"
+SAFE_PATH = re.compile(r"^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)?$")      # a file in the folder, or in one sub-folder (cards/); never `..`
+WORKERS = 8                                                          # about a thousand small card files: fetched in parallel
 
 
 class FetchError(Exception):
@@ -42,15 +46,25 @@ def fetch(repo: str, out: Path, token: str, opener=urllib.request.urlopen) -> di
     manifest = json.loads(manifest_bytes)
     (out / MANIFEST).write_bytes(manifest_bytes)
     root = out.resolve()
+    jobs = []
     for f in manifest.get("files", []):
         name = f.get("path", "")
         target = (out / name).resolve()
-        if not name or "/" in name or "\\" in name or root not in target.parents:
+        if not name or not SAFE_PATH.match(name) or ".." in name.split("/") or root not in target.parents:
             raise FetchError(f"refusing path {name!r}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        jobs.append((name, f.get("sha256"), target))
+
+    def one(job):
+        name, sha, target = job
         data = _get(repo, name, token, opener)
-        if f.get("sha256") and hashlib.sha256(data).hexdigest() != f["sha256"]:
+        if sha and hashlib.sha256(data).hexdigest() != sha:
             raise FetchError(f"{name}: sha256 does not match the manifest")
         target.write_bytes(data)
+
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        for _ in pool.map(one, jobs):          # the first failure is raised here; nothing is published after it
+            pass
     return manifest
 
 
