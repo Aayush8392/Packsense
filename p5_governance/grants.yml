@@ -24,7 +24,11 @@ principals:
   analyst:                 {kind: user_from_token, env: DATABRICKS_ANALYST_TOKEN}
 
 securables:
+  # The admin holds USE_CATALOG explicitly since 2026-10-23: it had it only through the platform's system group `_workspace_users_...`, and when that
+  # grant was revoked (11:16 UTC) the production gold build failed on silver ('the owner of one of the underlying resources failed an authorization check':
+  # the admin owns the mask and row-filter functions silver calls). The platform refuses to grant to that group again, so the admin's own grant is the fix.
   - {type: catalog, name: workspace, grants: {
+      admin: [USE_CATALOG],
       packsense-deployer: [USE_CATALOG], packsense-deployer-dev: [USE_CATALOG],
       packsense-gold: [USE_CATALOG], packsense-gold-dev: [USE_CATALOG], packsense-publish: [USE_CATALOG],
       pipeline-user: [USE_CATALOG], analyst: [USE_CATALOG]}}

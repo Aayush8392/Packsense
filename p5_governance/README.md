@@ -124,6 +124,7 @@ none exists until P6, which must call `check_release()` as the last step before 
 ## The grants (generated from `grants.yml`: do not edit by hand)
 <!-- grants:begin -->
 ```sql
+GRANT USE CATALOG ON CATALOG workspace TO `admin`;
 GRANT USE CATALOG ON CATALOG workspace TO `packsense-deployer`;
 GRANT USE CATALOG ON CATALOG workspace TO `packsense-deployer-dev`;
 GRANT USE CATALOG ON CATALOG workspace TO `packsense-gold`;
