@@ -181,7 +181,7 @@ def build(tmp_path):
         products.append({"key": key, "code": rec["code"], "name": rec.get("product_name") or "", "brand": rec.get("brands") or "",
                          "bronze": {"record": red, "counts": counts}, "silver": {"row": sl.hide_silver(row, C), "counts": sl.silver_counts(rec, row, C)},
                          "gold": gold_stub()})
-    doc = sl.assemble(sl.plain(products), s, "2026-10-24T10:00:00", ATTRIBUTION)
+    doc = sl.assemble(sl.plain(products), s, "2026-10-22T10:00:00", ATTRIBUTION)
     path = tmp_path / "showcase.json"
     path.write_text(json.dumps(doc, indent=1, ensure_ascii=False), encoding="utf-8")
     return path, doc
