@@ -52,7 +52,9 @@ Phase B item 9 (the capacity panel and dependency health). Once a day (08:40 UTC
 `workspace.packsense_health.health_metric_daily` (day, subject, metric, value, unit, detail): per production job the runs, the runs that did not succeed, the longest
 run and the hours since the last success (from `system.lakeflow.jobs` and `job_run_timeline`; a run is one `run_id`, the duration is end minus start because the table's
 own duration column is empty), and per outside service whether one light request was answered (the same list as the monthly egress check) and how fast. Rows are merged by
-(day, subject, metric), so a rerun and the three-day lookback never duplicate. An unreachable service turns the task red after the rows are written. The public export
+(day, subject, metric), so a rerun and the three-day lookback never duplicate. Three "right now" timestamps are stored as Unix seconds under the subject `pipeline` (the Home page's status strip): `off_newest_file_published` (OFF's `Last-Modified` of its newest delta,
+read from the newest capture manifests in the landing volume), `our_capture_landed` (when our capture received that file) and `gold_last_success`; a value that cannot be read gets no row, and
+a manifest read failure only prints a warning. An unreachable service turns the task red after the rows are written. The public export
 (`p6_serving/export_spec.yml`, dataset `pipeline_health`) and the site's health page read this table.
 
 **The job is owned by the admin and has no service principal.** Measured 2026-10-21: Free Edition lets nobody grant the system tables to another identity (`GRANT` on the

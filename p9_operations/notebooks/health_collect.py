@@ -42,6 +42,8 @@ dbutils.widgets.text("run_id", "manual")
 dbutils.widgets.text("secret_scope", "packsense_health")
 dbutils.widgets.text("ping_healthchecks", "true")
 dbutils.widgets.text("dry_run", "false")
+dbutils.widgets.text("landing", "/Volumes/workspace/packsense/landing")
+LANDING = dbutils.widgets.get("landing").strip().rstrip("/")
 SCOPE = dbutils.widgets.get("secret_scope").strip()
 PING = dbutils.widgets.get("ping_healthchecks").strip().lower() == "true"
 DRY = dbutils.widgets.get("dry_run").strip().lower() == "true"
@@ -77,9 +79,21 @@ try:
     for r in results:
         print(f"{'OK  ' if r['ok'] else 'FAIL'} {r['service']}: {r['detail']} ({r['seconds']} s)")
 
+    # 'Right now' timestamps: the newest OFF file and when we received it (capture manifests in the landing volume), and the last good gold build.
+    # Not critical: if the manifests cannot be read the job still writes everything else and says so.
+    arrival = None
+    try:
+        names = sorted(e.name for e in os.scandir(LANDING + "/manifests") if e.name.endswith(".json"))[-lib.MANIFESTS_TO_READ:]
+        arrival = lib.newest_arrival([json.load(open(f"{LANDING}/manifests/{n}", encoding="utf-8")) for n in names])
+    except Exception as e:
+        print("WARNING: capture manifests not read:", type(e).__name__)
+    gold_last = dict(last).get("packsense-gold-build")
+    right_now = lib.pipeline_rows(arrival, gold_last, today, stamp, RUN_ID)
+    print(f"right now: {[r['metric'] for r in right_now]}")
+
     rows = (lib.job_rows(jobs, stamp, RUN_ID) + lib.success_age_rows(last, today, now, stamp, RUN_ID)
-            + lib.service_rows(results, today, stamp, RUN_ID))
-    print(f"rows: job runs {len(jobs)} groups, last success {len(last)} jobs, services {len(results)}, total {len(rows)}")
+            + lib.service_rows(results, today, stamp, RUN_ID) + right_now)
+    print(f"rows: job runs {len(jobs)} groups, last success {len(last)} jobs, services {len(results)}, right now {len(right_now)}, total {len(rows)}")
 
     if DRY:
         print("dry_run: nothing written")

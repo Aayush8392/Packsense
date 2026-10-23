@@ -20,6 +20,7 @@ Pure Python and SQL text: the notebook runs the SQL and passes the rows in, so e
 from __future__ import annotations
 
 import datetime as dt
+import email.utils
 
 SCHEMA = "workspace.packsense_health"
 TABLE = "health_metric_daily"
@@ -36,7 +37,9 @@ JOB_NAMES = (
 JOB_NAMES_NOT_REPORTED = (
     "packsense-policy-gold", "packsense-policy-gold-dev", "packsense-policy-deployer", "packsense-policy-deployer-dev", "packsense-policy-publish",
 )
-LOOKBACK_DAYS = 3          # each run refreshes the last three UTC days of job rows (system tables lag by hours)
+PIPELINE_SUBJECT = "pipeline"   # the subject of the 'right now' timestamps (not a job, so the jobs table filters it out by name)
+MANIFESTS_TO_READ = 5      # the newest capture manifests read for the arrival times (a day can hold two: Databricks and the GitHub second path)
+LOOKBACK_DAYS = 3         # each run refreshes the last three UTC days of job rows (system tables lag by hours)
 SUCCESS_WINDOW_DAYS = 30   # "hours since the last success" looks this far back
 
 
@@ -138,6 +141,47 @@ def service_rows(results, today: dt.date, collected_at, run_id) -> list[dict]:
         out.append({"metric_date": today, "subject": r["service"], "metric": "reachable", "value": 1.0 if r["ok"] else 0.0, "unit": "flag",
                     "detail": str(r["detail"])[:120], "collected_at": collected_at, "job_run_id": run_id})
         out.append({"metric_date": today, "subject": r["service"], "metric": "response_seconds", "value": _num(r["seconds"]), "unit": "seconds",
+                    "detail": None, "collected_at": collected_at, "job_run_id": run_id})
+    return out
+
+
+def _epoch(t: dt.datetime) -> float:
+    """Unix seconds of a time; a time without a zone is UTC."""
+    return float((t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)).timestamp())
+
+
+def newest_arrival(manifests: list[dict]) -> tuple[dt.datetime, dt.datetime] | None:
+    """(when OFF published its newest delta file, when our capture received it), from the capture manifests.
+
+    OFF's time is the file's `off_last_modified` header; ours is the manifest's `captured_at`. A file is in one manifest normally; if several hold it
+    (a recapture) the earliest `captured_at` is the time we first had it. Files without a header (recovered orphans) are ignored. None when no file has one."""
+    best: tuple[dt.datetime, str] | None = None
+    first_seen: dict[str, dt.datetime] = {}
+    for m in manifests:
+        captured = dt.datetime.fromisoformat(m["captured_at"])
+        for f in m.get("files", []):
+            if not f.get("off_last_modified"):
+                continue
+            published = email.utils.parsedate_to_datetime(f["off_last_modified"])
+            if f["name"] not in first_seen or captured < first_seen[f["name"]]:
+                first_seen[f["name"]] = captured
+            if best is None or published > best[0]:
+                best = (published, f["name"])
+    if best is None:
+        return None
+    return best[0], first_seen[best[1]]
+
+
+def pipeline_rows(arrival, gold_last_success: dt.datetime | None, today: dt.date, collected_at, run_id) -> list[dict]:
+    """Three 'right now' timestamps as Unix seconds under the subject `pipeline`; a missing one gets no row (nothing is guessed)."""
+    out = []
+    pairs = []
+    if arrival is not None:
+        pairs += [("off_newest_file_published", arrival[0]), ("our_capture_landed", arrival[1])]
+    if gold_last_success is not None:
+        pairs.append(("gold_last_success", gold_last_success))
+    for metric, t in pairs:
+        out.append({"metric_date": today, "subject": PIPELINE_SUBJECT, "metric": metric, "value": _epoch(t), "unit": "epoch_seconds",
                     "detail": None, "collected_at": collected_at, "job_run_id": run_id})
     return out
 

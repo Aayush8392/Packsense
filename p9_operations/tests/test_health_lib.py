@@ -143,3 +143,51 @@ def test_grants_file_gives_the_health_job_nothing_and_the_publish_job_one_table(
     assert health == {"workspace.packsense_health": {"packsense-publish": ["USE_SCHEMA"]},
                       "workspace.packsense_health.health_metric_daily": {"packsense-publish": ["SELECT"]}}
     assert GRANTS["secret_scopes"]["packsense_health"] == {"admin": "MANAGE"}
+
+
+# ---- the 'right now' timestamps, on a REAL capture manifest (tests/fixtures/manifest_real.json, the Databricks capture of 2026-10-23 06:45 UTC) ----
+MANIFEST = json.loads((HERE / "fixtures" / "manifest_real.json").read_text(encoding="utf-8"))
+
+
+def test_the_arrival_is_the_newest_off_time_and_the_time_we_captured_it():
+    published, landed = lib.newest_arrival([MANIFEST])
+    assert published.isoformat() == "2026-10-23T06:31:15+00:00"
+    assert landed.isoformat() == "2026-10-23T06:45:34+00:00"
+    assert landed > published
+
+
+def test_an_older_manifest_and_a_recovered_orphan_do_not_win():
+    older = {"captured_at": "2026-10-22T06:45:40+00:00", "files": [{"name": "old.json.gz", "off_last_modified": "Thu, 22 Oct 2026 06:20:00 GMT"}]}
+    orphan = {"captured_at": "2026-10-23T14:00:00+00:00", "files": [{"name": "recovered.json.gz"}]}
+    assert lib.newest_arrival([older, orphan, MANIFEST]) == lib.newest_arrival([MANIFEST])
+
+
+def test_a_recapture_keeps_the_first_time_we_had_the_file():
+    again = dict(MANIFEST, captured_at="2026-10-23T14:00:00+00:00")
+    _, landed = lib.newest_arrival([again, MANIFEST])
+    assert landed.isoformat() == "2026-10-23T06:45:34+00:00"
+
+
+def test_no_manifest_with_a_header_gives_nothing():
+    assert lib.newest_arrival([]) is None
+    assert lib.newest_arrival([{"captured_at": "2026-10-23T14:00:00+00:00", "files": [{"name": "x.json.gz"}]}]) is None
+
+
+def test_the_right_now_rows_are_epoch_seconds_under_the_pipeline_subject():
+    arrival = lib.newest_arrival([MANIFEST])
+    gold = dt.datetime(2026, 10, 23, 8, 19, 0)
+    rows = lib.pipeline_rows(arrival, gold, TODAY, STAMP, "fixture")
+    got = {r["metric"]: r["value"] for r in rows}
+    assert got == {"off_newest_file_published": 1792737075.0, "our_capture_landed": 1792737934.0, "gold_last_success": 1792743540.0}
+    assert {r["subject"] for r in rows} == {"pipeline"} and {r["unit"] for r in rows} == {"epoch_seconds"}
+    assert all(set(r) == set(lib.COLUMNS) for r in rows)
+
+
+def test_a_missing_value_gets_no_row():
+    assert lib.pipeline_rows(None, None, TODAY, STAMP, "fixture") == []
+    only_gold = lib.pipeline_rows(None, dt.datetime(2026, 10, 23, 8, 19), TODAY, STAMP, "fixture")
+    assert [r["metric"] for r in only_gold] == ["gold_last_success"]
+
+
+def test_the_pipeline_subject_never_matches_a_job_name_or_the_page_filter():
+    assert lib.PIPELINE_SUBJECT not in lib.JOB_NAMES and not lib.PIPELINE_SUBJECT.startswith("packsense-")

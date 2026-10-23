@@ -1,0 +1,19 @@
+{
+  "manifest_version": 1,
+  "captured_at": "2026-10-23T06:45:34+00:00",
+  "github_run_id": null,
+  "files": [
+    {
+      "name": "openfoodfacts_products_1792651258_1792737062.json.gz",
+      "bytes": 23318768,
+      "sha256": "c047d0efb3d6452b5ffd6b911cbc0688dc0f378093107e93a8736feddd599dbb",
+      "lines": 6121,
+      "b2_key": "raw/deltas/openfoodfacts_products_1792651258_1792737062.json.gz",
+      "landing": "deltas/openfoodfacts_products_1792651258_1792737062.json.gz",
+      "b2_etag_matched": true,
+      "off_last_modified": "Fri, 23 Oct 2026 06:31:15 GMT"
+    }
+  ],
+  "failed": false,
+  "newest_delta_in_index": "openfoodfacts_products_1792651258_1792737062.json.gz"
+}
