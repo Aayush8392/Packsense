@@ -65,6 +65,8 @@ def rows_of(sql):
 
 
 def q(code):
+    if code is None:
+        raise RuntimeError("a value that must be text is missing")
     return "'" + code.replace("'", "''") + "'"
 
 
@@ -127,8 +129,10 @@ try:
         day = rows_of(f"select least(to_date('{last_day}'), max(change_date)) as d from {GOLD}.fct_product_change_daily")[0]["d"]
         ch_cols = ", ".join(SPEC["datasets"]["change_daily"]["columns"])
         ch = rows_of(f"select {ch_cols} from {GOLD}.fct_product_change_daily where scope = 'all' and change_date = to_date('{day}')")
-        fams = [r["family"] for r in rows_of(
-            f"select distinct f.family from {GOLD}.product_flag_spans s join {GOLD}.dim_flag f on f.flag = s.flag where s.code = {q(code)}")]
+        # the quality fact files a flag under its taxonomy family, under the flag itself when it is a root flag, and under 'unmapped' otherwise (see fct_catalogue_quality_daily)
+        fams = [r["fam"] for r in rows_of(
+            f"select distinct case when f.family_source = 'taxonomy' then f.family when f.family_source = 'root' then f.flag else 'unmapped' end as fam "
+            f"from {GOLD}.product_flag_spans s join {GOLD}.dim_flag f on f.flag = s.flag where s.code = {q(code)}") if r["fam"]]
         ql_cols = ", ".join(SPEC["datasets"]["quality_daily"]["columns"])
         fam_sql = ", ".join(q(f) for f in fams) if fams else "''"
         qd = rows_of(f"select {ql_cols} from {GOLD}.fct_catalogue_quality_daily where scope = 'all' and snapshot_date = to_date('{day}') and flag_family in ({fam_sql}) "
