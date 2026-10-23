@@ -33,5 +33,15 @@ select
     {{ grams("s.nutrients['fiber']") }} as fiber,
     {{ grams("s.nutrients['proteins']") }} as proteins,
     {{ grams("s.nutrients['salt']") }} as salt,
-    {{ grams("s.nutrients['sodium']") }} as sodium
+    {{ grams("s.nutrients['sodium']") }} as sodium,
+    {{ grams("s.nutrients['polyols']") }} as polyols,
+    {{ grams("s.nutrients['erythritol']") }} as erythritol,
+    {{ grams("s.nutrients['isomalt']") }} as isomalt,
+    {{ grams("s.nutrients['maltitol']") }} as maltitol,
+    {{ grams("s.nutrients['sorbitol']") }} as sorbitol,
+    cast(s.nutrients['alcohol'].value as double) as alcohol,
+    list_max(list_transform(
+        list_filter(map_entries(s.nutrients), e -> not starts_with(e.key, 'energy')),
+        e -> {{ grams("e.value") }}
+    )) as max_mass_g
 from exploded

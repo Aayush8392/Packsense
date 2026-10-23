@@ -53,6 +53,17 @@ agree on only 70% and the 105 g rules on 8% and 60%. `product_nutrition_sets` co
 
 Of the two tables above, the first (aggregated columns) is kept as the record of why the per-source table exists; use the second.
 
+## Rule verdicts in SQL (`product_rule_verdicts`, gold, 2026-10-23)
+
+The same 11 rules as portable SQL in dbt (`p4_modelling/models/portable/product_rule_verdicts.sql`): one row per rule for every input set OFF itself checks (not an
+estimate, given per 100 g or 100 ml), with `status` (`violated`, `ok`, `not_applicable`), `severity` and `deviation` (4 decimals). The tolerances sit at the top of the model and a
+test pins them to the constants of `rules_lib.py`. `p4_modelling/tests/test_rule_verdicts_agree.py` runs the model's compiled SQL on the real fixture sets and on one-field
+variants of each (a missing value, zero, halved, doubled, nudged past a tolerance, 150) plus a grid of energy pairs around every limit, and requires the same status, severity and
+deviation as `rules_lib.py` on every row (about 224,000 comparisons, every rule violated at least once); the `engines` CI job runs it. The sets table gained the inputs the energy sum needs
+(`polyols`, `erythritol`, `isomalt`, `maltitol`, `sorbitol`, the RAW `alcohol` value, which OFF stores in % vol and multiplies as it stands) and `max_mass_g` for the 105 g rule.
+`organic_acids` and `salatrim` are in OFF's factor table but OFF's own code notes they have no nutrient, so they are not carried. Not applied, as before: the `<`/`~` modifiers and OFF's
+per-category switch. `value-over-105` looks at mass-valued nutrients only (alcohol in % vol is left out; it cannot exceed 100).
+
 ## Replay harness (`replay_lib.py`, 2026-10-21; roadmap item 6)
 
 The catalogue as OUR copy held it at the end of any past UTC day, rebuilt from `product_history` and `product_flag_spans` with no extra table:

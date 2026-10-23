@@ -76,6 +76,8 @@ jobs:
         run: |
           python -m gold_lib.fixture_load --db target/fixture.duckdb
           dbt build --target duckdb --profiles-dir .
+      - name: The SQL rule verdicts agree with rules_lib.py (real sets and one-field variants)
+        run: python -m pytest p4_modelling/tests/test_rule_verdicts_agree.py -q
       - name: Compare with the Databricks run (golden)
         working-directory: p4_modelling
         run: python bootstrap/compare_engines.py check --duckdb target/fixture.duckdb

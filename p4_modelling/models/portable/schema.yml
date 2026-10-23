@@ -183,6 +183,38 @@ models:
       - name: proteins
       - name: salt
       - name: sodium
+      - name: polyols
+        description: Grams; the aggregate polyols value of the set (NULL when not given).
+      - name: erythritol
+      - name: isomalt
+      - name: maltitol
+      - name: sorbitol
+      - name: alcohol
+        description: The RAW value (OFF stores alcohol in % vol and multiplies that number by its energy factor as it stands); not converted to grams.
+      - name: max_mass_g
+        description: The largest mass-valued nutrient of the set in grams (energy left out; a nutrient with no mass unit is ignored). Input of the value-over-105 rule.
+
+  - name: product_rule_verdicts
+    description: >
+      The 11 nutrition rules of OFF that arithmetic or physics can decide (p7_triage_ml/rules_lib.py is the Python twin), decided for every input set OFF itself
+      checks (not an estimate, given per 100 g or 100 ml): one row per set and rule. status is violated, ok or not_applicable (an input is missing), so ok is never
+      confused with could-not-check. Rebuilt in full every night.
+    columns:
+      - name: code
+        data_tests: [not_null]
+      - name: rule
+        description: The rule, named as OFF names the family of its flag (without the nutrition-source-prepared-basis prefix).
+        data_tests: [not_null]
+      - name: status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['violated', 'ok', 'not_applicable']
+      - name: severity
+        description: error or warning when violated; NULL otherwise.
+      - name: deviation
+        description: How far past the limit, in the rule's own unit (rounded to 4 decimals); NULL when not violated or not meaningful for the rule.
 
   - name: bridge_product_allergen
     description: >

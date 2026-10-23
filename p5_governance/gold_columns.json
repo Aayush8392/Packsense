@@ -289,7 +289,25 @@
    "fiber",
    "proteins",
    "salt",
-   "sodium"
+   "sodium",
+   "polyols",
+   "erythritol",
+   "isomalt",
+   "maltitol",
+   "sorbitol",
+   "alcohol",
+   "max_mass_g"
+  ],
+  "product_rule_verdicts": [
+   "code",
+   "source",
+   "preparation",
+   "per",
+   "per_quantity",
+   "rule",
+   "status",
+   "severity",
+   "deviation"
   ],
   "product_status": [
    "code",

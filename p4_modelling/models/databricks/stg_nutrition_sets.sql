@@ -30,6 +30,17 @@ select
     {{ grams("try_element_at(s.nutrients, 'fiber')") }} as fiber,
     {{ grams("try_element_at(s.nutrients, 'proteins')") }} as proteins,
     {{ grams("try_element_at(s.nutrients, 'salt')") }} as salt,
-    {{ grams("try_element_at(s.nutrients, 'sodium')") }} as sodium
+    {{ grams("try_element_at(s.nutrients, 'sodium')") }} as sodium,
+    {{ grams("try_element_at(s.nutrients, 'polyols')") }} as polyols,
+    {{ grams("try_element_at(s.nutrients, 'erythritol')") }} as erythritol,
+    {{ grams("try_element_at(s.nutrients, 'isomalt')") }} as isomalt,
+    {{ grams("try_element_at(s.nutrients, 'maltitol')") }} as maltitol,
+    {{ grams("try_element_at(s.nutrients, 'sorbitol')") }} as sorbitol,
+    cast(try_element_at(s.nutrients, 'alcohol').value as double) as alcohol,
+    aggregate(
+        filter(map_entries(s.nutrients), e -> e.key not like 'energy%'),
+        cast(null as double),
+        (acc, e) -> greatest(acc, {{ grams("e.value") }})
+    ) as max_mass_g
 from latest as l
 lateral view explode(l.input_sets) x as s
