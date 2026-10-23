@@ -98,6 +98,25 @@ def test_a_username_hidden_in_an_app_name_with_spaces_is_replaced():
     assert not any(n in red["data_sources"].lower() for n in names)
 
 
+def test_a_contributor_name_used_as_an_object_key_is_renamed():
+    rec = copy.deepcopy(with_names(1)[0])
+    name = sorted(names_of(rec))[0]
+    rec["sources_fields"] = {name: {"fields": ["a"]}, "other-key": {"fields": ["b"]}}
+    s = sl.StandIns()
+    red, counts = sl.redact_raw(rec, s, set(), PATTERNS, C, key_names=names_of(rec))
+    assert counts["keys_renamed"] == 1
+    assert list(red["sources_fields"]) == [s.label(name), "other-key"] and name not in red["sources_fields"]
+    assert not [w for w in sl.names_remaining_where(red, names_of(rec)) if w[1] == "key"]       # no key is left; other places are not under test here (no text names passed)
+    assert [w for w in sl.names_remaining_where(rec, names_of(rec)) if w[1] == "key"]
+
+
+def test_ordinary_names_are_left_in_text_but_never_as_a_key():
+    doc = {"brands": "carrefour", "note": "by carrefourshop", "carrefour": 1}
+    assert sl.names_remaining(doc, {"carrefour"}, {"carrefour"}) == 1          # only the key counts
+    assert sl.names_remaining({"brands": "carrefour"}, {"carrefour"}, {"carrefour"}) == 0
+    assert sl.names_remaining({"brands": "carrefour"}, {"carrefour"}) == 1
+
+
 def test_images_become_the_marker_and_no_image_url_survives():
     rec = copy.deepcopy(with_names(1)[0])
     rec["images"] = {"1": {"uploader": "someone", "sizes": {"100": {"h": 100}}}}

@@ -97,16 +97,18 @@ def _replace_names(text: str, handles: set[str], standins: StandIns, rx_cache: d
     return rx_cache["rx"].sub(sub, text), n
 
 
-def redact_raw(record: dict, standins: StandIns, handles: set[str], patterns: dict, c: dict) -> tuple[dict, dict]:
+def redact_raw(record: dict, standins: StandIns, handles: set[str], patterns: dict, c: dict, key_names: set[str] | None = None) -> tuple[dict, dict]:
     """The redacted copy of one raw record and counts of what was done.
 
     1. every contributor field is replaced by stand-in labels (whatever the length of the name);
     2. images: the images object and every field or value that is an image URL become one marker;
     3. a known name (8+ characters, passed in WITHOUT the ordinary words) is replaced wherever it still appears, even inside a longer word or tag;
-    4. the contract's scrub patterns (email, web address, social link, ...) are applied to every string, as silver does for its free text.
+    4. the contract's scrub patterns (email, web address, social link, ...) are applied to every string, as silver does for its free text;
+    5. an object KEY that is a known contributor name (any length, any word) becomes a stand-in label, and the text rule applies to keys too (found on a real record:
+       `sources_fields` is an object keyed by contributor names).
     Counts only: how many names, images, text hits and pattern hits."""
     rec = copy.deepcopy(record)
-    counts = {"contributor_fields_replaced": 0, "image_fields_marked": 0, "names_replaced_in_text": 0, "patterns_removed": 0}
+    counts = {"contributor_fields_replaced": 0, "image_fields_marked": 0, "names_replaced_in_text": 0, "patterns_removed": 0, "keys_renamed": 0}
     for f in c["personal_source_fields"]:
         v = rec.get(f)
         if isinstance(v, str) and v.strip():
@@ -116,13 +118,24 @@ def redact_raw(record: dict, standins: StandIns, handles: set[str], patterns: di
             rec[f] = [standins.label(x) if isinstance(x, str) and x.strip() else x for x in v]
             counts["contributor_fields_replaced"] += sum(1 for x in v if isinstance(x, str) and x.strip())
     cache: dict = {}
+    key_names = key_names or set()
+
+    def rename(k):
+        if not isinstance(k, str) or STAND_IN.match(k):
+            return k
+        if personal.normalise(k) in key_names:
+            counts["keys_renamed"] += 1
+            return standins.label(k)
+        k2, n = _replace_names(k, handles, standins, cache)
+        counts["keys_renamed"] += n
+        return k2
 
     def walk(v, key=None):
         if key in ("images", "selected_images") and v not in (None, "", [], {}):
             counts["image_fields_marked"] += 1
             return MARKER_IMAGES
         if isinstance(v, dict):
-            return {k: walk(x, k) for k, x in v.items()}
+            return {rename(k): walk(x, k) for k, x in v.items()}
         if isinstance(v, list):
             return [walk(x, key) for x in v]
         if isinstance(v, str):
@@ -137,14 +150,16 @@ def redact_raw(record: dict, standins: StandIns, handles: set[str], patterns: di
             counts["patterns_removed"] += n
         return v
 
-    out = {k: (rec[k] if k in c["personal_source_fields"] else walk(v, k)) for k, v in rec.items()}
+    out = {rename(k): (rec[k] if k in c["personal_source_fields"] else walk(v, k)) for k, v in rec.items()}
     return out, counts
 
 
-def names_remaining(obj, names: set[str]) -> int:
-    """How many of the given names (normalised) still occur in the object: as a whole string value, or (8+ characters) anywhere in a string. Counts only."""
+def names_remaining(obj, names: set[str], ordinary: set[str] = frozenset()) -> int:
+    """How many of the given names (normalised) still occur in the object: as an object key, as a whole string value, or (8+ characters) anywhere in a string.
+    Names in `ordinary` (words common across the whole catalogue) are left alone as values and inside text, as the project rule says, but never as a key. Counts only."""
     n = 0
-    long_names = [x for x in names if len(x) >= NAME_MIN_LENGTH]
+    in_text = set(names) - set(ordinary)
+    long_names = [x for x in in_text if len(x) >= NAME_MIN_LENGTH]
     rx = re.compile("|".join(re.escape(x) for x in sorted(long_names, key=len, reverse=True)), re.IGNORECASE) if long_names else None
 
     def walk(v):
@@ -158,7 +173,7 @@ def names_remaining(obj, names: set[str]) -> int:
             for x in v:
                 walk(x)
         elif isinstance(v, str):
-            if personal.normalise(v) in names:
+            if personal.normalise(v) in in_text:
                 n += 1
             elif rx is not None and rx.search(v):
                 n += 1
@@ -166,11 +181,12 @@ def names_remaining(obj, names: set[str]) -> int:
     return n
 
 
-def names_remaining_where(obj, names: set[str]) -> list[tuple[str, str, int]]:
+def names_remaining_where(obj, names: set[str], ordinary: set[str] = frozenset()) -> list[tuple[str, str, int]]:
     """Where the given names still occur: (path, how, name length), how = 'key', 'exact' (a whole string value) or 'inside' (8+ characters inside a string).
     The name itself is not returned, so the notebook can print this safely; the caller can look names up by position if it needs to."""
     out = []
-    long_names = [x for x in names if len(x) >= NAME_MIN_LENGTH]
+    in_text = set(names) - set(ordinary)
+    long_names = [x for x in in_text if len(x) >= NAME_MIN_LENGTH]
     rx = re.compile("|".join(re.escape(x) for x in sorted(long_names, key=len, reverse=True)), re.IGNORECASE) if long_names else None
 
     def walk(v, path):
@@ -184,7 +200,7 @@ def names_remaining_where(obj, names: set[str]) -> list[tuple[str, str, int]]:
                 walk(x, f"{path}[{i}]")
         elif isinstance(v, str):
             nv = personal.normalise(v)
-            if nv in names:
+            if nv in in_text:
                 out.append((path, "exact", len(nv)))
             elif rx is not None:
                 m = rx.search(v)

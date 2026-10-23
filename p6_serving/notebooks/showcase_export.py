@@ -102,7 +102,7 @@ try:
     report = []
     for key, code in PRODUCTS:
         t_last, source_file, raw = versions[key][-1]
-        redacted, raw_counts = sl.redact_raw(raw, standins, text_handles, PATTERNS, C)
+        redacted, raw_counts = sl.redact_raw(raw, standins, text_handles, PATTERNS, C, key_names=all_names)
 
         srow = rows_of(f"select * from {SILVER} where code = {q(code)} and last_modified_t = {int(t_last)}")
         if not srow:
@@ -152,7 +152,7 @@ try:
     doc = sl.assemble(sl.plain(products), standins, built_at, " ".join(SPEC["attribution"].split()))
 
     # 4. Checks, all counts: no known name anywhere (exact value, or 8+ characters inside any string), the gate's own showcase rules, and the size.
-    remaining = sl.names_remaining(doc, all_names)
+    remaining = sl.names_remaining(doc, all_names, ordinary)
     text = json.dumps(doc, indent=1, ensure_ascii=False)
     tmp = os.path.join(tempfile.mkdtemp(prefix="showcase_"), "showcase.json")
     with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
@@ -160,7 +160,7 @@ try:
     violations = gate.check_showcase(tmp)
     print("names still present after redaction:", remaining, "; gate violations:", len(violations), "; bytes:", os.path.getsize(tmp), "; stand-ins used:", len(standins))
     if remaining:
-        for path, how, length in sl.names_remaining_where(doc, all_names)[:12]:
+        for path, how, length in sl.names_remaining_where(doc, all_names, ordinary)[:12]:
             print("  still present:", how, "of length", length, "at", path[:140], "; ordinary across the catalogue:", "unknown")
         raise RuntimeError(f"{remaining} known contributor name(s) are still present: nothing was written")
     if violations:
