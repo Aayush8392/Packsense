@@ -160,6 +160,8 @@ try:
     violations = gate.check_showcase(tmp)
     print("names still present after redaction:", remaining, "; gate violations:", len(violations), "; bytes:", os.path.getsize(tmp), "; stand-ins used:", len(standins))
     if remaining:
+        for path, how, length in sl.names_remaining_where(doc, all_names)[:12]:
+            print("  still present:", how, "of length", length, "at", path[:140], "; ordinary across the catalogue:", "unknown")
         raise RuntimeError(f"{remaining} known contributor name(s) are still present: nothing was written")
     if violations:
         raise RuntimeError("licence gate (showcase): " + "; ".join(violations))

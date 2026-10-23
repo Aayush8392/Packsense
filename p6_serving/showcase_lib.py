@@ -166,6 +166,34 @@ def names_remaining(obj, names: set[str]) -> int:
     return n
 
 
+def names_remaining_where(obj, names: set[str]) -> list[tuple[str, str, int]]:
+    """Where the given names still occur: (path, how, name length), how = 'key', 'exact' (a whole string value) or 'inside' (8+ characters inside a string).
+    The name itself is not returned, so the notebook can print this safely; the caller can look names up by position if it needs to."""
+    out = []
+    long_names = [x for x in names if len(x) >= NAME_MIN_LENGTH]
+    rx = re.compile("|".join(re.escape(x) for x in sorted(long_names, key=len, reverse=True)), re.IGNORECASE) if long_names else None
+
+    def walk(v, path):
+        if isinstance(v, dict):
+            for k, x in v.items():
+                if personal.normalise(k) in names:
+                    out.append((f"{path}/{k[:0]}<key>", "key", len(k)))
+                walk(x, f"{path}/{k}")
+        elif isinstance(v, list):
+            for i, x in enumerate(v):
+                walk(x, f"{path}[{i}]")
+        elif isinstance(v, str):
+            nv = personal.normalise(v)
+            if nv in names:
+                out.append((path, "exact", len(nv)))
+            elif rx is not None:
+                m = rx.search(v)
+                if m:
+                    out.append((path, "inside", len(m.group(0))))
+    walk(obj, "")
+    return out
+
+
 # ---- the silver row ---------------------------------------------------------------------------------------------------------------------------------
 
 def hide_silver(row: dict, c: dict) -> dict:
