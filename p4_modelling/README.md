@@ -128,6 +128,18 @@ instead of a timestamp cast, so neither fact depends on a session time zone. One
 formulation of the rule and that the quality fact spans exactly those days; it caught a precedence slip of mine (the macro once ran to 2035 while every other test
 passed). The other two facts' tests now work over the complete days.
 
+## Rule verdicts and the product card (2026-10-23, roadmap Phase B item 12)
+
+`product_rule_verdicts`: the 11 arithmetic rules of OFF as portable SQL, one row per rule for every input set OFF itself checks (not an estimate, per 100 g or 100 ml), with a status, a severity and a
+deviation; kept in step with `p7_triage_ml/rules_lib.py` by `tests/test_rule_verdicts_agree.py` (see the p7 README). `product_nutrition_sets` gained the inputs the energy sum needs and `max_mass_g`.
+
+`mart_product_card`: one row per product, derived facts only, for the barcode lookup. Columns: `existence_status` (products OFF has removed or moved stay), OFF's open flag spans by severity, how many of our 11 rules
+could be checked and how many fail, the seven scorecard fields and how many are filled, versions kept, last edit, the OFF edit time of the first version we hold, in India. `things_flagged` is OFF's error and bug
+flags plus our failed rules (warnings and info flags are not counted: nine flags are open on an average product and two families make up about four in five). `light` is a CODE, not words: `several_flagged`
+(`things_flagged` at least `card_several_from`, 2), `one_flagged`, `not_enough_data` (nothing flagged and none of our checks could run, because the product has no per-source nutrition table) and `none_flagged`
+(never 'correct'). Labels decided 2026-10-23: 'Several things flagged', 'One thing flagged', 'Nothing flagged', 'Not enough data to check', each with a line saying what a flag means (OFF's own checks and our 11
+arithmetic checks; a flag means worth a look, not wrong; nothing flagged does not mean correct). Tests: `card_counts_are_consistent`, `card_flags_equal_open_spans`, `card_versions_equal_silver_rows`.
+
 ## Brand scorecard (slice 7, 2026-10-18)
 `mart_brand_scorecard`: one row per scope (`all`, or `india` = the product ever had India in a period, the rule of the quality fact) and brand (the first free-text brand,
 lower-cased, as in `dim_brand`; products with no brand form one row, `(no brand)`, never ranked). A snapshot of the products we hold as they stood at the end of the newest

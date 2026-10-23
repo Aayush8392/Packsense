@@ -216,6 +216,47 @@ models:
       - name: deviation
         description: How far past the limit, in the rule's own unit (rounded to 4 decimals); NULL when not violated or not meaningful for the rule.
 
+  - name: mart_product_card
+    description: >
+      The product card behind the barcode lookup: one row per product we hold, derived facts only, no product text. existence_status keeps products OFF has
+      removed or moved. off_* count OFF's open quality-flag spans on the latest version (error and bug count toward things_flagged, warning and info do not).
+      rules_checkable and rules_failed count our 11 arithmetic rules over the product's input sets. fields_filled is the sum of the seven scorecard fields.
+      light is a CODE (several_flagged, one_flagged, none_flagged, not_enough_data); the words belong to the app. none_flagged never means correct.
+    columns:
+      - name: code
+        data_tests: [unique, not_null]
+      - name: existence_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['unverified', 'present_in_snapshot', 'confirmed_exists', 'confirmed_not_found', 'moved_other_type', 'invalid_code', 'unconfirmed']
+      - name: light
+        description: >
+          several_flagged when things_flagged is at least var card_several_from (2), one_flagged when it is 1, not_enough_data when nothing is flagged and none of
+          our checks could run (rules_checkable = 0), none_flagged otherwise.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['several_flagged', 'one_flagged', 'none_flagged', 'not_enough_data']
+      - name: things_flagged
+        description: off_error + off_bug + rules_failed. Warnings and info flags are not counted.
+        data_tests: [not_null]
+      - name: fields_filled
+        description: How many of the seven scorecard fields are filled on the latest period (0 to 7).
+        data_tests: [not_null]
+      - name: versions_kept
+        data_tests: [not_null]
+      - name: last_edit_t
+        description: Unix time of the newest edit we saw.
+      - name: first_version_edited_t
+        description: Unix time of the OFF edit of the first version we hold; never a creation date.
+      - name: first_period_from_seed
+        description: 1 when the first version we hold came from the one-time dump.
+      - name: in_india
+        description: 1 when the product ever had India in a period.
+
   - name: bridge_product_allergen
     description: >
       Which allergens a history period declares: one row per period, allergen tag and relationship (contains = allergens_tags,
