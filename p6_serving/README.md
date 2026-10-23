@@ -36,6 +36,19 @@ belong to their file by the lookup rule, a size cap, no free text; the barcode c
 staging dataset in the same commit (stale shards are deleted in it), `fetch_site_data.py` fetches them in parallel and verifies every one against the manifest, and `pages.yml` copies them to `/cards/` on the site.
 The publish principal needs `SELECT` on `mart_product_card` (`p5_governance/grants.yml`, with a nightly policy check). The card wording and the traffic-light codes are in the p4 README.
 
+## The four-product showcase (`showcase_lib.py`, `notebooks/showcase_export.py`, `bootstrap/showcase.py`; roadmap Phase B item 12, decision A88)
+
+A ONE-OFF, static walk-through for the "How we work" page: four real products (an ordinary packaged food, one with several OFF flags, one with a long edit history, an Indian one; chosen by the owner from
+production candidates on 2026-10-24) followed through the raw copy (bronze), the cleaned row (silver) and the gold tables. Nothing is scheduled and no token, scope or healthcheck exists for it.
+The admin runs the notebook once (`python p6_serving/bootstrap/showcase.py run --branch <branch> [--dry-run] --env-file .env`); it needs the admin because the raw records hold plaintext contributor names.
+What is changed: every contributor name becomes a labelled stand-in (`contributor-A`, `contributor-B`, ...; the same person has the same label in every product); a known name (8 or more characters, ordinary
+words excluded) is also replaced wherever it appears inside any text or tag, even inside a longer word (a real record was found with a username at the start of an app name); images become one marker;
+scrub patterns (email, web address, ...) are applied to every text; the hashed and lineage columns of the silver row are shown as `hidden on purpose`. Ingredient text is kept in the raw record on purpose,
+so the page can show text going in and a fingerprint coming out. The summary-table rows use the public export's own columns and small-number suppression, and the scorecard row never carries per-brand error counts.
+The notebook checks that no known name is left anywhere in the output, runs the licence gate's showcase rules, and returns COUNTS only. `fetch` brings only the redacted file to
+`p6_serving/showcase/showcase.json` and runs the gate again; the owner reads it before committing; `cleanup` deletes the scratch folder. The Pages build runs the same gate rules on the committed file
+(`p5_governance/bootstrap/check_showcase.py`). Limit, stated on the page: a username shorter than 8 characters inside free text cannot be found reliably; the contributor fields are replaced whatever the length.
+
 ## Identity
 
 The job runs AS `packsense-publish` (a dedicated principal, `run_as`, no stored secret). Its grants are in `p5_governance/grants.yml`: SELECT on the three tables, USE on

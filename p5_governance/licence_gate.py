@@ -13,6 +13,9 @@ link, mention the licence and link to the ODbL, and the page's example wording i
   6. a page (html, md, txt) carries the attribution itself;
   7. every listed file exists, and when the manifest gives a sha256 it matches;
   8. the rendered text is scanned again for the contract's scrub patterns (email, social link, @handle, Aadhaar, PAN, GSTIN, obfuscated email): one hit is a violation;
+  10. the SHOWCASE file (the four-product walk-through, check_showcase): only the allowed keys, four products; every contributor field of a raw record holds only
+     stand-in labels (`contributor-A`, ...); images are the marker; the hashed and lineage columns of the silver row are the `hidden on purpose` marker; no image URL and
+     no scrub pattern in any string (a product's own barcode is left out of that scan); no `_hmac` key; a size cap.
   9. a CARD file (the product-card shards of the barcode lookup, `cards/<prefix>.csv`, and their `cards/splits.json`) has exactly the card columns, a barcode of 8 to 14
      digits, values inside their declared domains (enumerated codes, small non-negative counts, plausible Unix times), sorted unique barcodes that all belong to the
      file by the lookup rule `shard_for`, a size under the hard cap, and no free text anywhere (the barcode column is left out of the pattern re-scan, because a
@@ -56,6 +59,130 @@ CARD_PATH = re.compile(r"^cards/(\d{3,6})\.csv$")
 CARD_INDEX_PATH = "cards/splits.json"
 CARD_MAX_BYTES = 400_000          # a shard above this is refused; the builder splits a shard at about 150 KB, so this is a safety net, not the rule
 CARD_BASE_DEPTH, CARD_MAX_DEPTH = 3, 6
+
+
+# --- the showcase (roadmap Phase B item 12; context amendment A88) ----------------------------------------------------------------------------------------
+SHOWCASE_IMAGES_MARKER = "[images removed]"
+SHOWCASE_HIDDEN_MARKER = "hidden on purpose"
+SHOWCASE_STAND_IN = re.compile(r"^contributor-[A-Z]{1,2}$")
+SHOWCASE_PRODUCT_KEYS = ["ordinary_food", "several_flags", "long_history", "india"]
+SHOWCASE_TOP_KEYS = {"version", "built_at_utc", "source", "licence", "attribution", "markers", "stand_ins", "products"}
+SHOWCASE_PRODUCT_FIELDS = {"key", "code", "name", "brand", "bronze", "silver", "gold"}
+SHOWCASE_GOLD_KEYS = {"product_history", "product_flag_spans", "product_nutrition_sets", "product_rule_verdicts", "mart_product_card", "mart_brand_scorecard",
+                      "fct_product_change_daily", "fct_catalogue_quality_daily"}
+SHOWCASE_MAX_BYTES = 1_500_000
+
+
+def _strings(v):
+    if isinstance(v, dict):
+        for k, x in v.items():
+            yield k
+            yield from _strings(x)
+    elif isinstance(v, list):
+        for x in v:
+            yield from _strings(x)
+    elif isinstance(v, str):
+        yield v
+
+
+def _unhidden_hmac_keys(v) -> int:
+    """Keys ending in _hmac whose value is not the hidden marker (the silver row lists those columns, with the marker as their value)."""
+    n = 0
+    if isinstance(v, dict):
+        for k, x in v.items():
+            if isinstance(k, str) and k.endswith("_hmac") and x != SHOWCASE_HIDDEN_MARKER:
+                n += 1
+            n += _unhidden_hmac_keys(x)
+    elif isinstance(v, list):
+        for x in v:
+            n += _unhidden_hmac_keys(x)
+    return n
+
+
+def check_showcase(path: str | Path, today: datetime.date | None = None) -> list[str]:
+    """All violations of the committed showcase file (empty list = it passes). Reports counts and key names, never a value."""
+    path = Path(path)
+    if not path.is_file():
+        return [f"{path.name}: not a file"]
+    raw = path.read_bytes()
+    if len(raw) > SHOWCASE_MAX_BYTES:
+        return [f"{path.name}: larger than the {SHOWCASE_MAX_BYTES} byte cap"]
+    try:
+        doc = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return [f"{path.name}: not valid UTF-8 JSON"]
+    out = []
+    if not isinstance(doc, dict) or set(doc) != SHOWCASE_TOP_KEYS:
+        return [f"{path.name}: the top-level keys must be exactly {sorted(SHOWCASE_TOP_KEYS)}"]
+    out.extend(check_manifest({"source": doc["source"], "source_dump_date": str(doc["built_at_utc"])[:10], "licence": doc["licence"], "attribution": doc["attribution"],
+                               "exit_function": {"called": True, "module": "showcase_lib", "residue_scan": "passed"},
+                               "files": [{"path": path.name, "kind": "data"}]}, today))
+    if doc["markers"] != {"images": SHOWCASE_IMAGES_MARKER, "hidden": SHOWCASE_HIDDEN_MARKER}:
+        out.append("showcase: the markers must be the fixed marker texts")
+    c = silver_contract.load()
+    never = {x["name"] for x in c["columns"] if x.get("egress") == "never" or x.get("class") in ("hashed", "lineage")}
+    products = doc["products"]
+    if not isinstance(products, list) or [p.get("key") for p in products if isinstance(p, dict)] != SHOWCASE_PRODUCT_KEYS:
+        return out + [f"showcase: the products must be exactly {SHOWCASE_PRODUCT_KEYS}, in that order"]
+    used_labels: set[str] = set()
+    codes = []
+    for p in products:
+        k = p["key"]
+        if set(p) != SHOWCASE_PRODUCT_FIELDS:
+            out.append(f"{k}: the product keys must be exactly {sorted(SHOWCASE_PRODUCT_FIELDS)}")
+            continue
+        if not isinstance(p["code"], str) or not CARD_CODE.match(p["code"]):
+            out.append(f"{k}: code is not 8 to 14 digits")
+        else:
+            codes.append(p["code"])
+        bronze, silver, gold = p["bronze"], p["silver"], p["gold"]
+        if not isinstance(bronze, dict) or set(bronze) != {"record", "counts"} or not isinstance(bronze["record"], dict):
+            out.append(f"{k}: bronze must hold exactly record and counts")
+            continue
+        rec = bronze["record"]
+        for f in c["personal_source_fields"]:
+            v = rec.get(f)
+            for x in (v if isinstance(v, list) else [v]):
+                if x in (None, ""):
+                    continue
+                if not isinstance(x, str) or not SHOWCASE_STAND_IN.match(x):
+                    out.append(f"{k}: the contributor field {f} holds something other than a stand-in label")
+                else:
+                    used_labels.add(x)
+        for f in ("images", "selected_images"):
+            if rec.get(f) not in (None, "", SHOWCASE_IMAGES_MARKER):
+                out.append(f"{k}: {f} must be the images marker")
+        if not isinstance(silver, dict) or set(silver) != {"row", "counts"} or not isinstance(silver["row"], dict):
+            out.append(f"{k}: silver must hold exactly row and counts")
+        else:
+            bad = sorted(n for n in never if silver["row"].get(n) != SHOWCASE_HIDDEN_MARKER)
+            if bad:
+                out.append(f"{k}: the hashed and lineage columns {bad} must be 'hidden on purpose'")
+        if not isinstance(gold, dict) or set(gold) != SHOWCASE_GOLD_KEYS:
+            out.append(f"{k}: gold must hold exactly {sorted(SHOWCASE_GOLD_KEYS)}")
+    stand_ins = doc["stand_ins"]
+    if not isinstance(stand_ins, list) or not all(isinstance(x, str) and SHOWCASE_STAND_IN.match(x) for x in stand_ins) or len(stand_ins) != len(set(stand_ins)):
+        out.append("showcase: stand_ins must be a list of unique stand-in labels")
+    elif not used_labels <= set(stand_ins):
+        out.append("showcase: a stand-in label is used that the roster does not list")
+    patterns = personal.compile_patterns(c)
+    hits_img = hits_pat = 0
+    hits_hmac = _unhidden_hmac_keys(doc)
+    for s in _strings(doc):
+        text = s
+        for code in codes:
+            text = text.replace(code, "")
+        if IMAGE_URL.search(text):
+            hits_img += 1
+        if any(patterns[pat].search(text) for pat in RESCAN):
+            hits_pat += 1
+    if hits_img:
+        out.append(f"showcase: {hits_img} string(s) with an image URL or image data")
+    if hits_pat:
+        out.append(f"showcase: {hits_pat} string(s) match a scrub pattern (email, social link, handle, Aadhaar, PAN, GSTIN)")
+    if hits_hmac:
+        out.append(f"showcase: {hits_hmac} key(s) end in _hmac")
+    return out
 
 
 def shard_for(code: str, splits) -> str:

@@ -46,6 +46,9 @@ jobs:
         run: |
           pip install --no-cache-dir --require-hashes -r requirements-dev.lock
           python p5_governance/bootstrap/check_release.py site_release
+      - name: Licence gate on the showcase file (stand-ins only, images and hashed columns marked), when it is committed
+        run: |
+          if [ -f p6_serving/showcase/showcase.json ]; then python p5_governance/bootstrap/check_showcase.py p6_serving/showcase/showcase.json; else echo "no showcase file committed yet"; fi
       - name: Put the data files where Evidence reads them
         run: cp site_release/*.csv p6_serving/site/sources/site/
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
