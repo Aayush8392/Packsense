@@ -1,0 +1,31 @@
+subject,level,check_name,observed,baseline_low,baseline_high,detail
+1053923856838696,WARN,new_field_family,,,,new field family: ecoscore_score
+190536223723095,WARN,new_field_family,,,,new field family: old_product_type
+190536223723095,WARN,new_field_family,,,,new field family: quantity_unit
+190536223723095,WARN,new_field_family,,,,new field family: quantity_unit_imported
+190536223723095,WARN,new_field_family,,,,new field family: quantity_value
+190536223723095,WARN,new_field_family,,,,new field family: quantity_value_imported
+376243823077490,WARN,new_field_family,,,,new field family: additives_debug_tags
+376243823077490,WARN,new_field_family,,,,new field family: additives_old_n
+376243823077490,WARN,new_field_family,,,,new field family: additives_prev_original_tags
+376243823077490,WARN,new_field_family,,,,new field family: volume_unit
+376243823077490,WARN,new_field_family,,,,new field family: volume_value
+674969610285938,WARN,new_field_family,,,,new field family: categories_debug_tags
+674969610285938,WARN,new_field_family,,,,new field family: categories_prev_hierarchy
+674969610285938,WARN,new_field_family,,,,new field family: categories_prev_tags
+674969610285938,WARN,new_field_family,,,,new field family: ecoscore_data
+674969610285938,WARN,new_field_family,,,,new field family: ecoscore_grade
+674969610285938,WARN,new_field_family,,,,new field family: ecoscore_score
+674969610285938,WARN,new_field_family,,,,new field family: generic_name_debug_tags
+674969610285938,WARN,new_field_family,,,,new field family: periods_after_opening_debug_tags
+952037966296428,WARN,new_field_family,,,,new field family: additives_old_tags
+952037966296428,WARN,new_field_family,,,,new field family: not_names_tags
+openfoodfacts_products_1791181482_1791268364.json.gz,WARN,coverage_rise,49.137,35.507,41.793,"quantity_amount: 49.1% of products have a value, the recent days had 35.5-41.8%"
+openfoodfacts_products_1791181482_1791268364.json.gz,WARN,coverage_rise,49.137,35.507,41.793,"quantity_unit: 49.1% of products have a value, the recent days had 35.5-41.8%"
+openfoodfacts_products_1791181482_1791268364.json.gz,WARN,coverage_rise,48.956,34.375,40.142,"ingredients_sha256: 49.0% of products have a value, the recent days had 34.4-40.1%"
+openfoodfacts_products_1791181482_1791268364.json.gz,WARN,coverage_rise,43.892,29.395,35.579,"nova_group: 43.9% of products have a value, the recent days had 29.4-35.6%"
+openfoodfacts_products_1791181482_1791268364.json.gz,WARN,coverage_rise,52.835,39.717,43.983,"added_sugars: 52.8% of products have a value, the recent days had 39.7-44.0%"
+openfoodfacts_products_1791181482_1791268364.json.gz,WARN,coverage_rise,21.456,12.474,16.203,"starch: 21.5% of products have a value, the recent days had 12.5-16.2%"
+openfoodfacts_products_1791181482_1791268364.json.gz,WARN,coverage_rise,60.142,44.47,50.621,"fiber: 60.1% of products have a value, the recent days had 44.5-50.6%"
+openfoodfacts_products_1791181482_1791268364.json.gz,WARN,coverage_rise,25.503,2.907,6.547,"owner_hmac: 25.5% of products have a value, the recent days had 2.9-6.5%"
+openfoodfacts_products_1792045568_1792132384.json.gz,ALERT,failure_rate,10.413379615020512,0.29295444558371175,3.4096144985409307,"tags:traces_tags: 660 of 6338 products (10.41 per 100), the recent days had 0.29-3.41"

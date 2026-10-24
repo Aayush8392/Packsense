@@ -84,3 +84,6 @@ p6_serving/bot/packsense_faq_test_questions.txt
 p6_serving/bot/external_labels.psv
 p6_serving/bot/fresh_labels.psv
 p6_serving/bot/fresh2_labels.psv
+
+# a one-off measurement log (counts of tokens per call); the script that makes it is committed
+p8_steward/bootstrap/measure_tokens_result.json

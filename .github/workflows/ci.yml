@@ -28,7 +28,7 @@ jobs:
           python-version: "3.12" # the version the capture workflow runs on
       - run: pip install --no-cache-dir --require-hashes -r requirements-dev.lock
       - name: Unit tests (real sanitised records only, no network, no Databricks)
-        run: python -m pytest p1_intake/tests p2_lakehouse/tests p3_delivery/tests p4_modelling/tests p5_governance/tests p6_serving/tests p7_triage_ml/tests p9_operations/tests tools/tests -q
+        run: python -m pytest p1_intake/tests p2_lakehouse/tests p3_delivery/tests p4_modelling/tests p5_governance/tests p6_serving/tests p7_triage_ml/tests p8_steward/tests p9_operations/tests tools/tests -q
 
   lint:
     runs-on: ubuntu-latest
