@@ -3,3 +3,10 @@ target-version = "py312"
 
 # Databricks notebooks run with these globals already defined; without this ruff reports every use as an undefined name.
 builtins = ["spark", "dbutils", "display", "sc"]
+
+# The frozen question-bot system (p6_serving/bot/FROZEN_V7.txt) records the checksums of these evaluation scripts, so they are not edited to satisfy the linter (owner decision, 2026-10-25).
+# The shipping matcher itself is linted normally.
+[lint.per-file-ignores]
+"p6_serving/bot/evaluate_v2.py" = ["F401", "E731"]
+"p6_serving/bot/make_seen_wordings.py" = ["F841"]
+"p6_serving/bot/pooled_cv.py" = ["E731"]
