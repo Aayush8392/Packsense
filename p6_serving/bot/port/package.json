@@ -1,0 +1,9 @@
+{
+  "name": "packsense-bot-port",
+  "private": true,
+  "type": "module",
+  "description": "Browser port of the question matcher: parity check against the Python version",
+  "dependencies": {
+    "@huggingface/transformers": "4.3.1"
+  }
+}
