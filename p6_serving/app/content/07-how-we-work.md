@@ -1,6 +1,6 @@
 ---
 slug: how-we-work
-title: How we work
+title: How PackSense works
 section: How it works
 order: 7
 question: How does raw data become the tables you see?
@@ -16,14 +16,14 @@ design_notes:
 
 This page follows real products through the three steps every record goes through. Everything shown is real data. Where something private was removed, the page says so and shows the gap.
 
-**Step 1: the raw copy (we call it bronze).** Every morning we download Open Food Facts' newest file and store it exactly as it arrived, untouched. It is messy: the file uses about 6,000 differently named fields, which fall into roughly 376 families, and it includes the usernames of the volunteers who edited each product. *Shown here: one real product's raw record, with usernames and images replaced by a marker.*
+**Step 1: the raw copy (called bronze).** Every morning the newest Open Food Facts file is downloaded and stored exactly as it arrived, untouched. It is messy: the file uses about 6,000 differently named fields, which fall into roughly 376 families, and it includes the usernames of the volunteers who edited each product. *Shown here: one real product's raw record, with usernames and images replaced by a marker.*
 
-**Step 2: the cleaned copy (silver).** We keep a fixed set of 81 columns. Mistakes are caught here: tags that do not look like tags are dropped and counted, web addresses and email-like text are removed, and volunteers' usernames are turned into scrambled codes that never leave the private side. *Shown here: the same product as one cleaned row, with the hidden columns marked "hidden on purpose".*
+**Step 2: the cleaned copy (silver).** A fixed set of 81 columns is kept. Mistakes are caught here: tags that do not look like tags are dropped and counted, web addresses and email-like text are removed, and volunteers' usernames are turned into scrambled codes that never leave the private side. *Shown here: the same product as one cleaned row, with the hidden columns marked "hidden on purpose".*
 
-**Step 3: the tables for answers (gold).** From the cleaned copy we build the tables this site shows: each product's history, the flags it carried and when, its nutrition by source, and the daily summaries. *Shown here: the same product's history and flags, then one row from each summary table.*
+**Step 3: the tables for answers (gold).** From the cleaned copy, the tables this site shows are built: each product's history, the flags it carried and when, its nutrition by source, and the daily summaries. *Shown here: the same product's history and flags, then one row from each summary table.*
 
 ## What this page can and cannot tell you
 
 - The products are a handful picked to show the steps. They are not a search over the whole copy.
-- Removing private parts is checked and measured, but we state it as a measured limit, not as a guarantee.
-- The raw copy is never shown whole. It holds volunteers' usernames, which Open Food Facts publishes but we do not republish.
+- Removing private parts is checked and measured, but it is stated as a measured limit, not as a guarantee.
+- The raw copy is never shown whole. It holds volunteers' usernames, which Open Food Facts publishes but PackSense does not republish.

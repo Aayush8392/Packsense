@@ -19,4 +19,4 @@ Every day, some Indian products are added or edited on Open Food Facts. This pag
 - "Today" means the most recent file OFF has published. It runs from about 06:30 UTC the day before to 06:30 UTC today.
 - The counts and the example are a record of edits. It does not say whether an edit was right.
 - Some days hundreds of products arrive in one burst, probably a bulk import. The page shows these as they are and does not judge them.
-- We do not show who made an edit.
+- The page does not show who made an edit.

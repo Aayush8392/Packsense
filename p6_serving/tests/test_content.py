@@ -49,7 +49,7 @@ def test_every_table_page_has_the_can_and_cannot_note():
 def test_the_about_page_keeps_the_safety_line_and_the_wording_rule():
     _, body = PAGES["12-about.md"]
     assert "Do not use this site to decide whether a food is safe for you" in body
-    assert 'We never say "correct"' in body
+    assert 'It never says "correct"' in body
     assert "contact" not in body.lower().replace("no contact", "")
 
 
@@ -62,7 +62,7 @@ def test_the_checked_claims_are_listed_and_really_in_the_text():
 
 def test_page_two_lists_all_eleven_checks_in_the_order_of_the_rules():
     _, body = PAGES["02-how-we-differ.md"]
-    section = body.split("## The 11 checks", 1)[1].split("**What we do not claim.**", 1)[0]
+    section = body.split("## The 11 checks", 1)[1].split("**What PackSense does not claim.**", 1)[0]
     items = re.findall(r"^(\d+)\. \*\*(.+?)\*\*", section, re.M)
     assert [n for n, _ in items] == [str(i) for i in range(1, 12)]
     sys.path.insert(0, str(ROOT / "p7_triage_ml"))
@@ -81,6 +81,11 @@ def test_the_lookup_signal_labels_cover_exactly_the_cards_light_codes():
     assert "worth a look, not wrong" in labels["several_flagged"]["line"] and "no nutrition table" in labels["not_enough_data"]["line"]
     for v in labels.values():
         assert v["label"] in body or v["label"].split(" ")[0] in body
+
+
+def test_the_page_text_is_impersonal():
+    for name, (_, body) in PAGES.items():
+        assert not re.search(r"\b(we|our|ours|us)\b", body, re.I), name
 
 
 def test_no_page_makes_a_correctness_claim_or_names_a_person_or_contact():

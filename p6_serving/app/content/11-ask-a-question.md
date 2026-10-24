@@ -14,4 +14,4 @@ design_notes:
 
 Type a question about the data, for example "Which brands fill in their products best?" The page finds the closest ready-made question and shows its answer. The answers were written and checked in advance. Nothing is invented while you wait.
 
-If we have no good match, it says so and offers the three closest questions. It will not give advice. A question like "is this safe to eat?" gets a short, fixed reply explaining that this is crowd-edited data and not a source of food advice.
+If there is no good match, it says so and offers the three closest questions. It will not give advice. A question like "is this safe to eat?" gets a short, fixed reply explaining that this is crowd-edited data and not a source of food advice.

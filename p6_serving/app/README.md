@@ -16,7 +16,7 @@ Rules that hold for this text (decisions in the context file, A84 to A90):
 **Open before the site is released:**
 - Page 02's three claims in `checked_claims` were checked on 2026-10-24 against Open Food Facts's own pages (more than four million products, more than 100,000 contributors, photos of the packs).
   Open Food Facts gives no 'as of' date, so re-check them whenever the page is next edited.
-- The page texts use "we" and "our copy". The question bot speaks impersonally ("PackSense", "the site"), so the pages are rewritten the same way when the app is built (owner's decision, 2026-10-24).
+- The page texts were rewritten in the impersonal voice on 2026-10-24 (a test enforces it). The slugs `how-we-differ` and `how-we-work` and the `design_notes` still say "we"; the titles do not.
 - Page 10 must say the number is typed (camera scanning is not offered).
 - Page 01 (Home): the owner wants to discuss showing more important numbers than the three listed.
 - Page 10 (barcode lookup) carries the signal wording decided on 2026-10-24 (the first draft's words were replaced) and the lookup rule for the product-card files.

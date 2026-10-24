@@ -16,7 +16,7 @@ PackSense runs by itself every day, with nobody pressing buttons. This page is t
 
 ## What this page can and cannot tell you
 
-- A run that did not succeed is counted, whatever the reason. A test we started on purpose looks the same as a real fault.
+- A run that did not succeed is counted, whatever the reason. A test started on purpose looks the same as a real fault.
 - It shows the last 90 days.
-- It does not show storage size or running costs. We deliberately keep money and usage limits off this site.
+- It does not show storage size or running costs. Money and usage limits are deliberately kept off this site.
 - A green board means the jobs ran, not that the data is right.

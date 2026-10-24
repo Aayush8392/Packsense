@@ -183,8 +183,8 @@
   q: "Does this site use AI?"
   alt: ["Does this site use AI?"]
   kind: today
-  status: deferred
-  a: "(Deferred until the AI parts exist.) The checks, flags and numbers are computed by code, not by AI."
+  status: shown
+  a: "Only in the question box. A small AI model, running in your browser, compares your words with prepared questions. It writes nothing. The checks, flags and numbers come from code."
 - id: "16.3"
   q: "Is this chatbot an AI like ChatGPT? How does it find its answers?"
   alt: ["Is this chatbot an AI like ChatGPT?", "How does the chatbot find its answers?"]
@@ -195,65 +195,65 @@
   q: "What is the AI reading under a table?"
   alt: ["What is the \"AI reading\" under a table?"]
   kind: today
-  status: deferred
-  a: "(Deferred until it exists.) A short description of what a table's numbers show, written by a language model from numbers computed by code. It describes only and gives no advice."
+  status: shown
+  a: "There is none yet. Nothing on this site is generated while you read it."
 - id: "16.7"
   q: "Can the AI make mistakes?"
   alt: ["Can the AI make mistakes?"]
   kind: plain
-  status: deferred
-  a: "Yes. Code computes every number and checks the text against them, but a check on numbers cannot check meaning, so a reading can still be misleading. That is why it is labelled AI-generated and unreviewed."
+  status: shown
+  a: "Yes. The question box can pick the wrong prepared answer. When it is unsure, it shows the closest options instead of guessing."
 - id: "16.10"
   q: "Why does the AI only describe the data and never give advice?"
   alt: ["Why does the AI only describe the data and never give advice?"]
   kind: design
-  status: deferred
-  a: "A description can be checked against the numbers. Advice cannot, and could mislead."
+  status: shown
+  a: "The site only describes what the data holds. A description can be checked against the numbers. Advice cannot, and could mislead."
 - id: "16.11"
   q: "Why doesn't the AI explain why something happened?"
   alt: ["Why doesn't the AI explain why something happened?"]
   kind: design
-  status: deferred
-  a: "An explanation of why would be a guess that cannot be checked, so the AI says only what the numbers show."
+  status: shown
+  a: "The data shows what changed, not why. A reason would be a guess that cannot be checked, so the site does not offer one."
 - id: "16.12"
   q: "Does AI decide the flags or the traffic light?"
   alt: []
   kind: plain
-  status: deferred
+  status: shown
   a: "No. Flags and the four labels come from fixed rules and Open Food Facts' own checks."
 - id: "16.13"
   q: "Does the AI see personal information?"
   alt: ["Does the AI see personal information?"]
   kind: plain
-  status: deferred
-  a: "No. It is given computed facts only, never usernames."
+  status: shown
+  a: "No. What you type stays in your browser. The published data holds no usernames."
 - id: "16.14"
   q: "Which AI model is used?"
   alt: ["Which AI model is used?"]
   kind: fixed
-  status: deferred
+  status: shown
   a: "@ai_model"
 - id: "16.2"
   q: "Where is AI used on this site?"
   alt: []
   kind: today
-  status: deferred
-  a: "(Deferred until the AI parts exist.) Only in the short readings under some tables, which describe numbers computed by code."
+  status: shown
+  a: "Only in the question box, where a small model matches what you type to prepared answers. Nothing is generated while you use the site."
 - id: "16.5"
   q: "Is my question sent to an AI?"
   alt: []
   kind: plain
-  status: deferred
+  status: shown
   a: "No. Your question is matched in your browser against prepared answers and goes nowhere else."
 - id: "16.8"
   q: "How is AI-written text checked?"
   alt: []
   kind: plain
-  status: deferred
-  a: "Code checks every number and every named column in the text against the facts it was written from. It cannot check meaning, which is why the text is labelled AI-generated and unreviewed."
+  status: shown
+  a: "Nothing is generated on the site, so nothing needs checking. The answers in the question box are prepared in advance and tested before they are published."
 - id: "16.9"
   q: "Does a person review the AI text?"
   alt: []
   kind: today
-  status: deferred
-  a: "(Deferred until it exists.) The readings are published unreviewed and labelled that way."
+  status: shown
+  a: "There is no AI-written text to review. The prepared answers are fixed before they are published."
