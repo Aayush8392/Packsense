@@ -53,10 +53,22 @@ def test_the_about_page_keeps_the_safety_line_and_the_wording_rule():
     assert "contact" not in body.lower().replace("no contact", "")
 
 
-def test_the_unverified_claims_are_listed_and_really_in_the_text():
+def test_the_checked_claims_are_listed_and_really_in_the_text():
     m, body = PAGES["02-how-we-differ.md"]
-    assert set(m["unverified_claims"]) == {"millions of products", "thousands of volunteers", "photos of the packs"}
-    assert all(c in body for c in m["unverified_claims"])
+    assert "unverified_claims" not in m
+    assert set(m["checked_claims"]) == {"more than four million products", "more than 100,000 contributors", "photos of the packs"}
+    assert all(c in body for c in m["checked_claims"])
+
+
+def test_page_two_lists_all_eleven_checks_in_the_order_of_the_rules():
+    _, body = PAGES["02-how-we-differ.md"]
+    section = body.split("## The 11 checks", 1)[1].split("**What we do not claim.**", 1)[0]
+    items = re.findall(r"^(\d+)\. \*\*(.+?)\*\*", section, re.M)
+    assert [n for n, _ in items] == [str(i) for i in range(1, 12)]
+    sys.path.insert(0, str(ROOT / "p7_triage_ml"))
+    import rules_lib  # noqa: E402
+    assert len(items) == len(rules_lib.RULES)
+    assert "A check is skipped when a number it needs is missing" in section
 
 
 def test_the_lookup_signal_labels_cover_exactly_the_cards_light_codes():

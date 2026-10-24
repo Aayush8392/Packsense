@@ -1,0 +1,202 @@
+# Answer catalogue, topics 1 and 2. Voice: impersonal ("PackSense", "the site"), plain words, answer first. `alt` holds only wordings from the WORKING question set.
+# kind: plain | sourced | measured | design | today | data | fixed | definition.  status: draft | shown (in the review doc) | needs_decision | deferred.
+# `today` answers end with the shared closing line (see fixed.yml: closing_line).
+- id: "1.1"
+  q: "What is PackSense?"
+  alt: ["What does this website do?", "Can you explain this site in simple words?"]
+  kind: plain
+  status: draft
+  a: "PackSense takes a copy of Open Food Facts, a free database of packaged food written by volunteers, every morning. It keeps every version of every product it sees, checks the copy and shows what it finds. It starts with India."
+- id: "1.2"
+  q: "What problem does PackSense solve?"
+  alt: ["Why does this site exist?"]
+  kind: plain
+  status: draft
+  a: "Open Food Facts is large and useful, but anyone can edit it, so mistakes get in. Examples are a calorie figure that does not match the fat and sugar, a missing ingredient list, or a product entered twice. Anyone using the data has to clean and keep their own copy. PackSense does that every day and shows what it finds."
+- id: "1.3"
+  q: "What is different now that this site exists?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "There is a checked copy of Open Food Facts, made every morning. The history of each product is kept, along with daily counts of edits, open flags and a monthly India download. Open Food Facts itself is not changed."
+- id: "1.4"
+  q: "Who is this site meant for?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Anyone who wants a daily, checked picture of packaged food data: people building food, grocery or nutrition apps, people who care about data quality, and curious visitors. It is not for deciding whether a food is safe for you."
+- id: "1.5"
+  q: "Do I need to understand nutrition or data to use this?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "No. The pages are written in plain language, and each one says what it can and cannot tell you."
+- id: "1.6"
+  q: "What can I do on this site?"
+  alt: ["What can I do on this site?"]
+  kind: plain
+  status: draft
+  a: "You can see which brands fill in their product information and whether the data is getting better or worse. You can see what changed in India today and download the India data for free. You can also follow real products from raw data to finished tables."
+- id: "1.7"
+  q: "What does PackSense not do?"
+  alt: ["What does PackSense not do?"]
+  kind: plain
+  status: draft
+  a: "It never says a product is right or wrong, because nobody holds the true figures. It does not edit Open Food Facts, give food advice, show photos or ingredient text, or check products against the real pack."
+- id: "1.8"
+  q: "Is PackSense a food app I can use in the shop?"
+  alt: ["Is PackSense a food app I can use in the shop?"]
+  kind: plain
+  status: draft
+  a: "No. It is a website about the data, not a shopping app. You can type a barcode to see what PackSense knows about a product, but it does not tell you whether to buy it."
+- id: "1.9"
+  q: "Is PackSense official or connected to Open Food Facts?"
+  alt: ["Is PackSense official, or connected to Open Food Facts?"]
+  kind: plain
+  status: draft
+  a: "No. PackSense is an independent project. Open Food Facts does not run it or vouch for it. The data comes from Open Food Facts under the Open Database License."
+- id: "1.10"
+  q: "What does the name PackSense mean?"
+  alt: ["What does the name PackSense mean?"]
+  kind: plain
+  status: draft
+  a: "It is about making sense of the data on food packs: what is printed on a pack, how it was entered, and whether it adds up."
+- id: "1.11"
+  q: "Why did PackSense start with India?"
+  alt: ["Why did PackSense start with India?", "Why is India the main country here?"]
+  kind: measured
+  status: shown
+  a: "The Indian part of Open Food Facts is thinner than the rest. In an early check, fewer than half of Indian products had nutrition data, against roughly three quarters worldwide. A checked, tracked copy helps most where the gaps are biggest. India is also small enough to hold completely, about 25,000 products."
+- id: "1.12"
+  q: "Are other countries covered?"
+  alt: ["Are other countries covered?"]
+  kind: today
+  status: shown
+  a: "India is covered completely: every product that was on Open Food Facts in mid-October 2026, plus everything edited since. For other countries, PackSense holds only products edited since 30 September 2026, so a product may be missing."
+- id: "1.13"
+  q: "Will more countries be added?"
+  alt: []
+  kind: today
+  status: shown
+  a: "Today PackSense covers India completely and other countries only in part."
+- id: "1.14"
+  q: "Does it cost anything to use?"
+  alt: ["Does it cost anything to use?"]
+  kind: today
+  status: shown
+  a: "Using the site and downloading the India data is free."
+- id: "1.15"
+  q: "Who made PackSense?"
+  alt: []
+  kind: fixed
+  status: shown
+  a: "@owner_line"
+- id: "1.16"
+  q: "Is the code public? Can I see how it is built?"
+  alt: ["Is the code public? Can I see how it is built?"]
+  kind: fixed
+  status: shown
+  a: "@code_line"
+- id: "2.1"
+  q: "Where does the data come from?"
+  alt: ["Where does the data come from?", "Who collected all this information?"]
+  kind: sourced
+  status: draft
+  a: "From Open Food Facts, a free database of packaged food made by volunteers all over the world. PackSense takes a copy every morning."
+- id: "2.2"
+  q: "What is Open Food Facts?"
+  alt: ["What is Open Food Facts?"]
+  kind: plain
+  status: draft
+  a: "A free, open database of packaged food. Volunteers add products and fix them, and anyone can use the data under the Open Database License."
+- id: "2.3"
+  q: "Who adds information to Open Food Facts?"
+  alt: ["Who adds the information to Open Food Facts?"]
+  kind: sourced
+  status: draft
+  a: "Volunteers. Anyone can create an account and add or fix a product. Open Food Facts counts more than 100,000 contributors."
+- id: "2.4"
+  q: "What does crowd-edited mean?"
+  alt: ["What does \"crowd-edited\" mean?"]
+  kind: plain
+  status: draft
+  a: "It means the data is written and fixed by many ordinary people instead of one company. That makes it large and fresh, but entries can be missing or wrong."
+- id: "2.5"
+  q: "Can I trust data that anyone can edit?"
+  alt: ["Can I trust data that anyone can edit?"]
+  kind: plain
+  status: shown
+  a: "Treat it with care. Anyone can add or fix a product, so entries can be missing, out of date or wrong. PackSense does not check them against the real pack. It shows whether an entry agrees with itself and with Open Food Facts' own rules."
+- id: "2.6"
+  q: "How big is Open Food Facts?"
+  alt: ["How many products does Open Food Facts have?"]
+  kind: sourced
+  status: draft
+  a: "More than four million products from about 150 countries, according to Open Food Facts' own site."
+- id: "2.7"
+  q: "Is every packaged food in the world in there?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "No. Open Food Facts holds what volunteers have added, so many products are missing. PackSense's copy is smaller still: all of India, and elsewhere only products edited since 30 September 2026."
+- id: "2.8"
+  q: "Is it only food?"
+  alt: ["Are all the products food?"]
+  kind: measured
+  status: draft
+  a: "No. Open Food Facts users also add cosmetics, medicines, electronics and pet food, and PackSense has not filtered them out."
+- id: "2.9"
+  q: "Is the data free?"
+  alt: []
+  kind: sourced
+  status: draft
+  a: "Yes. Open Food Facts data is free to use under the Open Database License, with credit."
+- id: "2.10"
+  q: "What licence is the data under?"
+  alt: ["What licence is the data under?", "Am I allowed to use this data?"]
+  kind: sourced
+  status: shown
+  a: "@licence_plain"
+- id: "2.11"
+  q: "How do I credit the data?"
+  alt: []
+  kind: sourced
+  status: shown
+  a: "@credit_line"
+- id: "2.12"
+  q: "Does PackSense add data of its own?"
+  alt: ["Does PackSense add any data of its own?"]
+  kind: plain
+  status: draft
+  a: "Only things it works out from the copy. These are how many versions a product has, daily counts of edits, open flags, the results of its 11 checks, and whether a product is still on Open Food Facts. It adds no product facts of its own."
+- id: "2.13"
+  q: "Why are there no product photos?"
+  alt: []
+  kind: design
+  status: draft
+  a: "Photos on Open Food Facts carry licences set by the people who took them. PackSense publishes facts it works out from the data, not product content, which keeps its files simple to share under the data licence."
+- id: "2.14"
+  q: "Why are ingredient lists not shown?"
+  alt: []
+  kind: design
+  status: draft
+  a: "Ingredient lists are free text, which can hold personal details, and sharing product text brings extra licence duties. So PackSense keeps a fingerprint of the text, not the text itself."
+- id: "2.15"
+  q: "Why Open Food Facts and not another source?"
+  alt: ["Why Open Food Facts and not another source?"]
+  kind: design
+  status: shown
+  a: "Open Food Facts is open, covers packaged food in many countries and allows copying and sharing with credit. PackSense is built on it."
+- id: "2.16"
+  q: "Does the data contain information about people?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Only about the people who edit products, and only as scrambled codes that stay private. The site never shows names. A volunteer may sometimes type personal details into a product name; PackSense removes the kinds it can recognise."
+- id: "2.17"
+  q: "Is the privacy of contributors protected, and how?"
+  alt: ["Is the privacy of the people who edit products protected, and how?"]
+  kind: plain
+  status: shown
+  same_as: "10.2"
+  a: "Yes, as far as it can be measured. PackSense replaces each username with a scrambled code that never leaves the private side, never shows names, and removes emails, web addresses and similar details from product text. It is a measured limit, not a promise."

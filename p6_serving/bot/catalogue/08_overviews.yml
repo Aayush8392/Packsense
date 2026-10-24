@@ -1,0 +1,50 @@
+# Overview (hub) answers for topics that had no single general entry. Ids start at 18 so they never clash with the decline ids (17.x) used by the test questions.
+- id: "18.1"
+  q: "How does the brand ranking work?"
+  alt: ["What is the brand ranking?", "How are brands ranked?", "how do you rank brands"]
+  kind: plain
+  status: draft
+  a: "PackSense ranks brands by how many of seven key fields their products fill in on Open Food Facts. Only brands with 30 or more products are ranked, because with fewer, one missing value moves the score a lot. The tables show the most complete and the least complete brands, and a single brand's own score can be looked up. The ranking is about how complete entries are, not about the brands themselves."
+- id: "18.2"
+  q: "What are flags and checks?"
+  alt: ["How do flags and checks work?", "What are the nutrition checks?", "how does flagging work"]
+  kind: plain
+  status: draft
+  a: "A flag is a note on a product that something looks wrong or odd: a figure that does not fit the others, a missing field, an odd value. Flags come from 11 simple sums on the nutrition numbers, such as calories not being bigger than kilojoules. Each check works out what the numbers should add up to and flags the product if the gap is bigger than the allowed margin. The 11 are the sums that Open Food Facts already runs on its own data, so the number is not picked. Flagged means worth a look, not that the product is wrong. The checks are not enough on their own. They catch numbers that contradict each other. They miss a wrong figure that still adds up, such as a wrong name or a missing ingredient. Nothing flagged does not mean the entry is right."
+# Entries added 2026-10-25 for questions the catalogue could not answer. Every fact comes from the site pages or from existing answers; none is invented.
+- id: "18.3"
+  q: "Can I search for a product by name?"
+  alt: ["Can I look up a product by its name?", "Is there a name search?"]
+  kind: plain
+  status: draft
+  a: "No. The lookup works with a barcode number, not a name. Type the number printed under the barcode."
+- id: "18.4"
+  q: "Can I see what changed between two versions of a product?"
+  alt: ["Can I compare two dates for one product?", "Can I see an old version next to the new one?"]
+  kind: plain
+  status: draft
+  a: "No. The card lists how many versions PackSense has kept, when the product was last edited and the first version it holds. It does not show what changed between versions."
+- id: "18.5"
+  q: "Can I see which checks a product failed?"
+  alt: ["Does the card name the checks that flagged a product?", "Which check flagged this product?"]
+  kind: plain
+  status: draft
+  a: "The card gives the number of PackSense's arithmetic checks that the product fails. It does not name them. The 11 checks are described in plain words on the page that compares PackSense with Open Food Facts."
+- id: "18.6"
+  q: "Does the India file include flags or check results?"
+  alt: ["Are the flags in the download?", "Does the spreadsheet have the check results?"]
+  kind: plain
+  status: draft
+  a: "Yes, as counts. Each product has counts of open flags. A short guide in plain words explains every column."
+- id: "18.7"
+  q: "Can I download only the flagged products?"
+  alt: ["Is there a list of flagged products to download?", "Can I export just the products with flags?"]
+  kind: plain
+  status: draft
+  a: "The India file has one row per product and includes counts of open flags, so it can be filtered in a spreadsheet program. It opens in any spreadsheet program."
+- id: "18.8"
+  q: "How can I help improve the data?"
+  alt: ["Can I volunteer to fix product records?", "How do I contribute corrections?"]
+  kind: plain
+  status: draft
+  a: "Anyone can add products and fix mistakes on Open Food Facts, where volunteers write the data. PackSense does not edit data. A fix made there shows up here after the next daily copy."

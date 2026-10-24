@@ -72,3 +72,15 @@ airflow/.env
 .idea/
 .DS_Store
 Thumbs.db
+
+# --- the bot: external-AI labeller prompts and verdicts are private like reviews/ ---
+p6_serving/bot/labeller/
+# --- the bot's measured results and freeze notes are for the owner only (never published) ---
+p6_serving/bot/FROZEN*.txt
+p6_serving/bot/FINAL_RESULT_*.txt
+# --- the outside question sets written by other AIs and their labels are for the owner only (never published) ---
+p6_serving/bot/fresh_questions_*.txt
+p6_serving/bot/packsense_faq_test_questions.txt
+p6_serving/bot/external_labels.psv
+p6_serving/bot/fresh_labels.psv
+p6_serving/bot/fresh2_labels.psv

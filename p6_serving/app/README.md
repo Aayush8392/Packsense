@@ -14,8 +14,10 @@ Rules that hold for this text (decisions in the context file, A84 to A90):
 - `design_notes` in the front matter are notes for the designer (what chart or table sits where, which published table feeds it); they are not page text.
 
 **Open before the site is released:**
-- Page 02 lists three claims in `unverified_claims` ("millions of products", "thousands of volunteers", "photos of the packs"): they come from general knowledge and must be checked against Open Food Facts's own pages
-  before publication. The owner asked to be asked first.
+- Page 02's three claims in `checked_claims` were checked on 2026-10-24 against Open Food Facts's own pages (more than four million products, more than 100,000 contributors, photos of the packs).
+  Open Food Facts gives no 'as of' date, so re-check them whenever the page is next edited.
+- The page texts use "we" and "our copy". The question bot speaks impersonally ("PackSense", "the site"), so the pages are rewritten the same way when the app is built (owner's decision, 2026-10-24).
+- Page 10 must say the number is typed (camera scanning is not offered).
 - Page 01 (Home): the owner wants to discuss showing more important numbers than the three listed.
 - Page 10 (barcode lookup) carries the signal wording decided on 2026-10-24 (the first draft's words were replaced) and the lookup rule for the product-card files.
 

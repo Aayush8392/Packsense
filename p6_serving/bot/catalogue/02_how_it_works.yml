@@ -1,0 +1,280 @@
+# Answer catalogue, topics 3 to 5.
+- id: "3.1"
+  q: "How does PackSense work?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Every morning PackSense downloads Open Food Facts' newest file and stores it untouched (the raw copy). It then cleans it into a fixed set of columns (the cleaned copy), and builds the tables the site shows (the ready-to-use tables)."
+- id: "3.2"
+  q: "What happens each day?"
+  alt: ["What happens each day?"]
+  kind: plain
+  status: draft
+  a: "At about 06:45 UTC (12:15 in India) PackSense fetches the day's file, then cleans it, then builds the tables. The site is rebuilt after that and shows the time it was built."
+- id: "3.3"
+  q: "What do raw, cleaned and ready-to-use data mean? What are bronze, silver and gold?"
+  alt: ["What do raw, cleaned and ready-to-use data mean here?", "What are bronze, silver and gold?"]
+  kind: plain
+  status: draft
+  a: "Raw (bronze) is the file exactly as received. Cleaned (silver) is the same data in a fixed set of columns, with mistakes caught and private details removed. Ready to use (gold) is the tables the site shows: each product's history, its flags, and the daily summaries."
+- id: "3.4"
+  q: "Why is the data kept in three steps?"
+  alt: []
+  kind: design
+  status: shown
+  a: "The raw copy is kept untouched, so a mistake in cleaning can be fixed by cleaning again from it. Cleaning and building the tables are separate steps, so each is simple to check."
+- id: "3.5"
+  q: "What does cleaning the data mean?"
+  alt: ["What does \"cleaning\" the data mean?"]
+  kind: plain
+  status: draft
+  a: "Putting the messy raw file into a fixed set of columns. Tags that do not look like tags are dropped. Emails, web addresses and similar details are removed, and usernames are replaced with scrambled codes."
+- id: "3.6"
+  q: "Does PackSense change the data it receives?"
+  alt: ["Does PackSense change the data it receives?"]
+  kind: plain
+  status: draft
+  a: "It changes the shape and removes private details. It does not change what products say. The raw copy is kept exactly as received."
+- id: "3.7"
+  q: "What is a version of a product?"
+  alt: ["What is a \"version\" of a product?"]
+  kind: plain
+  status: draft
+  a: "A version is the product as it stood after an edit. PackSense keeps each version it sees, so it can show how a product changed over time. It keeps the history in one place, so it can count and compare across all products. The history is daily, so several edits in one day show as one. Some products have only one saved version. On the product card, versions kept is how many PackSense has saved."
+- id: "3.8"
+  q: "Why does PackSense keep the history of each product?"
+  alt: ["Why does PackSense keep the history of each product?"]
+  kind: design
+  status: shown
+  a: "Open Food Facts shows changes one product at a time. PackSense keeps the whole history in one place, so it can count and compare across all products, such as edits per day and open flags over time. Daily is the finest it can see, because the source publishes once a day."
+- id: "3.9"
+  q: "What is a pipeline?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "A chain of automatic steps that moves data from one place to another. Here it carries data from Open Food Facts to the tables on this site."
+- id: "3.10"
+  q: "Does it run by itself, or does a person do it each day?"
+  alt: ["Does it run by itself, or does a person do it each day?"]
+  kind: plain
+  status: draft
+  a: "It runs by itself every day. Nobody presses buttons."
+- id: "3.11"
+  q: "What happens if one step fails?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "The failure shows on the status page, and an automatic alert goes out. Later steps still run when they can. A missed day is refilled by the next run, as long as it is within Open Food Facts' 14-day window."
+- id: "3.12"
+  q: "Where is the data stored?"
+  alt: ["Where is the data stored?"]
+  kind: fixed
+  status: shown
+  a: "@storage_line"
+- id: "3.13"
+  q: "What tools does PackSense use?"
+  alt: ["What tools does PackSense use?"]
+  kind: fixed
+  status: shown
+  a: "@code_line"
+- id: "3.15"
+  q: "What is the same field, three steps page?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "A short comparison on the walk-through page. It shows one field, such as the product name or pack size, as it looks raw, cleaned and ready to use."
+- id: "3.16"
+  q: "Why does the walk-through page show only four products?"
+  alt: ["Why were those four products picked?"]
+  kind: design
+  status: shown
+  a: "Four products show four different stories: an ordinary packaged food, one with several flags, one with a long edit history, and one from India. Four is enough to show each without a long page."
+- id: "3.18"
+  q: "Why are some names replaced by contributor-A?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Real usernames are replaced by labels such as contributor-A. The same person has the same label everywhere on the page, so you can follow one person's edits without knowing who they are."
+- id: "3.19"
+  q: "What does hidden on purpose mean on that page?"
+  alt: ["What does \"hidden on purpose\" mean on that page?"]
+  kind: plain
+  status: draft
+  a: "Some columns hold private or internal details, such as scrambled codes. They are shown greyed out and marked hidden on purpose, so you can see they exist."
+- id: "3.20"
+  q: "Is the example on that page real data?"
+  alt: ["Is the example on that page real data?"]
+  kind: plain
+  status: draft
+  a: "Yes. The products and counts are real. Where something private was removed, the page says so."
+- id: "4.1"
+  q: "How is PackSense different from Open Food Facts?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Open Food Facts is where products are written and fixed. PackSense is a second pair of eyes: it keeps a daily record, runs 11 checks and reports what it sees. Open Food Facts is a free, open database of packaged food that volunteers add to and fix. PackSense is an independent project that Open Food Facts does not run or vouch for. It does not replace or edit Open Food Facts, so mistakes are fixed there, by people."
+- id: "4.2"
+  q: "What does PackSense add that Open Food Facts does not have?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "PackSense keeps every daily version and counts edits by kind each day. It counts open flags per day and ranks brands by how complete their entries are. It records whether missing products are gone, moved or still there. It also gives a daily summary for India, runs its own 11 checks, and publishes a monthly India download."
+- id: "4.2b"
+  q: "What does Open Food Facts have that PackSense lacks?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Product photos, ingredient lists, a page for each product, products from every country in full, and the ability to add and fix products. PackSense holds none of these."
+- id: "4.3"
+  q: "Does PackSense replace Open Food Facts?"
+  alt: ["Does PackSense replace Open Food Facts?"]
+  kind: plain
+  status: draft
+  a: "No. PackSense depends on Open Food Facts for all its data."
+- id: "4.4"
+  q: "Is PackSense better than Open Food Facts?"
+  alt: ["Is PackSense better than Open Food Facts?"]
+  kind: plain
+  status: shown
+  a: "They do different jobs. Open Food Facts is where products are written and fixed. PackSense keeps a daily record of a copy and shows what its checks find. PackSense depends on Open Food Facts, so neither is better."
+- id: "4.5"
+  q: "Does PackSense fix mistakes in Open Food Facts?"
+  alt: ["Does PackSense fix mistakes in Open Food Facts?"]
+  kind: plain
+  status: draft
+  a: "No. PackSense does not edit Open Food Facts. It reports what it sees, and fixes are made by people on Open Food Facts."
+- id: "4.6"
+  q: "Are corrections sent back to Open Food Facts?"
+  alt: ["Are corrections sent back to Open Food Facts?"]
+  kind: today
+  status: shown
+  a: "No. PackSense only reads from Open Food Facts and sends nothing back."
+- id: "4.7"
+  q: "Can I edit a product on this site?"
+  alt: ["Can I edit a product on this site?"]
+  kind: today
+  status: shown
+  a: "No. PackSense is a read-only copy. Products are edited on Open Food Facts."
+- id: "4.8"
+  q: "Does Open Food Facts already check its own data?"
+  alt: ["Does Open Food Facts already check its own data?"]
+  kind: sourced
+  status: draft
+  a: "Yes. Its software flags a product when something looks wrong, such as an energy figure that does not fit the nutrients. In a sample of 81,951 recently changed products from 13 days in October 2026, about 31% had at least one nutrition flag."
+- id: "4.9"
+  q: "How are PackSense's checks different from Open Food Facts' checks?"
+  alt: ["How are PackSense's checks different from Open Food Facts' checks?"]
+  kind: sourced
+  status: draft
+  a: "They are the same rules. What PackSense adds is keeping the results for every product, day after day, and showing them on the product card."
+- id: "4.10"
+  q: "Why keep a daily history when Open Food Facts shows changes?"
+  alt: []
+  kind: design
+  status: shown
+  same_as: "3.8"
+  a: "Open Food Facts shows changes one product at a time. PackSense keeps the whole history in one place, so it can count and compare across all products, such as edits per day and open flags over time."
+- id: "4.11"
+  q: "What happens when Open Food Facts removes a product?"
+  alt: ["What happens on this site when Open Food Facts removes a product?"]
+  kind: plain
+  status: draft
+  a: "PackSense checks it against Open Food Facts' public data and records the answer: gone, moved to another Open Food Facts database, or still there. The card says so instead of showing a normal result."
+- id: "4.12"
+  q: "Why does PackSense follow products that disappear?"
+  alt: []
+  kind: design
+  status: shown
+  a: "Products leave Open Food Facts when they are removed or moved. PackSense checks each missing product against Open Food Facts' public data and records whether it is gone, moved or still there, so removed products are not counted as alive."
+- id: "4.13"
+  q: "Why do some numbers here differ from the Open Food Facts site?"
+  alt: ["Why do some numbers here differ from the Open Food Facts site?"]
+  kind: plain
+  status: draft
+  a: "PackSense's copy is up to a day old, holds only part of the data outside India, and counts whole days. Open Food Facts shows live figures for everything."
+- id: "5.1"
+  q: "How often is the data updated? Is it live?"
+  alt: ["How often is the data updated?", "Is the data live?"]
+  kind: sourced
+  status: draft
+  a: "Every morning. PackSense makes a new copy from the daily file of Open Food Facts, starting at 06:45 UTC, after that file is published. It is not live: a product can be up to a day behind its page on Open Food Facts. The India file is updated once a month, on the 3rd, because a monthly file stays stable long enough to cite."
+- id: "5.2"
+  q: "When was the data last updated?"
+  alt: ["When was the data last updated ({time})?"]
+  kind: data
+  data: ["our_capture_landed", "off_newest_file_published"]
+  status: draft
+  a: "Open Food Facts' newest file arrived at {off_newest_file_published}, and PackSense's copy was updated at {our_capture_landed}."
+- id: "5.3"
+  q: "When is the next update?"
+  alt: []
+  kind: data
+  data: ["next_update_due"]
+  status: draft
+  a: "The next update is due at about {next_update_due}."
+- id: "5.4"
+  q: "How old can the data be?"
+  alt: ["How old can the data be?"]
+  kind: measured
+  status: draft
+  a: "Up to about a day. The copy is made each morning, so the data is a few hours old right after an update and nearly a day old just before the next one."
+- id: "5.5"
+  q: "What does PackSense's copy updated mean?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "The time PackSense received Open Food Facts' newest file. It is not the time anyone edited a product."
+- id: "5.6"
+  q: "Why isn't the data updated in real time?"
+  alt: []
+  kind: sourced
+  status: draft
+  a: "Open Food Facts publishes its changes once a day, as one file, so PackSense cannot see anything newer."
+- id: "5.7"
+  q: "What if a product changed an hour ago?"
+  alt: ["What if a product changed an hour ago?"]
+  kind: plain
+  status: draft
+  a: "It will show up after the next morning copy. A product can be up to a day behind its page on Open Food Facts."
+- id: "5.8"
+  q: "How fast do changes on Open Food Facts show up here?"
+  alt: ["How fast do changes on Open Food Facts show up here?"]
+  kind: measured
+  status: draft
+  a: "Within about a day. An edit made before the daily file closes, at about 06:30 UTC, appears in that morning's copy. Later edits appear the next day."
+- id: "5.9"
+  q: "Why does the update start at that time of day?"
+  alt: ["Why does the update start at that time of day?"]
+  kind: sourced
+  status: shown
+  a: "Open Food Facts publishes its daily file between about 06:20 and 06:35 UTC. PackSense starts at 06:45 UTC (12:15 in the afternoon in India) and waits for the file if it is not there yet, up to 07:45 UTC."
+- id: "5.10"
+  q: "Why is the newest day missing from the charts?"
+  alt: ["Why is the newest day missing from the charts?"]
+  kind: measured
+  status: shown
+  a: "Open Food Facts' daily file runs from about 06:30 UTC to 06:30 UTC the next day, so a calendar day is split across two files. Until the next file arrives, the newest day is incomplete, so the charts show whole days only."
+- id: "5.11"
+  q: "What is a complete day?"
+  alt: ["What is a \"complete day\"?"]
+  kind: plain
+  status: draft
+  a: "A day that the daily files cover from start to end. The newest day is left out until its second file arrives."
+- id: "5.12"
+  q: "What happens when an update is late or fails?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "The data is simply older. Every page shows the time it was built, and the status page shows whether the daily jobs ran. A missed day is refilled by the next run."
+- id: "5.13"
+  q: "If a day is missed, is that data lost?"
+  alt: ["If a day is missed, is that data lost?"]
+  kind: sourced
+  status: draft
+  a: "No. PackSense collects every new file Open Food Facts lists, so a missed day is refilled by the next run, as long as it is within Open Food Facts' 14-day window."
+- id: "5.14"
+  q: "How often is the India data file updated?"
+  alt: ["How often is the India data file updated?"]
+  kind: today
+  status: shown
+  a: "Once a month, on the 3rd."

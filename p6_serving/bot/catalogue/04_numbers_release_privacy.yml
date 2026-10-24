@@ -1,0 +1,349 @@
+# Answer catalogue, topics 8 to 10. `data` lists the live values an answer is filled from (names of published values, to be bound to the allow-listed queries at build time).
+- id: "8.1"
+  q: "How many products does PackSense hold?"
+  alt: ["How many products does PackSense hold ({N})?"]
+  kind: data
+  data: ["products_held"]
+  status: draft
+  a: "PackSense holds {products_held} products."
+- id: "8.2"
+  q: "How many products are from India?"
+  alt: ["How many products are from India ({N})?"]
+  kind: data
+  data: ["india_products"]
+  status: draft
+  a: "{india_products} of the products are from India."
+- id: "8.3"
+  q: "How many brands are there?"
+  alt: ["How many brands are there ({N})?"]
+  kind: data
+  data: ["brands"]
+  status: draft
+  a: "PackSense counts {brands} brands. Brand names are typed by volunteers, so the same brand can appear under slightly different spellings."
+- id: "8.4"
+  q: "How many products changed yesterday?"
+  alt: []
+  kind: data
+  data: ["edits_yesterday"]
+  status: draft
+  a: "At least {edits_yesterday} products were edited yesterday. The count is a minimum, because several edits in one day show as one."
+- id: "8.5"
+  q: "How many new products were added yesterday?"
+  alt: []
+  kind: data
+  data: ["new_yesterday"]
+  status: draft
+  a: "At least {new_yesterday} new products were added yesterday."
+- id: "8.6"
+  q: "What kinds of changes are most common?"
+  alt: ["What kinds of changes are most common ({list})?"]
+  kind: data
+  data: ["top_change_kinds"]
+  status: draft
+  a: "The most common kinds of edit are {top_change_kinds}. One edit can touch several kinds, so the kinds add up to more than the total."
+- id: "8.7"
+  q: "How many products have nutrition information?"
+  alt: []
+  kind: data
+  data: ["with_nutrition"]
+  status: draft
+  a: "{with_nutrition} products have a nutrition table."
+- id: "8.8"
+  q: "How many products are flagged right now?"
+  alt: ["How many products are flagged right now ({N})?"]
+  kind: data
+  data: ["flagged_products"]
+  status: draft
+  a: "{flagged_products} products currently carry at least one flag."
+- id: "8.9"
+  q: "How many products say Not enough data to check?"
+  alt: []
+  kind: data
+  data: ["not_enough_products"]
+  status: draft
+  a: "{not_enough_products} products have no nutrition table, so PackSense could not check them."
+- id: "8.10"
+  q: "Is the data quality getting better or worse over time?"
+  alt: ["Is the data quality getting better or worse over time?"]
+  kind: data
+  data: ["flags_per_product_trend"]
+  status: draft
+  a: "Open flags per product have been steady at about nine. When the total rises it is mostly because PackSense holds more products, not because the data got worse. The Data quality page draws the trend."
+- id: "8.11"
+  q: "How many products did Open Food Facts remove or move?"
+  alt: ["How many products did Open Food Facts remove or move ({N})?"]
+  kind: data
+  data: ["removed_or_moved"]
+  status: draft
+  a: "Open Food Facts told PackSense that {removed_or_moved} products were removed or moved."
+- id: "8.12"
+  q: "How many products have only one version?"
+  alt: ["How many products have only one version ({N})?"]
+  kind: data
+  data: ["one_version_products"]
+  status: needs_decision
+  a: "{one_version_products} products have only one saved version. (Number to be published; you chose to publish it.)"
+- id: "8.13"
+  q: "Which brands have the most complete information?"
+  alt: ["Which brands have the most complete information ({list})?"]
+  kind: data
+  data: ["most_complete_brands"]
+  status: needs_decision
+  a: "These brands fill in the most of the seven key fields across their products: {most_complete_brands}. This is about how complete their entries are on Open Food Facts, not about the brands themselves, and it covers only brands with 30 or more products."
+- id: "8.14"
+  q: "Which brands have the least complete information?"
+  alt: ["Which brands have the least complete information ({list})?"]
+  kind: data
+  data: ["least_complete_brands"]
+  status: needs_decision
+  a: "These brands fill in the fewest of the seven key fields across their products: {least_complete_brands}. This describes how complete their entries are on Open Food Facts. Entries are written by volunteers, a bulk import can lower a brand's score, and outside India PackSense holds only part of a brand's range. So it says little about the brand itself."
+- id: "8.15"
+  q: "How complete is the information for a brand?"
+  alt: ["How complete is the information for brand {brand}?"]
+  kind: data
+  data: ["brand_completeness"]
+  status: draft
+  a: "For {brand}, {brand_completeness} of the seven key fields are filled in, across the {brand_products} products PackSense holds for it."
+- id: "8.16"
+  q: "How many products does a brand have?"
+  alt: ["How many products does brand {brand} have ({N})?"]
+  kind: data
+  data: ["brand_products"]
+  status: draft
+  a: "PackSense holds {brand_products} products for {brand}. The brand may sell more."
+- id: "8.17"
+  q: "How many Indian brands are there?"
+  alt: ["How many Indian brands are there ({N})?"]
+  kind: data
+  data: ["india_brands"]
+  status: draft
+  a: "PackSense counts {india_brands} brands among the Indian products."
+- id: "8.18"
+  q: "How many products were added to the India data this month?"
+  alt: ["How many products were added to the India data this month ({N})?"]
+  kind: data
+  data: ["india_added_this_month"]
+  status: draft
+  a: "{india_added_this_month} products were added to the India data this month, according to the latest release's change list."
+- id: "8.19"
+  q: "What kinds of products does PackSense include?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Packaged goods that volunteers have added to Open Food Facts, mostly food and drink. It also holds cosmetics, medicines, electronics and pet food, and PackSense has not filtered them out."
+- id: "8.20"
+  q: "Are drinks, cosmetics or pet food included?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Yes, whatever volunteers added can appear. PackSense has not filtered anything out."
+- id: "8.21"
+  q: "How many types of products does PackSense hold?"
+  alt: []
+  kind: data
+  data: ["category_counts"]
+  status: needs_decision
+  a: "{category_counts} (Category counts to be published; you chose to publish them.)"
+- id: "9.1"
+  q: "What is the India data release? Can I download the data?"
+  alt: ["What is the India data release?", "Can I download the data?"]
+  kind: plain
+  status: draft
+  a: "Once a month PackSense publishes a clean list of the Indian products it holds, as a CSV file anyone can download for free. It is on the Hugging Face website, a free home for datasets, and each release has a version name such as v2026-10-22. The file has one row per product, sorted by barcode, and opens in any spreadsheet program."
+- id: "9.2"
+  q: "What is in the India file?"
+  alt: ["What is in the file?"]
+  kind: plain
+  status: draft
+  a: "One row per product: barcode, name, brand, pack size, categories, labels and the nutrition figures per 100 g, plus counts of open flags. A short guide in plain words explains every column."
+- id: "9.3"
+  q: "What is left out of the India file?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Photos, ingredient text, anything about who edited a product, and any name or brand that looks like a phone number."
+- id: "9.4"
+  q: "Why are there no photos, ingredient lists or contributor names in it?"
+  alt: ["Why are there no photos, ingredient lists or contributor names in it?"]
+  kind: design
+  status: draft
+  a: "Photos carry separate licences, ingredient lists are free text that can hold personal details, and contributor names are not republished. The file holds facts about products, not their content."
+- id: "9.5"
+  q: "How do I get the India file?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Download it from the Hugging Face website: {release_link}. Each release has a version name such as v2026-10-22."
+- id: "9.6"
+  q: "How often is the India file updated?"
+  alt: ["How often is it updated?"]
+  kind: today
+  status: shown
+  same_as: "5.14"
+  a: "Once a month, on the 3rd."
+- id: "9.7"
+  q: "How many products are in the India file?"
+  alt: ["How many products are in it ({N})?"]
+  kind: data
+  data: ["release_rows"]
+  status: draft
+  a: "The latest release has {release_rows} products."
+- id: "9.8"
+  q: "What file format is it?"
+  alt: ["What file format is it?"]
+  kind: plain
+  status: draft
+  a: "A plain CSV file, one row per product, sorted by barcode. It opens in any spreadsheet program."
+- id: "9.9"
+  q: "Is the India data free?"
+  alt: ["Is it free?"]
+  kind: sourced
+  status: draft
+  same_as: "1.14"
+  a: "Yes, it is free."
+- id: "9.10"
+  q: "What licence does the India file use, in simple words?"
+  alt: ["What licence does it use, and what does that mean in simple words?"]
+  kind: sourced
+  status: shown
+  same_as: "2.10"
+  a: "@licence_plain"
+- id: "9.11"
+  q: "Can I use it in a business or an app?"
+  alt: ["Can I use it in a business or an app?"]
+  kind: sourced
+  status: shown
+  a: "The licence allows commercial use if you credit Open Food Facts and keep any shared version of the database under the same licence. This is a plain summary, not legal advice. Please read the licence text: https://opendatacommons.org/licenses/odbl/1-0/"
+- id: "9.12"
+  q: "How do I give credit?"
+  alt: []
+  kind: sourced
+  status: shown
+  same_as: "2.11"
+  a: "@credit_line"
+- id: "9.13"
+  q: "What is the changelog?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "A list of what was added, removed or changed since the last release."
+- id: "9.14"
+  q: "What does a name like v2026-10-22 mean?"
+  alt: ["What does a name like \"v2026-10-22\" mean?"]
+  kind: plain
+  status: draft
+  a: "The date the release was made. v2026-10-22 is the release of 22 October 2026."
+- id: "9.15"
+  q: "Why are some product names blank?"
+  alt: ["Why are some product names blank?"]
+  kind: measured
+  status: draft
+  a: "A name or brand that looks like an Indian mobile number is left blank on purpose, to keep phone numbers out of a public file. In the first release 7 were blanked."
+- id: "9.16"
+  q: "Why do so many rows have empty fields?"
+  alt: ["Why do so many rows have empty fields?"]
+  kind: plain
+  status: draft
+  a: "Anyone can edit Open Food Facts, and many rows have only a barcode and a name. An empty cell means PackSense has no value."
+- id: "9.17"
+  q: "Why are some items not food?"
+  alt: []
+  kind: measured
+  status: draft
+  a: "Open Food Facts also holds cosmetics, medicines and pet food, and PackSense has not filtered them out."
+- id: "9.18"
+  q: "What if I find personal information in the file?"
+  alt: []
+  kind: fixed
+  status: shown
+  a: "Personal data in a product name can be corrected at its source on Open Food Facts, and the next monthly release will leave it out."
+- id: "9.19"
+  q: "Why is the release only for India?"
+  alt: ["Why is the release only for India?"]
+  kind: design
+  status: draft
+  a: "India is the one market PackSense covers completely, and it is small enough to check in full before releasing."
+- id: "9.20"
+  q: "Why is it a monthly file and not daily?"
+  alt: []
+  kind: design
+  status: draft
+  a: "A monthly file stays stable long enough to cite and compare, and comes with a list of changes. The live site is where daily changes show."
+- id: "9.21"
+  q: "Is there an API? Can I get a key?"
+  alt: []
+  kind: today
+  status: shown
+  a: "@api_reply"
+- id: "10.1"
+  q: "Does PackSense keep personal information?"
+  alt: ["Does PackSense keep personal information?"]
+  kind: plain
+  status: draft
+  a: "Not in anything the site shows. PackSense keeps scrambled codes for the people who edit products, on the private side only. A volunteer may sometimes type personal details into a product name; PackSense removes the kinds it can recognise. The site does not run analytics, sets no cookies of its own and does not keep what you type. It does not claim to follow any particular privacy law."
+- id: "10.2"
+  q: "What happens to the usernames of the people who edit products?"
+  alt: ["How is the privacy of the people who edit products protected?"]
+  kind: plain
+  status: shown
+  a: "PackSense replaces each username with a scrambled code. The codes stay on the private side and are never published."
+- id: "10.3"
+  q: "Can I see who edited a product?"
+  alt: ["Can I see who edited a product?"]
+  kind: plain
+  status: shown
+  a: "No. The site never shows who edited a product."
+- id: "10.4"
+  q: "Open Food Facts shows usernames, so why are they hidden here?"
+  alt: []
+  kind: design
+  status: shown
+  a: "Open Food Facts publishes the usernames of its volunteers. PackSense does not republish them, because nothing on this site needs to point at individual people."
+- id: "10.5"
+  q: "What does scrambled (hashed) mean?"
+  alt: ["What does \"hashed\" or \"scrambled\" mean?"]
+  kind: plain
+  status: shown
+  a: "A name is turned into a code by a one-way recipe. The same name always gives the same code, but the code cannot be turned back into the name without a secret key, which is kept private."
+- id: "10.6"
+  q: "Does this site track me, use cookies, or store my searches?"
+  alt: ["Does this site use cookies?", "Are the barcodes I search for stored?"]
+  kind: fixed
+  status: shown
+  a: "@tracking_reply"
+- id: "10.9"
+  q: "Can phone numbers or emails appear in product names?"
+  alt: ["Can phone numbers or emails appear in product names?", "What does PackSense do about them?"]
+  kind: measured
+  status: shown
+  a: "Yes, it can happen: volunteers sometimes type one into a product name. PackSense removes emails, web addresses, social handles and Indian ID numbers from product text. Phone numbers are harder to tell from lot numbers and dates. So in the monthly India file, a name or brand that looks like an Indian mobile number is left blank."
+- id: "10.11"
+  q: "Is it guaranteed that no personal information is in the data?"
+  alt: []
+  kind: measured
+  status: shown
+  a: "No. It is a measured limit, not a promise. For example, a person's own name typed as a product name cannot be told apart from a real product name."
+- id: "10.12"
+  q: "Why are small counts hidden in the tables?"
+  alt: ["Why are small counts (1 to 4) hidden in the tables?"]
+  kind: design
+  status: shown
+  a: "Very small counts can point to individual products or people. Counts of 1 to 4 are left blank. This is not a formal privacy guarantee, and the site says so."
+- id: "10.13"
+  q: "Does hiding small counts fully protect people?"
+  alt: ["Does hiding small counts fully protect people?"]
+  kind: plain
+  status: shown
+  a: "No. Hiding counts of 1 to 4 lowers the chance of pointing at one product or person, but it is not a formal privacy guarantee."
+- id: "10.14"
+  q: "Does PackSense follow privacy laws like GDPR?"
+  alt: ["Does PackSense follow privacy laws like GDPR?"]
+  kind: fixed
+  status: shown
+  a: "@law_reply"
+- id: "10.15"
+  q: "Why are brand error counts not shown?"
+  alt: []
+  kind: design
+  status: shown
+  a: "Mistakes in a brand's entries are often made by volunteers, so the site ranks how complete entries are and never shows error counts per brand."

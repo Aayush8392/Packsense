@@ -1,0 +1,259 @@
+# Answer catalogue, topics 14 to 16. `same_as` means: this question is answered by another entry; the loader adds its wordings to that entry.
+- id: "14.1"
+  q: "Why do brands need 30 products to be ranked?"
+  alt: []
+  kind: design
+  status: shown
+  a: "With only a few products, one missing value moves a brand's score a lot. Ranking starts at 30 products so the results are steadier. It is a design choice: a lower floor would rank more brands on less evidence, a higher one would rank fewer."
+- id: "14.3"
+  q: "Why are counts of 1 to 4 left blank?"
+  alt: ["Why are counts of 1 to 4 left blank?"]
+  kind: design
+  status: shown
+  same_as: "10.12"
+  a: "Very small counts can point to individual products or people. They are left blank. This is not a formal privacy guarantee, and the site says so."
+- id: "14.4"
+  q: "Why are 7 fields counted for fields filled?"
+  alt: ["Why are 7 fields counted for \"fields filled\"?"]
+  kind: design
+  status: shown
+  same_as: "7.16"
+  a: "The seven are the facts that make an entry most useful. Seven is a design choice and other lists are possible."
+- id: "14.5"
+  q: "Why do only error and bug flags count toward the light?"
+  alt: ["Why do only error and bug flags count toward the light?"]
+  kind: measured
+  status: shown
+  same_as: "6.16"
+  a: "Only serious flags count, because the average product carries about nine open flags and counting every one would make most products look flagged."
+- id: "14.8"
+  q: "Why only barcodes of 8 to 14 digits?"
+  alt: []
+  kind: sourced
+  status: draft
+  same_as: "7.9"
+  a: "Those are the lengths of retail barcodes. Other numbers are not products."
+- id: "14.9"
+  q: "Why does the daily update start at 06:45 UTC?"
+  alt: ["Why does the daily update start at 06:45 UTC?"]
+  kind: sourced
+  status: shown
+  same_as: "5.9"
+  a: "Open Food Facts publishes its daily file between about 06:20 and 06:35 UTC, so PackSense starts just after."
+- id: "14.10"
+  q: "Why daily and not every hour?"
+  alt: ["Why daily and not every hour?", "Why not update every hour?"]
+  kind: sourced
+  status: shown
+  a: "Open Food Facts publishes its changes as one file a day, so there is nothing newer to fetch during the day."
+- id: "14.11"
+  q: "Why does Open Food Facts' 14-day window matter?"
+  alt: ["Why does Open Food Facts' 14-day window matter here?"]
+  kind: sourced
+  status: shown
+  a: "Open Food Facts keeps each daily file for about 14 days. PackSense collects every new file and refills any missed day within that window. Beyond it, a full copy would be needed."
+- id: "14.12"
+  q: "Why does the health page show 90 days?"
+  alt: ["Why does the health page show 90 days?"]
+  kind: design
+  status: shown
+  a: "Ninety days is long enough to see a pattern and short enough to read on one page. It is a design choice."
+- id: "14.13"
+  q: "Why 4 products on the walk-through page?"
+  alt: []
+  kind: design
+  status: shown
+  same_as: "3.16"
+  a: "Four products show four different stories, and four is enough to show each without a long page."
+- id: "14.18"
+  q: "Why is the newest day left out of the daily charts?"
+  alt: ["Why is the newest day left out of the daily charts?"]
+  kind: measured
+  status: shown
+  same_as: "5.10"
+  a: "Until the next daily file arrives, the newest day is incomplete, so the charts show whole days only."
+- id: "14.20"
+  q: "Why is energy allowed to be off by 30% before it is an error?"
+  alt: ["Why is energy allowed to be off by 30% before it is an error?"]
+  kind: sourced
+  status: shown
+  a: "That is Open Food Facts' own rule. If the energy on a pack differs by more than 30% (plus 5) from what the nutrients add up to, it is an error. Above 15% (plus 5) it is a warning. PackSense uses the same numbers so a flag means the same thing in both places."
+- id: "14.21"
+  q: "Why can salt differ from sodium by 0.1 g?"
+  alt: []
+  kind: sourced
+  status: shown
+  a: "Salt should be about 2.5 times sodium. Open Food Facts allows a gap of 0.1 g before flagging it, and PackSense uses the same margin."
+- id: "14.22"
+  q: "Why does PackSense use these numbers and not stricter ones?"
+  alt: ["Why does PackSense use these numbers and not stricter ones?"]
+  kind: plain
+  status: shown
+  a: "PackSense copied Open Food Facts' margins on purpose, so that a flag here means the same as a flag there."
+- id: "15.1"
+  q: "Why is there no live search of all products?"
+  alt: ["Why is there no live search of all products?"]
+  kind: design
+  status: shown
+  a: "A live search needs a server running all the time. PackSense is plain files, and a barcode lookup fetches one small file, which is quick and needs nothing running. The trade-off is that you look up a barcode, not a name."
+- id: "15.2"
+  q: "Why not just use the Open Food Facts website or its API?"
+  alt: []
+  kind: design
+  status: draft
+  a: "Open Food Facts is the place to look up one product live. PackSense answers other questions: how the data changes over time, how complete it is, and what its checks find across all products."
+- id: "15.5"
+  q: "Why not let people correct products on this site?"
+  alt: ["Why not let people correct products on this site?"]
+  kind: design
+  status: shown
+  a: "PackSense is a copy. A fix made here would not reach Open Food Facts and would be replaced by the next daily copy. Fixes belong at the source, where they reach everyone."
+- id: "15.6"
+  q: "Why not show product photos?"
+  alt: []
+  kind: design
+  status: draft
+  same_as: "2.13"
+  a: "Photos carry separate licences, and PackSense publishes facts it works out from the data, not product content."
+- id: "15.7"
+  q: "Why not cover every country?"
+  alt: []
+  kind: today
+  status: shown
+  same_as: "1.13"
+  a: "Today PackSense covers India completely and other countries only in part."
+- id: "15.9"
+  q: "Why is there no app?"
+  alt: ["Why is there no app?"]
+  kind: today
+  status: shown
+  a: "PackSense is a website only."
+- id: "15.10"
+  q: "Why is there no login or account?"
+  alt: ["Why is there no login or account?"]
+  kind: design
+  status: shown
+  a: "There is nothing to save for a person, so an account would only collect personal details. Not collecting them keeps the site simple and private."
+- id: "15.11"
+  q: "Why is this a simple website with no server?"
+  alt: ["Why is this a simple website with no server?"]
+  kind: design
+  status: shown
+  a: "A site made of plain files costs nothing to run, cannot be knocked over by a crashed server, and has nothing a visitor could break into. The trade-off is no live search and no accounts."
+- id: "15.12"
+  q: "Why does it use free services?"
+  alt: ["Why does it use free services?"]
+  kind: design
+  status: shown
+  a: "PackSense is built to run at no cost, so it keeps running without anyone paying. The trade-off is that free services have limits, which the project watches."
+- id: "15.13"
+  q: "Why doesn't PackSense say which products are healthy?"
+  alt: ["Why doesn't PackSense say which products are healthy?"]
+  kind: design
+  status: shown
+  a: "Whether a food is healthy depends on the person and the amount, and the entries are volunteers' work and may be wrong. PackSense says whether an entry agrees with itself and with Open Food Facts' own rules, not whether a food is good for you."
+- id: "15.14"
+  q: "Why no score out of 100 for each product?"
+  alt: ["Why doesn't PackSense give each product a score out of 100?"]
+  kind: design
+  status: shown
+  a: "A score would look more exact than the data deserves. Nobody holds the true figures, so the site shows four plain labels and the facts under them."
+- id: "15.15"
+  q: "Why aren't brands ranked by mistakes?"
+  alt: ["Why are brands not ranked by how many mistakes they have?"]
+  kind: design
+  status: shown
+  same_as: "10.15"
+  a: "Mistakes in a brand's entries are often made by volunteers, not by the brand, so ranking by errors would blame brands for it. The site ranks how complete entries are and never shows error counts per brand."
+- id: "15.16"
+  q: "Why doesn't it show who edited a product?"
+  alt: []
+  kind: design
+  status: shown
+  same_as: "10.4"
+  a: "Nothing on this site needs to point at individual people."
+- id: "15.17"
+  q: "Why are the checks simple sums and not smarter software?"
+  alt: []
+  kind: design
+  status: draft
+  same_as: "6.28"
+  a: "The checks are sums with one clear answer, so no guessing is needed and the results are easy to explain and repeat."
+- id: "16.1"
+  q: "Does this site use AI?"
+  alt: ["Does this site use AI?"]
+  kind: today
+  status: deferred
+  a: "(Deferred until the AI parts exist.) The checks, flags and numbers are computed by code, not by AI."
+- id: "16.3"
+  q: "Is this chatbot an AI like ChatGPT? How does it find its answers?"
+  alt: ["Is this chatbot an AI like ChatGPT?", "How does the chatbot find its answers?"]
+  kind: fixed
+  status: shown
+  a: "@ai_honesty"
+- id: "16.6"
+  q: "What is the AI reading under a table?"
+  alt: ["What is the \"AI reading\" under a table?"]
+  kind: today
+  status: deferred
+  a: "(Deferred until it exists.) A short description of what a table's numbers show, written by a language model from numbers computed by code. It describes only and gives no advice."
+- id: "16.7"
+  q: "Can the AI make mistakes?"
+  alt: ["Can the AI make mistakes?"]
+  kind: plain
+  status: deferred
+  a: "Yes. Code computes every number and checks the text against them, but a check on numbers cannot check meaning, so a reading can still be misleading. That is why it is labelled AI-generated and unreviewed."
+- id: "16.10"
+  q: "Why does the AI only describe the data and never give advice?"
+  alt: ["Why does the AI only describe the data and never give advice?"]
+  kind: design
+  status: deferred
+  a: "A description can be checked against the numbers. Advice cannot, and could mislead."
+- id: "16.11"
+  q: "Why doesn't the AI explain why something happened?"
+  alt: ["Why doesn't the AI explain why something happened?"]
+  kind: design
+  status: deferred
+  a: "An explanation of why would be a guess that cannot be checked, so the AI says only what the numbers show."
+- id: "16.12"
+  q: "Does AI decide the flags or the traffic light?"
+  alt: []
+  kind: plain
+  status: deferred
+  a: "No. Flags and the four labels come from fixed rules and Open Food Facts' own checks."
+- id: "16.13"
+  q: "Does the AI see personal information?"
+  alt: ["Does the AI see personal information?"]
+  kind: plain
+  status: deferred
+  a: "No. It is given computed facts only, never usernames."
+- id: "16.14"
+  q: "Which AI model is used?"
+  alt: ["Which AI model is used?"]
+  kind: fixed
+  status: deferred
+  a: "@ai_model"
+- id: "16.2"
+  q: "Where is AI used on this site?"
+  alt: []
+  kind: today
+  status: deferred
+  a: "(Deferred until the AI parts exist.) Only in the short readings under some tables, which describe numbers computed by code."
+- id: "16.5"
+  q: "Is my question sent to an AI?"
+  alt: []
+  kind: plain
+  status: deferred
+  a: "No. Your question is matched in your browser against prepared answers and goes nowhere else."
+- id: "16.8"
+  q: "How is AI-written text checked?"
+  alt: []
+  kind: plain
+  status: deferred
+  a: "Code checks every number and every named column in the text against the facts it was written from. It cannot check meaning, which is why the text is labelled AI-generated and unreviewed."
+- id: "16.9"
+  q: "Does a person review the AI text?"
+  alt: []
+  kind: today
+  status: deferred
+  a: "(Deferred until it exists.) The readings are published unreviewed and labelled that way."

@@ -1,0 +1,140 @@
+C1|9.1|How many products are in it?|9.7|followup
+C2|9.1|How often is it updated?|5.14|followup
+C3|9.1|Is it free?|9.9|followup
+C4|12.2|What does it show?|12.2|followup
+C5|12.2|What does it not show?|12.3|followup
+C6|7.1|What is it for?|7.1|followup
+C7|10.9|What does PackSense do about them?|10.9|followup
+C8|6.1|Who raises them?|6.2|followup
+C9|6.3|Why that many?|6.5|followup
+C10|6.3|Are they enough?|6.7|followup
+C11|4.1|What's missing?|4.2b|followup
+C12|8.1|And in India?|8.2|followup
+C13|8.1|And how many brands?|8.3|followup
+C14|8.2|What about brands?|8.17|followup
+C15|5.1|Why not more often?|14.10|followup
+C16|5.1|What time?|5.9|followup
+C17|5.1|When is the next one?|5.3|followup
+C18|2.10|Can I use it commercially?|9.11|followup
+C19|2.10|How do I credit it?|2.11|followup
+C20|7.2|Which numbers work?|7.8|followup
+C21|7.2|What if it isn't found?|7.7|followup
+C22|10.2|Can I see them?|10.3|followup
+C23|11.1|So can I use it for allergies?|11.3|followup
+C24|6.9|What about several things flagged?|6.10|followup
+C25|3.3|Why three steps?|3.4|followup
+C26|6.13|Why so many?|6.14|followup
+C27|1.12|Will that change?|1.13|followup
+C28|9.2|What's left out?|9.3|followup
+C29|6.1|And what do the levels mean?|6.17|followup
+S1|6.1|What is Nutri-Score?|13.9|switch
+S2|9.1|Who made PackSense?|1.15|switch
+S3|5.1|What does per 100 g mean?|13.1|switch
+S4|8.1|Is the code public?|1.16|switch
+S5|7.1|How does PackSense work?|3.1|switch
+S6|10.2|How many brands are there?|8.3|switch
+S7|6.3|Where does the data come from?|2.1|switch
+S8|12.2|What is a kilojoule?|13.2|switch
+C1-r1|9.1|how many items does it have|9.7|followup
+C1-r2|9.1|how big is it|9.7|followup
+C1-r3|9.1|number of products in that|9.7|followup
+C2-r1|9.1|how frequently does that update|5.14|followup
+C2-r2|9.1|when is it refreshed|5.14|followup
+C2-r3|9.1|is it monthly?|5.14|followup
+C3-r1|9.1|do i have to pay for it|9.9|followup
+C3-r2|9.1|is that free to download|9.9|followup
+C3-r3|9.1|is it for free|9.9|followup
+C4-r1|12.2|what is on it|12.2|followup
+C4-r2|12.2|what can i see there|12.2|followup
+C4-r3|12.2|what's shown?|12.2|followup
+C5-r1|12.2|what is left out of it|12.3|followup
+C5-r2|12.2|what's missing from it|12.3|followup
+C5-r3|12.2|anything it doesn't cover?|12.3|followup
+C6-r1|7.1|what's the purpose of that|7.1|followup
+C6-r2|7.1|why would i use it|7.1|followup
+C6-r3|7.1|what does it do?|7.1|followup
+C7-r1|10.9|how are they handled|10.9|followup
+C7-r2|10.9|do you remove them|10.9|followup
+C7-r3|10.9|what happens to them?|10.9|followup
+C8-r1|6.1|who sets those|6.2|followup
+C8-r2|6.1|where do they come from|6.2|followup
+C8-r3|6.1|who decides them?|6.2|followup
+C9-r1|6.3|why eleven|6.5|followup
+C9-r2|6.3|why not more|6.5|followup
+C9-r3|6.3|how come only that many|6.5|followup
+C10-r1|6.3|is that all you check|6.7|followup
+C10-r2|6.3|do they catch everything|6.7|followup
+C10-r3|6.3|is that sufficient?|6.7|followup
+C11-r1|4.1|what do they have that you don't|4.2b|followup
+C11-r2|4.1|what isn't in packsense|4.2b|followup
+C11-r3|4.1|what does packsense lack?|4.2b|followup
+C12-r1|8.1|how about india|8.2|followup
+C12-r2|8.1|just india?|8.2|followup
+C12-r3|8.1|and india alone|8.2|followup
+C13-r1|8.1|how many brands though|8.3|followup
+C13-r2|8.1|and brands?|8.3|followup
+C13-r3|8.1|number of brands?|8.3|followup
+C14-r1|8.2|and the brands?|8.17|followup
+C14-r2|8.2|how many brands are indian|8.17|followup
+C14-r3|8.2|indian brands count?|8.17|followup
+C15-r1|5.1|why not hourly|14.10|followup
+C15-r2|5.1|can't it update faster|14.10|followup
+C15-r3|5.1|why only once a day|14.10|followup
+C16-r1|5.1|at what time of day|5.9|followup
+C16-r2|5.1|when exactly|5.9|followup
+C16-r3|5.1|what hour does it start|5.9|followup
+C17-r1|5.1|when's the next update|5.3|followup
+C17-r2|5.1|next refresh when?|5.3|followup
+C17-r3|5.1|when will it update again|5.3|followup
+C18-r1|2.10|can i use that in an app|9.11|followup
+C18-r2|2.10|is business use ok|9.11|followup
+C18-r3|2.10|can a company use it|9.11|followup
+C19-r1|2.10|how should i attribute it|2.11|followup
+C19-r2|2.10|what credit do i give|2.11|followup
+C19-r3|2.10|do i need to mention the source?|2.11|followup
+C20-r1|7.2|what barcodes are accepted|7.8|followup
+C20-r2|7.2|what length can it be|7.8|followup
+C20-r3|7.2|any barcode type?|7.8|followup
+C21-r1|7.2|and if there's no result|7.7|followup
+C21-r2|7.2|what if nothing comes up|7.7|followup
+C21-r3|7.2|what do i do if it's missing|7.7|followup
+C22-r1|10.2|are they shown anywhere|10.3|followup
+C22-r2|10.2|can i look them up|10.3|followup
+C22-r3|10.2|do you show those|10.3|followup
+C23-r1|11.1|is it ok for allergy checks|11.3|followup
+C23-r2|11.1|can i rely on it for my allergy|11.3|followup
+C23-r3|11.1|what about allergens then|11.3|followup
+C24-r1|6.9|and if many things are flagged|6.10|followup
+C24-r2|6.9|what does several mean then|6.10|followup
+C24-r3|6.9|and several flags?|6.10|followup
+C25-r1|3.3|why not just one|3.4|followup
+C25-r2|3.3|why separate them|3.4|followup
+C25-r3|3.3|what's the reason for the layers|3.4|followup
+C26-r1|6.13|why is that so common|6.14|followup
+C26-r2|6.13|why do so many have that|6.14|followup
+C26-r3|6.13|how come so many|6.14|followup
+C27-r1|1.12|will more be added|1.13|followup
+C27-r2|1.12|is that going to expand|1.13|followup
+C27-r3|1.12|any plan to add others|1.13|followup
+C28-r1|9.2|what isn't in it|9.3|followup
+C28-r2|9.2|what's not included|9.3|followup
+C28-r3|9.2|anything missing from it?|9.3|followup
+C29-r1|6.1|what are the levels|6.17|followup
+C29-r2|6.1|error vs warning?|6.17|followup
+C29-r3|6.1|what's the difference between them|6.17|followup
+S1-r1|6.1|what is nova|13.10|switch
+S1-r2|6.1|what does may contain mean|13.12|switch
+S2-r1|9.1|is it open source|1.16|switch
+S2-r2|9.1|where is the data from|2.1|switch
+S3-r1|5.1|what is saturated fat|13.7|switch
+S3-r2|5.1|who runs this site|1.15|switch
+S4-r1|8.1|what is a kilojoule|13.2|switch
+S4-r2|8.1|do you track me|10.6|switch
+S5-r1|7.1|what is crowd edited|2.4|switch
+S5-r2|7.1|is this free to use|1.14|switch
+S6-r1|10.2|what is the nutri-score|13.9|switch
+S6-r2|10.2|can i download the data|9.1|switch
+S7-r1|6.3|how often does it refresh|5.1|switch
+S7-r2|6.3|what is an allergen|13.11|switch
+S8-r1|12.2|how do i give credit|2.11|switch
+S8-r2|12.2|what is salt vs sodium|13.6|switch

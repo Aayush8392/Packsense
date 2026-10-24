@@ -1,0 +1,318 @@
+# Answer catalogue, topics 6 and 7.
+- id: "6.1"
+  q: "What is a flag?"
+  alt: ["What is a flag?", "What does it mean when a product is \"flagged\"?"]
+  kind: plain
+  status: draft
+  a: "A flag is a note on a product that something looks wrong or odd: a figure that does not fit the others, a missing field, an odd value. Each flag has a weight: error, warning or information."
+- id: "6.2"
+  q: "Who raises the flags?"
+  alt: ["Who raises the flags?"]
+  kind: plain
+  status: draft
+  a: "Open Food Facts' software raises most flags. PackSense also runs its own 11 arithmetic checks and shows their results next to them."
+- id: "6.3"
+  q: "What are the 11 checks?"
+  alt: ["What are the 11 checks?"]
+  kind: plain
+  status: shown
+  a: "They are 11 simple sums on the nutrition numbers. Examples: calories cannot be bigger than kilojoules, salt should be about 2.5 times sodium, and 100 g of food cannot hold more than about 100 g of anything. The full list, in plain words, is on the page that compares PackSense with Open Food Facts."
+- id: "6.3b"
+  q: "Can you give an example of a check?"
+  alt: ["Can you give an example of a check?"]
+  kind: plain
+  status: draft
+  a: "Salt should be about 2.5 times sodium. If a product says 1 g of sodium but only 0.5 g of salt, the two do not fit, so the check flags it."
+- id: "6.4"
+  q: "How does a check work?"
+  alt: ["How does a check work?"]
+  kind: plain
+  status: draft
+  a: "Each check takes the numbers from a product's nutrition table and works out what they should add up to. It flags the product if the gap is bigger than the allowed margin. If a number it needs is missing, the check is skipped."
+- id: "6.5"
+  q: "Why 11 checks? Who decided which checks to use?"
+  alt: ["Why 11 checks?", "Why not 5 checks, or 50?"]
+  kind: sourced
+  status: shown
+  a: "The number is not picked. These are the sums that Open Food Facts already runs on its own data, in its open-source code, that arithmetic can settle without guessing. PackSense copied them with the same allowed margins. Eleven is how many of them can be run on a product's nutrition table."
+- id: "6.7"
+  q: "Are 11 checks enough? How do you know they catch what matters?"
+  alt: []
+  kind: plain
+  status: shown
+  a: "No. They catch numbers that contradict each other or cannot be true. They cannot catch a wrong figure that still adds up, such as a typo that happens to fit, a wrong product name or a missing ingredient. Open Food Facts' own checks run alongside them. For 9 of the 11 checks, PackSense's results matched Open Food Facts' own flags in about 96% to 100% of cases. The two energy checks matched in about 92% and 84%."
+- id: "6.8"
+  q: "What kinds of mistakes can the checks not catch?"
+  alt: ["What kinds of mistakes can the checks not catch?"]
+  kind: plain
+  status: shown
+  a: "Anything wrong but consistent: a wrong name, a missing ingredient, a number that is off but still adds up, or a product put in the wrong category. They also cannot check a product against the real pack."
+- id: "6.9"
+  q: "Nothing flagged: does that mean the entry is right?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "No. Nothing flagged means the checks found nothing wrong. It does not mean the entry is correct, because nobody holds the true figures."
+- id: "6.10"
+  q: "What does Several things flagged mean?"
+  alt: ["What does \"Several things flagged\" mean?"]
+  kind: plain
+  status: draft
+  a: "Open Food Facts' own checks or PackSense's 11 checks flagged more than one thing on this product. A flag means worth a look, not wrong."
+- id: "6.11"
+  q: "What does One thing flagged mean?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Open Food Facts' own checks or PackSense's 11 checks flagged one thing on this product. A flag means worth a look, not wrong."
+- id: "6.12"
+  q: "What does Nothing flagged mean?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Open Food Facts' own checks and PackSense's 11 checks found nothing. This does not mean the entry is correct."
+- id: "6.13"
+  q: "What does Not enough data to check mean?"
+  alt: ["What does \"Not enough data to check\" mean?"]
+  kind: plain
+  status: draft
+  a: "PackSense could not run its checks because there is no nutrition table to check."
+- id: "6.14"
+  q: "Why do so many products say Not enough data to check?"
+  alt: []
+  kind: measured
+  status: shown
+  data: ["not_enough_share"]
+  a: "The checks need a nutrition table to work on. {not_enough_share} of products have none, so there is nothing to add up. Those products are shown as Not enough data to check, not as fine."
+- id: "6.15"
+  q: "Why does several start at two?"
+  alt: ["Why does \"several\" start at two?"]
+  kind: plain
+  status: shown
+  a: "Several means more than one. The label is used when two or more things are flagged."
+- id: "6.16"
+  q: "Why are warnings and info notes not counted?"
+  alt: ["Why are warnings and info notes not counted?"]
+  kind: measured
+  status: shown
+  a: "The average product carries about nine open flags, and two kinds make up about four in five of them. Counting every one would make most products look flagged. So only serious flags count: errors, bugs and failed PackSense checks. Warnings and notes are still shown on the card."
+- id: "6.17"
+  q: "What is the difference between an error, a warning and an info note?"
+  alt: ["What is the difference between an error, a warning and an info note?"]
+  kind: sourced
+  status: shown
+  a: "Open Food Facts gives each flag a weight. An error is the most serious and is likely a mistake. A warning is worth a look. An information flag is only a note."
+- id: "6.18"
+  q: "Is a flagged product wrong?"
+  alt: ["Is a flagged product wrong?"]
+  kind: plain
+  status: draft
+  a: "No. Flagged means worth a look. The entry may be fine, or only rounded, or truly off. A flag cannot tell which."
+- id: "6.19"
+  q: "Why do products have so many flags?"
+  alt: ["Why do products have so many flags?"]
+  kind: measured
+  status: draft
+  a: "The average product carries about nine open flags, and two kinds make up about four in five of them. When the total goes up it is mostly because PackSense holds more products, not because the data got worse."
+- id: "6.20"
+  q: "How many products are flagged?"
+  alt: ["How many products are flagged ({N})?"]
+  kind: data
+  data: ["flagged_products"]
+  status: draft
+  a: "{flagged_products} products currently carry at least one flag."
+- id: "6.21"
+  q: "Why are energy values checked in two units?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Food labels give energy in kilojoules (kJ) and kilocalories (kcal). Checking both shows when one is missing, swapped, or does not match the other."
+- id: "6.22"
+  q: "Why is the limit 105 grams and not 100?"
+  alt: ["Why is the limit 105 grams and not 100?"]
+  kind: sourced
+  status: shown
+  a: "105 g is Open Food Facts' own limit, and PackSense uses it. It is not 100 g because 100 ml of some drinks weighs more than 100 g."
+- id: "6.23"
+  q: "Why do some products get checked more than once?"
+  alt: ["Why do some products get checked more than once?"]
+  kind: plain
+  status: draft
+  a: "A product can have several sources of nutrition data, for example from the maker and from the pack. Each source is checked on its own."
+- id: "6.24"
+  q: "Do PackSense's checks always agree with Open Food Facts' flags?"
+  alt: []
+  kind: measured
+  status: draft
+  a: "Mostly. For 9 of the 11 checks they agreed in about 96% to 100% of cases. The two checks that add up energy from nutrients agreed less, in about 92% and 84%."
+- id: "6.25"
+  q: "Why do they sometimes disagree?"
+  alt: []
+  kind: measured
+  status: draft
+  a: "PackSense does not apply two things that Open Food Facts does. One is allowances for values marked with a less-than or approximately sign. The other is a switch that turns off the energy-from-nutrients error for some categories. Both can only make Open Food Facts flag less, so PackSense flags a little more."
+- id: "6.26"
+  q: "How do you know the checks work correctly?"
+  alt: ["How do you know the checks work correctly?"]
+  kind: measured
+  status: draft
+  a: "Each check exists twice, once as code and once as a database query. A test runs both on real nutrition tables and variations of them, more than 220,000 comparisons. It makes sure they always give the same verdict."
+- id: "6.27"
+  q: "Does PackSense create new flags or change existing ones?"
+  alt: ["Does PackSense create new flags or change existing ones?"]
+  kind: plain
+  status: draft
+  a: "No. PackSense never changes Open Food Facts' flags. It shows them, and adds the results of its own 11 checks next to them."
+- id: "6.28"
+  q: "Why not find mistakes with AI instead?"
+  alt: []
+  kind: design
+  status: draft
+  a: "The 11 checks are sums with one clear answer, so no guessing is needed, and the results are easy to explain and repeat. AI would add guesswork."
+- id: "7.1"
+  q: "What is the barcode lookup? What is it for?"
+  alt: ["What is the barcode lookup?", "What is it for?"]
+  kind: plain
+  status: draft
+  a: "It shows what PackSense knows about a product, on a short card. You type in the number printed under the barcode. The card shows a flag summary and how many checks the product fails. It also shows how many of seven key fields are filled, the versions held, the last edit and a link to Open Food Facts. It has no photos, ingredient text, nutrition values or editor names, because photos and product text carry separate licences. It is for checking a product's entry, not for shopping advice."
+- id: "7.2"
+  q: "How do I look up a product?"
+  alt: ["How do I look up a product?"]
+  kind: plain
+  status: draft
+  same_as: "7.1"
+  a: "Type the number printed under a barcode. If the product is in PackSense's copy, you see its card."
+- id: "7.3"
+  q: "What does the product card show?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "The card shows a summary in four words and the warnings Open Food Facts recorded. It also shows how many of PackSense's checks the product fails and how many of seven key fields are filled. It lists how many versions are kept, when it was last edited and the first version held. It says whether the product is in India and has a button to open it on Open Food Facts."
+- id: "7.4"
+  q: "What does the product card not show?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "No photos, no ingredient text, no nutrition values, no names of editors, and no prices or shops."
+- id: "7.5"
+  q: "Why doesn't the card show ingredients, nutrition values or photos?"
+  alt: []
+  kind: design
+  status: draft
+  a: "PackSense publishes facts it works out from the data, not product text or photos. Photos carry separate licences, and sharing product text brings extra licence duties. The card links to Open Food Facts for the full entry."
+- id: "7.6"
+  q: "What does Not in PackSense's copy mean?"
+  alt: ["What does \"Not in PackSense's copy\" mean?"]
+  kind: plain
+  status: draft
+  a: "It means PackSense does not hold that barcode. It does not mean the product is not on Open Food Facts."
+- id: "7.7"
+  q: "My product wasn't found. Why?"
+  alt: ["My product wasn't found. Why?"]
+  kind: plain
+  status: draft
+  a: "Check the digits first. PackSense holds all of India, but elsewhere only products edited since 30 September 2026, so the product may still be on Open Food Facts."
+- id: "7.8"
+  q: "Which barcodes work?"
+  alt: []
+  kind: sourced
+  status: draft
+  a: "Barcodes of 8 to 14 digits, the common shapes: EAN-13, the 12-digit UPC, EAN-8 and GTIN-14."
+- id: "7.9"
+  q: "Why only barcodes of 8 to 14 digits?"
+  alt: []
+  kind: sourced
+  status: draft
+  a: "Those are the lengths of retail barcodes. Other numbers are not products."
+- id: "7.10"
+  q: "Can I type a barcode with spaces or dashes?"
+  alt: []
+  kind: plain
+  status: needs_decision
+  a: "Yes. The lookup ignores spaces and dashes. (To build: the page text does not yet say this.)"
+- id: "7.11"
+  q: "What if I leave off the first zero?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "The lookup tries the usual variants, including a missing first zero."
+- id: "7.12"
+  q: "What does the first version we hold mean?"
+  alt: ["What does \"the first version we hold\" mean?"]
+  kind: plain
+  status: draft
+  a: "The earliest version of the product PackSense has. For a product that was already on Open Food Facts when PackSense started, that is only its latest edit before then, not when it was created."
+- id: "7.13"
+  q: "What does last edit mean on the card?"
+  alt: ["What does \"last edit\" mean on the card?"]
+  kind: plain
+  status: draft
+  a: "The time of the newest edit PackSense saw."
+- id: "7.14"
+  q: "What does versions kept mean?"
+  alt: ["What does \"versions kept\" mean?"]
+  kind: plain
+  status: draft
+  same_as: "3.7"
+  a: "How many different versions of the product PackSense has saved."
+- id: "7.15"
+  q: "What does fields filled mean?"
+  alt: ["What does \"fields filled\" mean?"]
+  kind: plain
+  status: draft
+  a: "How many of seven key fields have a value: nutrition figures, Nutri-Score, NOVA group, pack size, ingredients, categories and labels."
+- id: "7.16"
+  q: "Why is it counted out of 7? Which 7 things are counted?"
+  alt: ["Why is it counted out of 7?", "Which 7 things are counted?"]
+  kind: design
+  status: shown
+  a: "The seven are nutrition figures, Nutri-Score, NOVA group, pack size, ingredients, categories and labels. They are the facts that make an entry most useful. Seven is a design choice and other lists are possible."
+- id: "7.18"
+  q: "What does in India mean on the card?"
+  alt: ["What does \"in India\" mean on the card?"]
+  kind: plain
+  status: draft
+  a: "The product is listed as sold in India on Open Food Facts."
+- id: "7.19"
+  q: "What does it mean when a card says a product was removed or moved?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Open Food Facts told PackSense this product was removed or moved to another of its databases. The card says so instead of showing a normal result."
+- id: "7.20"
+  q: "Why does the card link to Open Food Facts?"
+  alt: ["Why does the card link to Open Food Facts?"]
+  kind: design
+  status: draft
+  a: "So you can see the full, live entry on Open Food Facts, where it can also be fixed."
+- id: "7.21"
+  q: "How can the lookup work without a server?"
+  alt: ["How can the lookup work without a server?"]
+  kind: plain
+  status: draft
+  a: "Barcodes are grouped by their first digits into small files on the site. Your browser fetches the one file for your barcode and reads it itself, so nothing needs to run on a server."
+- id: "7.23"
+  q: "How many products have a card?"
+  alt: ["How many products have a card ({N})?"]
+  kind: data
+  data: ["cards"]
+  status: draft
+  a: "{cards} products have a card."
+- id: "7.24"
+  q: "Does the card tell me if a product is healthy?"
+  alt: ["Does the card tell me if a product is healthy?"]
+  kind: plain
+  status: draft
+  a: "No. The card shows facts about the entry, not whether the food is good for you."
+- id: "7.25"
+  q: "Can I scan a barcode with my phone camera?"
+  alt: []
+  kind: today
+  status: shown
+  a: "You type in the number printed under the barcode."
+- id: "7.26"
+  q: "Why is a product on Open Food Facts but not here?"
+  alt: ["Why is a product on Open Food Facts but not here?"]
+  kind: plain
+  status: draft
+  a: "Outside India PackSense holds only products edited since 30 September 2026. A product that was not edited since then, or is in a country that is not covered, is not here."

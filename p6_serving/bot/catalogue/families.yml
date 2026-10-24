@@ -1,0 +1,34 @@
+# Topic families. When the two closest entries for a question are in the same family, the bot answers with the hub (a general answer that has one line on each detail)
+# and shows the detail questions as buttons. When they are in different families, it asks "did you mean A or B".
+# `details` maps each detail entry to a cue: words that the hub text must contain, so a hub can only count as covering a detail it really mentions (checked by a test).
+# Written from the structure of the catalogue (and the tie analysis of 2026-10-25), not from the wording of any test question.
+- name: versions
+  hub: "3.7"
+  details: {"3.8": "in one place", "11.14": "several edits in one day", "8.12": "only one saved version"}
+- name: barcode_card
+  hub: "7.1"
+  details: {"7.3": "flag summary", "7.4": "no photos", "7.5": "separate licences", "7.25": "type in the number"}
+- name: brand_ranking
+  hub: "18.1"
+  details: {"8.13": "most complete", "8.14": "least complete", "8.15": "own score", "14.1": "30 or more"}
+- name: flags_checks
+  hub: "18.2"
+  details: {"6.1": "a note on a product", "6.3": "11 simple sums", "6.4": "allowed margin", "6.5": "so the number is not picked", "6.18": "not that the product is wrong", "6.7": "not enough on their own", "6.8": "still adds up", "6.9": "nothing flagged does not mean"}
+- name: health_page
+  hub: "12.2"
+  details: {"12.1": "last run worked", "12.9": "alert service"}
+- name: india_file
+  hub: "9.1"
+  details: {"9.5": "hugging face", "9.8": "csv file"}
+- name: update_timing
+  hub: "5.1"
+  details: {"5.14": "once a month", "9.20": "stays stable", "5.9": "06:45 utc"}
+- name: open_food_facts
+  hub: "4.1"
+  details: {"2.2": "free, open database", "1.9": "independent project", "4.5": "does not replace or edit"}
+- name: limits
+  hub: "11.6"
+  details: {"1.7": "no food advice", "11.5": "safe for you"}
+- name: privacy
+  hub: "10.1"
+  details: {"10.6": "run analytics", "10.14": "privacy law"}

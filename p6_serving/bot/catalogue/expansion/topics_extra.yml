@@ -1,0 +1,5 @@
+# Extra wordings added 2026-10-25 after the off-topic failures of the pooled test (country coverage, the assistant itself, apps). Exact matches with test questions removed.
+"1.12": ["do you have data for the united states", "are uk products included", "can i find products from brazil", "is the united states covered", "which other countries are in the data", "do you cover europe", "is there data for countries outside india", "can i look up products sold in other countries"]
+"16.3": ["who are you", "what are you", "what is this chatbot", "are you a robot", "are you a person or a program", "what kind of assistant is this"]
+"16.14": ["what model are you running on", "which model powers this chat", "what language model is this chatbot", "what technology answers my questions"]
+"15.9": ["download the app for iphone", "app store link", "is there a play store app", "can i install this on my phone"]

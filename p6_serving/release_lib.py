@@ -193,7 +193,7 @@ def data_card(spec: dict, version: str, built_at: str, stats: dict, report: dict
         "No pictures or picture links. No ingredient text. No names or codes of the people who edited a product. "
         "Free text (name, brand, tags) was cleaned: emails, links, social handles and Indian ID numbers were removed, known contributor usernames of eight or more letters were replaced by `‹user›`, "
         "and a name or brand that looks like an Indian mobile number was left empty. This lowers the chance that personal data remains. It cannot guarantee it: for example, "
-        "a person's own name typed as a product name cannot be told apart from a real product name. If you find personal data in the file, please tell us so we can remove it.\n",
+        "a person's own name typed as a product name cannot be told apart from a real product name. Personal data in a product name can be corrected at its source on Open Food Facts, and the next monthly release will leave it out.\n",
         "## The columns\n",
         "The table shows how many rows have a value in each column.\n",
         "| column | rows filled | share |", "|---|---|---|",

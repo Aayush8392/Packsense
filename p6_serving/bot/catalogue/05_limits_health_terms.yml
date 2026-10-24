@@ -1,0 +1,274 @@
+# Answer catalogue, topics 11 to 13.
+- id: "11.1"
+  q: "Can I trust this data? Is it correct?"
+  alt: ["Is the data correct?"]
+  kind: fixed
+  status: shown
+  a: "@correct_reply"
+- id: "11.3"
+  q: "Can I use this site to decide if a food is safe for me?"
+  alt: ["Can I use it to check for allergens?"]
+  kind: plain
+  status: shown
+  a: "No. Do not use this site to decide whether a food is safe for you, for example if you have an allergy. The data is edited by volunteers and can be wrong or out of date. Check the pack."
+- id: "11.5"
+  q: "What can PackSense not tell me?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Whether a number on a pack is true, whether a food is safe or healthy for you, who edited a product, or anything about products PackSense does not hold."
+- id: "11.6"
+  q: "What are the biggest limits of this site?"
+  alt: ["What are the biggest limits of this site?"]
+  kind: plain
+  status: shown
+  a: "The data is written by volunteers and not checked against the real pack. A product can be up to a day behind Open Food Facts. Outside India, the copy holds only products edited since 30 September 2026. The history is daily, so several edits in one day show as one. PackSense never says a product is right or wrong, gives no food advice and shows no photos or ingredient text. It cannot say whether a food is safe for you or who edited a product, and the checks miss anything wrong but consistent."
+- id: "11.7"
+  q: "Why is a product I know missing?"
+  alt: ["Why is a product I know missing?"]
+  kind: plain
+  status: draft
+  a: "Outside India PackSense holds only products edited since 30 September 2026, and in India only what Open Food Facts had in mid-October plus later edits. A product may also have been removed."
+- id: "11.8"
+  q: "Why might a product be out of date?"
+  alt: ["Why might a product be out of date?"]
+  kind: plain
+  status: draft
+  a: "A product can be up to a day behind Open Food Facts, and the entry itself may be older than the pack in the shop."
+- id: "11.9"
+  q: "Why do many products have empty nutrition information?"
+  alt: []
+  kind: measured
+  status: draft
+  a: "Many products were added with only a name and a barcode. Where the nutrition table is missing, the card says Not enough data to check."
+- id: "11.10"
+  q: "Is the data complete for every country?"
+  alt: ["Is the data complete for every country?"]
+  kind: plain
+  status: draft
+  a: "No. India is covered completely. For other countries PackSense holds only products edited since 30 September 2026."
+- id: "11.11"
+  q: "Does PackSense check products against the real pack?"
+  alt: ["Does PackSense check products against the real pack?"]
+  kind: plain
+  status: shown
+  a: "No. It can only say whether an entry agrees with itself and with Open Food Facts' own rules."
+- id: "11.12"
+  q: "What does unverified mean for a product?"
+  alt: ["What does \"unverified\" mean for a product?"]
+  kind: plain
+  status: shown
+  a: "PackSense has not yet checked this product with Open Food Facts. It does not mean the product does not exist."
+- id: "11.13"
+  q: "How does PackSense know a product was removed?"
+  alt: ["How does PackSense know a product was removed?"]
+  kind: plain
+  status: shown
+  same_as: "4.12"
+  a: "PackSense checks each missing product against Open Food Facts' public data and records whether it is gone, moved or still there."
+- id: "11.14"
+  q: "Is the history of each product complete?"
+  alt: []
+  kind: measured
+  status: shown
+  a: "No. Open Food Facts keeps one row per product per day. If a product is edited three times in a day, PackSense sees one change. So some edits are never seen, and counts are at least numbers."
+- id: "11.15"
+  q: "What does at least mean next to some counts?"
+  alt: ["What does \"at least\" mean next to some counts?"]
+  kind: plain
+  status: draft
+  a: "Open Food Facts keeps one row per product per day. If a product is edited three times in a day, PackSense sees one change. So counts are minimums, never exact."
+- id: "11.16"
+  q: "How do I report a mistake in a product?"
+  alt: []
+  kind: today
+  status: shown
+  a: "Corrections belong at Open Food Facts, where anyone can fix a product. PackSense takes a new copy every day, so a fix there shows up here."
+- id: "11.17"
+  q: "Are the charts up to date?"
+  alt: ["Are the charts up to date?"]
+  kind: plain
+  status: draft
+  a: "Charts show whole days only, so the newest day on a chart is the last complete one, usually yesterday or the day before."
+- id: "11.18"
+  q: "Why does the site say flagged and never wrong?"
+  alt: ["Why does the site say \"flagged\" and never \"wrong\"?"]
+  kind: design
+  status: shown
+  a: "Nobody holds the true figures. PackSense can only say whether an entry agrees with itself and with Open Food Facts' own rules. Flagged means worth a look."
+- id: "12.1"
+  q: "Is PackSense working right now?"
+  alt: ["Is PackSense working right now?"]
+  kind: data
+  data: ["jobs_status"]
+  status: draft
+  a: "{jobs_status} A green board means the jobs ran, not that the data is right."
+- id: "12.2"
+  q: "What is the pipeline health page? What does it show?"
+  alt: ["What is the pipeline health page?", "What does it show?"]
+  kind: plain
+  status: draft
+  a: "The status board. It shows each scheduled job, whether its last run worked, how long it takes, and whether the outside services it depends on are answering. A green board means the jobs ran, not that the data is right. Each daily job reports to an automatic alert service, so a missing or failed report sends an alert."
+- id: "12.3"
+  q: "What does the health page not show?"
+  alt: ["What does it not show?"]
+  kind: plain
+  status: draft
+  a: "Storage size and running costs. A green board means the jobs ran, not that the data is right."
+- id: "12.5"
+  q: "What does runs that did not succeed mean?"
+  alt: ["What does \"runs that did not succeed\" mean?", "Why does a failed test run still count as a failure?"]
+  kind: plain
+  status: draft
+  a: "Any run that did not finish successfully, for any reason. A test started on purpose looks the same as a real fault, so both are counted."
+- id: "12.7"
+  q: "How many daily jobs failed recently?"
+  alt: []
+  kind: data
+  data: ["failed_runs_recent"]
+  status: draft
+  a: "{failed_runs_recent} runs did not succeed in the last 90 days."
+- id: "12.8"
+  q: "What happens when a daily job fails?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "The failure shows on the status page, and an automatic alert goes out. Later steps still run when they can, and a missed day is refilled by the next run."
+- id: "12.9"
+  q: "How would anyone know that something broke?"
+  alt: []
+  kind: plain
+  status: draft
+  a: "Each daily job reports to an automatic alert service. If a report is missing or says failed, an alert goes out."
+- id: "12.10"
+  q: "Which outside services does PackSense depend on?"
+  alt: ["Which outside services does PackSense depend on?"]
+  kind: plain
+  status: draft
+  a: "Open Food Facts, the places where it stores data, and the website host. The status page shows whether each one answers."
+- id: "12.11"
+  q: "What happens if Open Food Facts is down?"
+  alt: []
+  kind: sourced
+  status: draft
+  a: "PackSense cannot fetch new files until it is back. The next run catches up, as long as it is within Open Food Facts' 14-day window."
+- id: "12.13"
+  q: "Is the data backed up? Could it be lost?"
+  alt: ["Is the data backed up?", "Could the data be lost?"]
+  kind: plain
+  status: draft
+  a: "Yes. Every raw daily file is kept in two separate places, and rebuilding the tables from them has been tested."
+- id: "12.15"
+  q: "Can the site stop working?"
+  alt: ["Can the site stop working?"]
+  kind: plain
+  status: draft
+  a: "Yes, like any website. The site is plain files, so a crashed server cannot knock it over, but it depends on its host."
+- id: "12.16"
+  q: "Why does the page not show storage space or running costs?"
+  alt: ["Why does the page not show storage space or running costs?"]
+  kind: design
+  status: draft
+  a: "On purpose: the site keeps money and usage limits off the page."
+- id: "13.1"
+  q: "What does per 100 g mean?"
+  alt: ["What does \"per 100 g\" mean?"]
+  kind: definition
+  status: draft
+  a: "Nutrition values are given for a fixed amount, 100 grams (or 100 millilitres for drinks), so products can be compared."
+- id: "13.2"
+  q: "What is a kilojoule? What is a kilocalorie?"
+  alt: ["What is a kilojoule?"]
+  kind: definition
+  status: draft
+  a: "Both are units of energy. Food labels often give both: kilojoules (kJ) and kilocalories (kcal), which most people call calories. 1 kcal = 4.184 kJ."
+- id: "13.4"
+  q: "What is the difference between kJ and kcal?"
+  alt: ["What is the difference between kJ and kcal?"]
+  kind: definition
+  status: draft
+  a: "They are the same thing in different units: kJ = kcal × 4.184. The check allows the kJ figure to sit between about 3.7 and 4.7 times the kcal figure, plus a small margin."
+- id: "13.5"
+  q: "What is energy on a food label?"
+  alt: ["What is energy on a food label?"]
+  kind: definition
+  status: draft
+  a: "It is how much energy the food gives you, per 100 g. It is added up from the nutrients. Each gram of fat gives about 37 kJ (9 kcal). Each gram of carbohydrate or protein gives about 17 kJ (4 kcal), and alcohol about 29 kJ (7 kcal)."
+- id: "13.6"
+  q: "What is the difference between salt and sodium?"
+  alt: ["What is the difference between salt and sodium?"]
+  kind: definition
+  status: draft
+  a: "Sodium is the part of salt that matters for health. Salt = sodium × 2.5. For example, 0.4 g of sodium is 1 g of salt."
+- id: "13.7"
+  q: "What is saturated fat?"
+  alt: ["What is saturated fat?"]
+  kind: definition
+  status: draft
+  a: "A type of fat, and part of the total fat. It can never be more than the total fat."
+- id: "13.8"
+  q: "What are sugars, starch and carbohydrates?"
+  alt: ["What are sugars, starch and carbohydrates?"]
+  kind: definition
+  status: draft
+  a: "Carbohydrates are the total. Sugars and starch are kinds of carbohydrate, so sugars plus starch cannot be more than the carbohydrates."
+- id: "13.9"
+  q: "What is Nutri-Score?"
+  alt: ["What is Nutri-Score?"]
+  kind: definition
+  status: draft
+  a: "A letter grade from A to E that rates a food's overall nutrition, worked out from its nutrients. Open Food Facts shows it when it can be calculated."
+- id: "13.10"
+  q: "What is NOVA?"
+  alt: []
+  kind: definition
+  status: draft
+  a: "A group from 1 to 4 that describes how processed a food is: 1 is unprocessed, 4 is ultra-processed."
+- id: "13.11"
+  q: "What is an allergen?"
+  alt: ["What is an allergen?"]
+  kind: definition
+  status: draft
+  a: "A substance that can cause an allergic reaction, such as milk, nuts or gluten."
+- id: "13.12"
+  q: "What does may contain (traces) mean?"
+  alt: []
+  kind: definition
+  status: draft
+  a: "A warning that the food was made where an allergen is present, so small amounts may be in it."
+- id: "13.13"
+  q: "What is an additive?"
+  alt: []
+  kind: definition
+  status: draft
+  a: "A substance added to food, such as a preservative or a colour. Additives are often listed with an E-number."
+- id: "13.14"
+  q: "What is a serving size?"
+  alt: ["What is a serving size?"]
+  kind: definition
+  status: draft
+  a: "The amount a pack calls one serving. PackSense's checks use values per 100 g, not per serving."
+- id: "13.15"
+  q: "What is a barcode number (GTIN, EAN)?"
+  alt: ["What is a barcode number (GTIN, EAN)?"]
+  kind: definition
+  status: draft
+  a: "The number under a barcode. It identifies a product, and usually has 8 to 14 digits."
+- id: "13.16"
+  q: "How do I convert kilojoules to kilocalories?"
+  alt: ["How do I convert kilojoules to kilocalories?"]
+  kind: definition
+  status: draft
+  a: "Divide the kJ by 4.184. For example, 1,000 kJ is about 239 kcal."
+- id: "13.17"
+  q: "How is salt worked out from sodium?"
+  alt: []
+  kind: definition
+  status: draft
+  a: "Multiply the sodium by 2.5. For example, 0.4 g of sodium is 1 g of salt."
+- id: "13.18"
+  q: "How is energy worked out from fat, carbohydrates and protein?"
+  alt: []
+  kind: definition
+  status: draft
+  a: "Multiply each by its factor and add up: fat 37 kJ per gram, carbohydrates 17, protein 17. For example, 10 g of fat, 50 g of carbohydrates and 5 g of protein give 370 + 850 + 85 = 1,305 kJ. This is the simplified version; fibre, alcohol and sugar alcohols also count."

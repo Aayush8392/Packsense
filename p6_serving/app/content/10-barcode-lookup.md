@@ -27,7 +27,7 @@ design_notes:
 
 # What do we know about this product?
 
-Type or scan the number under a barcode. If the product is in our copy, you see a short card:
+Type the number printed under a barcode. If the product is in our copy, you see a short card:
 
 - A signal, in four words: **Several things flagged**, **One thing flagged**, **Nothing flagged** or **Not enough data to check**, with a line under it that says what a flag means.
 - How many warnings Open Food Facts has recorded for it, and how serious they are.
