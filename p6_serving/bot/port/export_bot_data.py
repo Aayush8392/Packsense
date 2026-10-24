@@ -24,7 +24,6 @@ import cross_validate as cv  # noqa: E402
 import matcher as mt  # noqa: E402
 import segment as sg  # noqa: E402
 import segment_matcher as sm  # noqa: E402
-import trial_embeddings as te  # noqa: E402
 
 SHIP = (0.7, 0.50, 0.10)
 REGEXES = {
