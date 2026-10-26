@@ -1,0 +1,69 @@
+<View>
+  <Style>h6 { font-size: 14px !important; font-weight: 600 !important; margin: 3px 0 !important; } h5 { font-size: 16px !important; margin: 10px 0 3px !important; }</Style>
+  <View style="display:flex; gap:20px">
+    <View style="width:58%">
+      <Header value="Nutrition photo (scroll to zoom, drag to move)"/>
+      <Image name="photo" value="$nutrition_photo" zoom="true" zoomControl="true" rotateControl="true"/>
+      <Header value="$g_title" size="5"/>
+      <Header value="$g_note" size="6"/>
+      <Header value="$g_energy" size="6"/>
+      <Header value="$g_fat" size="6"/>
+      <Header value="$g_saturated" size="6"/>
+      <Header value="$g_carbs" size="6"/>
+      <Header value="$g_sugars" size="6"/>
+      <Header value="$g_fibre" size="6"/>
+      <Header value="$g_protein" size="6"/>
+      <Header value="$g_salt" size="6"/>
+      <Header value="$g_sodium" size="6"/>
+      <Header value="$g_per100" size="6"/>
+      <Header value="$g_serving" size="6"/>
+    </View>
+    <View style="width:42%">
+      <Header value="$card"/>
+      <Header value="$l_name" size="6"/>
+      <Header value="$l_brand" size="6"/>
+      <Header value="$l_barcode" size="6"/>
+      <Header value="$l_pack" size="6"/>
+      <Header value="$l_serving" size="6"/>
+      <Header value="$l_basis" size="6"/>
+      <Header value="OFF flag: $flags" size="5"/>
+      <Header value="The record says" size="5"/>
+      <Header value="Per 1 g or 1 ml: multiply by the serving size printed on the pack to get the pack's per-serving figure." size="6"/>
+      <Header value="$v_energy_kj" size="6"/>
+      <Header value="$v_energy_kcal" size="6"/>
+      <Header value="$v_fat" size="6"/>
+      <Header value="$v_saturated_fat" size="6"/>
+      <Header value="$v_carbohydrates" size="6"/>
+      <Header value="$v_sugars" size="6"/>
+      <Header value="$v_added_sugars" size="6"/>
+      <Header value="$v_starch" size="6"/>
+      <Header value="$v_fiber" size="6"/>
+      <Header value="$v_proteins" size="6"/>
+      <Header value="$v_salt" size="6"/>
+      <Header value="$v_sodium" size="6"/>
+      <Header value="$c_kj_from_kcal" size="6"/>
+      <Header value="$c_energy_from_nutrients" size="6"/>
+      <Header value="Product on OFF: $link" size="6"/>
+      <Header value="Front photo"/>
+      <Image name="front" value="$front_photo" zoom="true"/>
+    </View>
+  </View>
+  <Header value="Does the record match the nutrition table on the pack?"/>
+  <Choices name="label" toName="photo" choice="single-radio" showInline="true" required="true">
+    <Choice value="Real error" hotkey="1"/>
+    <Choice value="Not an error" hotkey="2"/>
+    <Choice value="Cannot tell" hotkey="3"/>
+  </Choices>
+  <Header value="Reason code (optional)"/>
+  <Choices name="code" toName="photo" choice="single-radio" showInline="true">
+    <Choice value="D digit or decimal slip"/>
+    <Choice value="B wrong basis"/>
+    <Choice value="U wrong unit"/>
+    <Choice value="C copy and paste"/>
+    <Choice value="M misplaced value"/>
+    <Choice value="O other difference"/>
+    <Choice value="N no difference"/>
+    <Choice value="P photo problem"/>
+  </Choices>
+  <TextArea name="note" toName="photo" rows="2" placeholder="Note (optional)"/>
+</View>

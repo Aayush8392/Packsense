@@ -10,6 +10,8 @@ Nothing here says why anything happened. The output is the same list of sentence
 """
 from __future__ import annotations
 
+import story_facts as sf
+
 AMOUNT = {"usual": "about the usual number", "up": "more than usual", "down": "fewer than usual", "up_slight": "a little more than usual", "down_slight": "a little fewer than usual"}
 SHARE_WORD = {"up": "more than", "down": "less than", "up_slight": "a little more than", "down_slight": "a little less than"}
 CHANGE_NAME = {"nutrition_products": "a nutrition change", "ingredients_products": "an ingredients change"}
@@ -153,4 +155,15 @@ def plan(request: dict) -> list[dict]:
             say(f"{bridge['conclusion_wording'][0].upper() + bridge['conclusion_wording'][1:]}.", "derived", bridge["id"])
         elif bridge["opened_share_of_new"] >= 0.6:
             say(f"Most of the new flags opened on products that were already known ({bridge['opened_known']} of {bridge['new_flags']}).", "derived", bridge["id"])
+
+    # 6. one closing sentence for every clear change that no approved pattern covers (owner, 2026-10-25: at most one per story, never one after each finding)
+    covered = {c for p in request["patterns"] for c in p.get("cites", [])}
+    open_changes = [f for f in request["facts"] if f["direction"] in ("up", "down") and f["id"] not in covered]
+    if open_changes:
+        names = [sf.SHORT_NAMES.get(f["column"], f["label"]) for f in open_changes]
+        listed = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+        listed = listed[0].upper() + listed[1:]
+        verb = "is" if len(names) == 1 and names[0] != sf.SHORT_NAMES["nutrition_products"] and names[0] != sf.SHORT_NAMES["ingredients_products"] else "are"
+        text = f"{listed} {verb} not explained by any known pattern."
+        say(text, "unexplained", *[f["id"] for f in open_changes])
     return out

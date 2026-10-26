@@ -190,20 +190,20 @@ def test_the_rendered_story_ends_with_the_code_written_caveats_and_the_label():
 GOLDEN = {
     ("2026-10-17", "india"): ("On 17 October, 271 products changed in India, 12.3 times the usual 22, and the largest of the 17 days held so far. This is consistent with a burst of edits concentrated in India. "
                               "Almost all of them (261 of 271) were existing products that were edited, and 91% had a nutrition change, against a usual 50%. "
-                              "Ingredients changes (116, against 4.5) were also higher than usual. The number of new products stayed about the usual."),
+                              "Ingredients changes (116, against 4.5) were also higher than usual. The number of new products stayed about the usual. Nutrition changes and ingredients changes are not explained by any known pattern."),
     ("2026-10-23", "all"): ("On 23 October, about the usual number of products changed (1,785), but the mix was different. India had 20.1% of the changes, when it usually has 2.7%. "
                             "Outside India, 1,427 products changed, about the usual number. India made up 46% of the nutrition changes and 57% of the ingredients changes, although it had only 20% of all changed products. "
                             "Outside India, nutrition changes (374, against 324) were about the usual, so the rise is in India. "
                             "Outside India, ingredients changes (160, against 43) were also higher than usual, so India explains part of the rise, not all of it. "
-                            "Open flags went up by 44,445. Almost all of that comes from products seen for the first time that arrived already flagged."),
+                            "Open flags went up by 44,445. Almost all of that comes from products seen for the first time that arrived already flagged. Ingredients changes and India's share of changes are not explained by any known pattern."),
     ("2026-10-12", "all"): ("On 12 October, about the usual number of products changed (1,331), but nutrition changes (217, against 129) were higher than usual. "
-                            "Open flags went up by 44,288. Almost all of that comes from products seen for the first time that arrived already flagged."),
+                            "Open flags went up by 44,288. Almost all of that comes from products seen for the first time that arrived already flagged. Nutrition changes are not explained by any known pattern."),
     ("2026-10-16", "all"): ("On 16 October, about the usual number of products changed (1,362), but the mix was different. "
                             "Of them, 475 were existing products that were edited, a little more than the usual 376, and 7.5% had an ingredients change, against a usual 3.2%. "
                             "The traces tags were dropped for 10.41 of every 100 products, against a usual 0.29-3.41, consistent with a formatting problem in that day's file. "
-                            "Nutrition changes (276, against 131) were also higher than usual. Open flags went up by 40,984. Almost all of that comes from products seen for the first time that arrived already flagged."),
+                            "Nutrition changes (276, against 131) were also higher than usual. Open flags went up by 40,984. Almost all of that comes from products seen for the first time that arrived already flagged. Nutrition changes are not explained by any known pattern."),
     ("2026-10-21", "india"): ("On 21 October, 772 products changed in India, 32.2 times the usual 24, and the largest of the 21 days held so far. This is consistent with a burst of edits concentrated in India. "
-                              "Nutrition changes (751, against 11.5) and ingredients changes (300, against 5) were also higher than usual."),
+                              "Nutrition changes (751, against 11.5) and ingredients changes (300, against 5) were also higher than usual. Nutrition changes and ingredients changes are not explained by any known pattern."),
 }
 
 
@@ -246,3 +246,17 @@ def test_a_change_of_the_facts_changes_the_story():
         flat["all"][day]["india_share"] = flat["india"][day]["any_products"] / flat["all"][day]["any_products"]
     r = sf.build_request(flat, DRIFT, "2026-10-17", "india", QUALITY)
     assert "burst" not in " ".join(x["text"] for x in sp.plan(r)) and "burst" in texts(req("2026-10-17", "india"))
+
+
+def test_the_planned_story_has_at_most_one_unexplained_sentence_and_it_names_every_open_change():
+    for day in sf.story_days(DAYS):
+        for scope in ("all", "india"):
+            r = req(day, scope)
+            ss = [x for x in sp.plan(r) if x["type"] == "unexplained"]
+            covered = {c for p in r["patterns"] for c in p.get("cites", [])}
+            open_ids = [f["id"] for f in r["facts"] if f["direction"] in ("up", "down") and f["id"] not in covered]
+            assert len(ss) == (1 if open_ids else 0), (day, scope)
+            if ss:
+                assert ss[0]["cites"] == open_ids
+                assert ss[0]["text"].endswith("not explained by any known pattern.")
+                assert sp.plan(r).index(ss[0]) == len(sp.plan(r)) - 1          # it closes the story, never follows each finding

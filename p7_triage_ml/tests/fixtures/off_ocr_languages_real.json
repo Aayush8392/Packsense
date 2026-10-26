@@ -1,0 +1,150 @@
+{
+ "4070765054392": {
+  "tag": "en",
+  "responses": [
+   {
+    "fullTextAnnotation": {
+     "pages": [
+      {
+       "property": {
+        "detectedLanguages": [
+         {
+          "languageCode": "pl",
+          "confidence": 0.35174263
+         },
+         {
+          "confidence": 0.3370391,
+          "languageCode": "de"
+         },
+         {
+          "languageCode": "en",
+          "confidence": 0.17748724
+         },
+         {
+          "languageCode": "da",
+          "confidence": 0.05510808
+         },
+         {
+          "confidence": 0.020982292,
+          "languageCode": "nl"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "4069366061434": {
+  "tag": "en",
+  "responses": [
+   {
+    "fullTextAnnotation": {
+     "pages": [
+      {
+       "property": {
+        "detectedLanguages": [
+         {
+          "languageCode": "hu",
+          "confidence": 0.4025564
+         },
+         {
+          "languageCode": "sk",
+          "confidence": 0.15682742
+         },
+         {
+          "languageCode": "sl",
+          "confidence": 0.13079186
+         },
+         {
+          "languageCode": "en",
+          "confidence": 0.08410928
+         },
+         {
+          "languageCode": "lb",
+          "confidence": 0.07728008
+         },
+         {
+          "confidence": 0.07019723,
+          "languageCode": "it"
+         },
+         {
+          "confidence": 0.02388783,
+          "languageCode": "de"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "8906002000876": {
+  "tag": "en",
+  "responses": [
+   {
+    "fullTextAnnotation": {
+     "pages": [
+      {
+       "property": {
+        "detectedLanguages": [
+         {
+          "languageCode": "en",
+          "confidence": 0.77178884
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "8901725001087": {
+  "tag": "en",
+  "responses": [
+   {
+    "fullTextAnnotation": {
+     "pages": [
+      {
+       "property": {
+        "detectedLanguages": [
+         {
+          "confidence": 0.78708965,
+          "languageCode": "en"
+         },
+         {
+          "confidence": 0.024438238,
+          "languageCode": "id"
+         },
+         {
+          "languageCode": "sv",
+          "confidence": 0.0025964011
+         },
+         {
+          "languageCode": "hr",
+          "confidence": 0.002545101
+         },
+         {
+          "languageCode": "pt",
+          "confidence": 0.002387607
+         },
+         {
+          "languageCode": "kn",
+          "confidence": 0.00067003764
+         },
+         {
+          "confidence": 0.0003306983,
+          "languageCode": "ja"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

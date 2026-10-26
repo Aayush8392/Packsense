@@ -22,6 +22,12 @@ LABELS = {
     "ingredients_products": "products with an ingredients change",
     "india_share": "India's share of changed products",
 }
+SHORT_NAMES = {   # the short names the closing 'not explained' sentence uses for a long label
+    "any_products": "the number of changed products",
+    "nutrition_products": "nutrition changes",
+    "ingredients_products": "ingredients changes",
+    "india_share": "India's share of changes",
+}
 SCOPE_SIGNALS = {"all": ("any_products", "new_products", "unseen_edits", "nutrition_products", "ingredients_products", "india_share"),
                  "india": ("any_products", "new_products", "unseen_edits", "nutrition_products", "ingredients_products")}
 CAVEATS = {

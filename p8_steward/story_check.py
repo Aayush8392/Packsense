@@ -11,7 +11,7 @@ import re
 
 import story_facts as sf
 
-MAX_SENTENCES = 10
+MAX_SENTENCES = 11
 MAX_WORDS = 30
 TYPES = {"fact", "derived", "pattern", "unexplained"}
 UNEXPLAINED_PHRASE = "not explained by any known pattern"
@@ -205,7 +205,7 @@ def check(story: dict | None, request: dict, strict: bool = False) -> list[tuple
             problems.append(("R7", f"{tag}: advice wording '{m}'"))
         if typ == "unexplained":
             for f in cited:
-                if f.get("kind") == "fact" and f["label"].lower() not in text.lower():
+                if f.get("kind") == "fact" and f["label"].lower() not in text.lower() and sf.SHORT_NAMES.get(f.get("column"), "").lower() not in text.lower():
                     problems.append(("R8", f"{tag}: an unexplained sentence must name the measure ('{f['label']}')"))
         for d in cited:
             wording = d.get("conclusion_wording")
