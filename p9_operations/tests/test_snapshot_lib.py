@@ -441,6 +441,35 @@ def test_a_snapshot_read_from_the_network_is_cached_locally_for_the_next_pair(tm
     assert same == con.execute("select count(*) from n").fetchone()[0] == 197
 
 
+def test_a_tripped_byte_guard_is_reported_as_the_guard_not_as_a_bare_interrupt(monkeypatch):
+    import time
+    counter = {"n": 0}
+    monkeypatch.setattr(lib, "read_rx_bytes", lambda: counter["n"])
+    monkeypatch.setattr(lib, "resolve_cdn", lambda sha: "x")
+
+    class FakeCon:                                                   # DuckDB raises from execute() when interrupted
+        def interrupt(self):
+            self.interrupted = True
+
+        def execute(self, sql):
+            counter["n"] = 5000                                      # more than the 1000-byte limit arrives
+            time.sleep(1.6)                                          # the watcher polls once a second
+            raise RuntimeError("INTERRUPT Error: Interrupted!")
+
+    with pytest.raises(RuntimeError, match=r"byte guard: reading snapshot b{8} passed .* MB"):
+        lib._load_side(FakeCon(), "n", {"sha": "b" * 40}, 1000)
+
+    class FailingCon:                                                # any other failure keeps its own message
+        def interrupt(self):
+            pass
+
+        def execute(self, sql):
+            raise RuntimeError("some other failure")
+
+    with pytest.raises(RuntimeError, match="some other failure"):
+        lib._load_side(FailingCon(), "n", {"sha": "c" * 40}, 10**9)
+
+
 def test_the_notebook_runs_each_pair_in_its_own_process_and_watches_memory():
     text = (HERE.parent / "notebooks" / "snapshot_events.py").read_text(encoding="utf-8")
     assert "import duckdb" not in text                          # DuckDB lives only in the worker processes

@@ -346,8 +346,15 @@ def _load_side(con, table: str, side: dict, byte_guard: int) -> int:
     if local:
         con.execute(f"create table {table} as select * from read_parquet('{local}')")
         return 0
-    with ByteGuard(read_rx_bytes, byte_guard, con.interrupt) as guard:
-        con.execute(load_sql(table, resolve_cdn(side["sha"])))
+    try:
+        with ByteGuard(read_rx_bytes, byte_guard, con.interrupt) as guard:
+            con.execute(load_sql(table, resolve_cdn(side["sha"])))
+    except Exception:
+        # the guard's interrupt makes DuckDB raise before the check below: name the cause and the bytes seen (found 2026-10-26, a bare 'Interrupted!')
+        if guard.tripped:
+            raise RuntimeError(f"byte guard: reading snapshot {side['sha'][:8]} passed {byte_guard / 1e6:.0f} MB "
+                               f"({guard.received() / 1e6:.0f} MB received by the machine); stopped") from None
+        raise
     if guard.tripped:
         raise RuntimeError(f"byte guard: reading snapshot {side['sha'][:8]} passed {byte_guard / 1e6:.0f} MB; stopped")
     if side.get("cache"):
