@@ -86,15 +86,21 @@ def build_matrix(rows: list[dict], with_family: bool, levels: list[str]) -> tupl
 
 
 def fit_scores(x_train, y_train, x_test, config: Config, with_family: bool) -> list[float]:
-    """Train on the training rows and score the test rows (probability of a fix). Needs numpy and scikit-learn."""
+    """Train on the training rows and score the test rows (probability of a fix). Needs numpy and scikit-learn.
+    A column that is entirely missing in the training rows is dropped from both matrices: scikit-learn 1.9.1 fails while binning it ('window shape cannot be
+    larger than input array shape'; found 2026-10-26 on `edited_since_prev`, which has no value in the first snapshot of a window)."""
     import numpy as np
     from sklearn.ensemble import HistGradientBoostingClassifier
-    cat = [True if (with_family and i == len(NUMERIC)) else False for i in range(len(x_train[0]))]
+    x_train, x_test = np.asarray(x_train, dtype=float), np.asarray(x_test, dtype=float)
+    keep = ~np.isnan(x_train).all(axis=0)
+    x_train, x_test = x_train[:, keep], x_test[:, keep]
+    family_column = x_train.shape[1] - 1 if with_family else None
+    cat = [i == family_column for i in range(x_train.shape[1])]
     model = HistGradientBoostingClassifier(
         max_iter=config.max_iter, learning_rate=config.learning_rate, max_leaf_nodes=config.max_leaf_nodes, min_samples_leaf=config.min_samples_leaf,
         l2_regularization=config.l2_regularization, random_state=config.seed, categorical_features=cat if any(cat) else None, early_stopping=False)
-    model.fit(np.asarray(x_train, dtype=float), np.asarray(y_train))
-    return [float(p) for p in model.predict_proba(np.asarray(x_test, dtype=float))[:, 1]]
+    model.fit(x_train, np.asarray(y_train))
+    return [float(p) for p in model.predict_proba(x_test)[:, 1]]
 
 
 # --- the report ---------------------------------------------------------------------------------------------------------------------------

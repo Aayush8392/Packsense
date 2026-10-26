@@ -104,3 +104,13 @@ def test_the_model_fit_runs_where_scikit_learn_is_installed():
     x, y = tm.build_matrix(ROWS, with_family=True, levels=tm.family_levels(ROWS))
     scores = tm.fit_scores(np.asarray(x), np.asarray(y), np.asarray(x), tm.Config(max_iter=20, min_samples_leaf=5), with_family=True)
     assert len(scores) == len(ROWS) and all(0.0 <= s <= 1.0 for s in scores)
+
+
+def test_a_column_that_is_missing_everywhere_in_training_does_not_stop_the_fit():
+    pytest.importorskip("sklearn")
+    np = pytest.importorskip("numpy")
+    x, y = tm.build_matrix(ROWS, with_family=True, levels=tm.family_levels(ROWS))
+    x = np.asarray(x)
+    x[:, tm.NUMERIC.index("edited_since_prev")] = float("nan")                          # as in the first snapshot of a window
+    scores = tm.fit_scores(x, np.asarray(y), x, tm.Config(max_iter=20, min_samples_leaf=5), with_family=True)
+    assert len(scores) == len(ROWS)
