@@ -470,6 +470,12 @@ def test_a_tripped_byte_guard_is_reported_as_the_guard_not_as_a_bare_interrupt(m
         lib._load_side(FailingCon(), "n", {"sha": "c" * 40}, 10**9)
 
 
+def test_the_notebook_pins_duckdb():
+    # DuckDB 2.0.0 (released 2026-10-21) came after the last good run (2026-10-20, 1.5.6); an unpinned install made the job read over 3 GB per snapshot (inferred cause)
+    text = (HERE.parent / "notebooks" / "snapshot_events.py").read_text(encoding="utf-8")
+    assert "%pip install -q duckdb==1.5.6 " in text
+
+
 def test_the_notebook_takes_the_byte_guard_from_a_widget_that_defaults_to_the_library_value():
     text = (HERE.parent / "notebooks" / "snapshot_events.py").read_text(encoding="utf-8")
     assert 'widgets.text("byte_guard_mb", str(lib.BYTE_GUARD // 1_000_000))' in text

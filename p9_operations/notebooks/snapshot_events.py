@@ -14,7 +14,7 @@
 # No contributor field is read. Nothing here needs a secret except the optional healthchecks ping.
 
 # COMMAND ----------
-# MAGIC %pip install -q duckdb requests
+# MAGIC %pip install -q duckdb==1.5.6 requests
 
 # COMMAND ----------
 dbutils.library.restartPython()
