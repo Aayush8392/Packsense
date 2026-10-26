@@ -60,6 +60,7 @@ dbutils.widgets.text("weeks", "12")
 dbutils.widgets.text("max_pairs", "14")
 dbutils.widgets.text("retention_months", str(lib.RETENTION_MONTHS))
 dbutils.widgets.text("dry_run", "false")
+dbutils.widgets.text("byte_guard_mb", str(lib.BYTE_GUARD // 1_000_000))      # per snapshot read; raised only for a measuring run
 dbutils.widgets.text("secret_scope", "packsense")
 dbutils.widgets.text("ping_healthchecks", "true")           # dev and tests set "false"
 
@@ -68,6 +69,7 @@ SCHEMA = dbutils.widgets.get("schema")
 WEEKS = int(dbutils.widgets.get("weeks"))
 MAX_PAIRS = int(dbutils.widgets.get("max_pairs"))
 RETENTION = int(dbutils.widgets.get("retention_months"))
+BYTE_GUARD = int(dbutils.widgets.get("byte_guard_mb")) * 1_000_000
 DRY = dbutils.widgets.get("dry_run").strip().lower() == "true"
 SCOPE = dbutils.widgets.get("secret_scope")
 PING = dbutils.widgets.get("ping_healthchecks").strip().lower() == "true"
@@ -153,7 +155,7 @@ def run():
         prev = {"sha": a.sha, "local": cache_of(a) if os.path.exists(cache_of(a)) else None, "cache": cache_of(a) if use_cache else None}
         cur = {"sha": b.sha, "cache": cache_of(b) if use_cache else None}
         spec = {"prev": prev, "cur": cur, "out": f"{work}/{pid}.json", "memory_limit_mb": int(0.5 * total_mb), "temp_dir": f"{work}/spill",
-                "threads": 8, "byte_guard": lib.BYTE_GUARD, "count_prev": a.sha not in counted, "count_cur": b.sha not in counted}
+                "threads": 8, "byte_guard": BYTE_GUARD, "count_prev": a.sha not in counted, "count_cur": b.sha not in counted}
         spec_path = f"{work}/{pid}.spec.json"
         with open(spec_path, "w", encoding="utf-8") as fh:
             json.dump(spec, fh)

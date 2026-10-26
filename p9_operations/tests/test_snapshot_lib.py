@@ -470,6 +470,12 @@ def test_a_tripped_byte_guard_is_reported_as_the_guard_not_as_a_bare_interrupt(m
         lib._load_side(FailingCon(), "n", {"sha": "c" * 40}, 10**9)
 
 
+def test_the_notebook_takes_the_byte_guard_from_a_widget_that_defaults_to_the_library_value():
+    text = (HERE.parent / "notebooks" / "snapshot_events.py").read_text(encoding="utf-8")
+    assert 'widgets.text("byte_guard_mb", str(lib.BYTE_GUARD // 1_000_000))' in text
+    assert '"byte_guard": BYTE_GUARD,' in text and '"byte_guard": lib.BYTE_GUARD' not in text
+
+
 def test_the_notebook_runs_each_pair_in_its_own_process_and_watches_memory():
     text = (HERE.parent / "notebooks" / "snapshot_events.py").read_text(encoding="utf-8")
     assert "import duckdb" not in text                          # DuckDB lives only in the worker processes
