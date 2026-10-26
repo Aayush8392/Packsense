@@ -34,7 +34,21 @@ BYTE_GUARD = 1_000_000_000      # one snapshot is ~310 MB for these columns; a r
 RETENTION_MONTHS = 13           # flag events older than this (by the newer snapshot's date) are deleted at the end of a run
 
 DEFAULT_SCHEMA = "workspace.packsense_snapshots"
-TABLES = ("snapshot_flag_events", "snapshot_open_counts", "snapshot_presence_events", "snapshot_manifest")
+TABLES = ("snapshot_flag_events", "snapshot_open_counts", "snapshot_presence_events", "snapshot_manifest",
+          "snapshot_open_flags", "snapshot_open_flags_manifest")
+
+# The open flags kept per product for the triage model (roadmap item 17, agreed 2026-10-26): every error flag, and the warning flags of the
+# nutrition-number families the labelling gate covers. Measured 2026-10-18: 259,679 error and 647,429 such warning flags open in one snapshot,
+# against 21.5 million warnings in all (13 million of them OFF's computed environmental-score and ecoscore warnings, which no editor fixes).
+WARNING_SCOPE = re.compile(r"^(?:value-very-(?:high|low)-for-category-.+|value-under-0-0*1-g-salt|3-or-more-values-are-identical)$")
+WARNING_SCOPE_SQL = "value-very-(high|low)-for-category-|value-under-0-0*1-g-salt|3-or-more-values-are-identical"   # unanchored prefilter in DuckDB
+
+
+def in_flag_scope(severity: str, tag: str) -> bool:
+    """Whether an open flag is kept in `snapshot_open_flags`: any error, or a warning whose family is in WARNING_SCOPE."""
+    if severity == "error":
+        return True
+    return severity == "warning" and bool(WARNING_SCOPE.match(family_key(tag)))
 
 
 # --- the flag family -----------------------------------------------------------------------------------------------------------------------
@@ -217,6 +231,11 @@ def ddl(schema: str) -> dict[str, str]:
             family_remains BOOLEAN, edited BOOLEAN, lm_from BIGINT, lm_to BIGINT) USING DELTA""",
         "snapshot_open_counts": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_open_counts (
             snapshot_sha STRING, snapshot_date DATE, severity STRING, flag STRING, family STRING, open_pairs BIGINT) USING DELTA""",
+        "snapshot_open_flags": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_open_flags (
+            snapshot_sha STRING, snapshot_date DATE, code STRING, severity STRING, flag STRING, family STRING, lm BIGINT) USING DELTA""",
+        "snapshot_open_flags_manifest": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_open_flags_manifest (
+            snapshot_sha STRING, snapshot_date DATE, flag_rows BIGINT, products_with_flags BIGINT, products_in_snapshot BIGINT,
+            rx_mb BIGINT, seconds DOUBLE, job_run_id STRING, finished_at TIMESTAMP) USING DELTA""",
         "snapshot_presence_events": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_presence_events (
             pair_id STRING, date_from DATE, date_to DATE, code STRING, event STRING, lm_from BIGINT) USING DELTA""",
         "snapshot_manifest": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_manifest (
@@ -248,6 +267,24 @@ def open_counts(con, table: str) -> list[tuple[str, str, int]]:
         for tag, n in con.execute(f"select tag, count(*) from (select unnest(list_distinct({alias})) as tag from {table}) group by 1").fetchall():
             rows.append((sev, tag, n))
     return rows
+
+
+def open_flag_rows(con, table: str) -> tuple[list[list], int, int]:
+    """([code, lm, severity, tag, family] for every open flag in scope, products with such a flag, products in the snapshot). One row per
+    product and distinct tag; the family is computed here (it needs `family_key`), the scope prefilter for warnings runs in DuckDB."""
+    rows: list[list] = []
+    for alias, sev, _ in SEVERITIES:
+        if sev == "error":
+            where = ""
+        elif sev == "warning":
+            where = f"where regexp_matches(tag, '{WARNING_SCOPE_SQL}')"
+        else:
+            continue
+        for code, lm, tag in con.execute(f"select code, lm, tag from (select code, lm, unnest(list_distinct({alias})) as tag from {table}) {where}").fetchall():
+            if in_flag_scope(sev, tag):
+                rows.append([code, lm, sev, tag, family_key(tag)])
+    products = len({r[0] for r in rows})
+    return rows, products, con.execute(f"select count(*) from {table}").fetchone()[0]
 
 
 def compute_pair(con, prev: str = "p", cur: str = "n") -> dict:
@@ -400,9 +437,37 @@ def run_worker(spec: dict) -> dict:
     return res
 
 
+def run_flags_worker(spec: dict) -> dict:
+    """Read ONE snapshot and write its open flags in scope. spec: sha, out (path of the result JSON), local? (a Parquet file instead of the
+    network, for tests), memory_limit_mb, temp_dir, threads, byte_guard. The result holds the rows, the counts and the bytes received."""
+    import time
+
+    import duckdb
+    t0 = time.time()
+    con = duckdb.connect()
+    if not spec.get("local"):
+        con.execute("INSTALL httpfs; LOAD httpfs;")
+    con.execute(f"SET threads={int(spec.get('threads', 8))}")
+    con.execute("SET allow_asterisks_in_http_paths = true")
+    if spec.get("memory_limit_mb"):
+        con.execute(f"SET memory_limit='{int(spec['memory_limit_mb'])}MB'")
+    if spec.get("temp_dir"):
+        con.execute(f"SET temp_directory='{spec['temp_dir']}'")
+    rx = _load_side(con, "s", {"sha": spec["sha"], "local": spec.get("local")}, int(spec.get("byte_guard", BYTE_GUARD)))
+    rows, products, in_snapshot = open_flag_rows(con, "s")
+    res = {"rows": rows, "products_with_flags": products, "products_in_snapshot": in_snapshot, "rx_bytes": rx,
+           "seconds": round(time.time() - t0, 1), "peak_rss_mb": peak_rss_mb()}
+    with open(spec["out"], "w", encoding="utf-8") as fh:
+        json.dump(res, fh)
+    return res
+
+
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "worker":
         with open(sys.argv[2], encoding="utf-8") as fh:
             run_worker(json.load(fh))
+    elif len(sys.argv) == 3 and sys.argv[1] == "flags-worker":
+        with open(sys.argv[2], encoding="utf-8") as fh:
+            run_flags_worker(json.load(fh))
     else:
-        raise SystemExit("usage: python snapshot_lib.py worker <spec.json>")
+        raise SystemExit("usage: python snapshot_lib.py (worker|flags-worker) <spec.json>")

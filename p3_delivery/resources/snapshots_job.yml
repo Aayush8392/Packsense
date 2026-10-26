@@ -23,3 +23,15 @@ resources:
               schema: ${var.snapshots_schema}
               secret_scope: ${var.secret_scope}
               ping_healthchecks: ${var.ping}
+        - task_key: open_flags
+          # The open flags of each weekly snapshot (the triage model's negatives, roadmap item 17). Runs even if the events task failed; the
+          # two are independent. No automatic retry, for the same reason: a retry would silently download another ~270 MB per snapshot.
+          depends_on:
+            - task_key: events
+          run_if: ALL_DONE
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../../p9_operations/notebooks/snapshot_open_flags.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              schema: ${var.snapshots_schema}

@@ -128,12 +128,15 @@ def test_the_job_runs_weekly_without_retry_and_passes_no_secret_as_a_parameter()
     job = yaml.safe_load(res.read_text(encoding="utf-8"))["resources"]["jobs"]["snapshots"]
     assert job["name"] == "packsense-snapshots" and job["max_concurrent_runs"] == 1
     assert job["schedule"]["quartz_cron_expression"] == "0 0 12 ? * MON"
-    (task,) = job["tasks"]
-    assert task["disable_auto_optimization"] is True
-    assert task["notebook_task"]["notebook_path"].endswith("p9_operations/notebooks/snapshot_events.py")
-    for name in task["notebook_task"]["base_parameters"]:
-        assert not any(w in name.lower() for w in ("token", "password", "key", "hmac")), name
-    assert Path(res.parent / task["notebook_task"]["notebook_path"]).resolve().is_file()
+    events, open_flags = job["tasks"]
+    assert events["task_key"] == "events" and open_flags["task_key"] == "open_flags"
+    assert open_flags["depends_on"] == [{"task_key": "events"}] and open_flags["run_if"] == "ALL_DONE"
+    for task, notebook in ((events, "snapshot_events.py"), (open_flags, "snapshot_open_flags.py")):
+        assert task["disable_auto_optimization"] is True
+        assert task["notebook_task"]["notebook_path"].endswith(f"p9_operations/notebooks/{notebook}")
+        for name in task["notebook_task"]["base_parameters"]:
+            assert not any(w in name.lower() for w in ("token", "password", "key", "hmac")), name
+        assert Path(res.parent / task["notebook_task"]["notebook_path"]).resolve().is_file()
 
 
 def test_the_notebook_only_reads_columns_the_library_names_and_never_a_contributor_field():
@@ -488,3 +491,56 @@ def test_the_notebook_runs_each_pair_in_its_own_process_and_watches_memory():
     assert 'snapshot_lib.py"), "worker"' in text and "subprocess.run" in text
     assert "should_stop" in text and "peak memory" in text and "STOPPING EARLY" in text
     assert "timeout=" in text                                    # a stuck worker cannot hold the job for ever
+
+
+# --- the open flags of one snapshot (roadmap item 17) -----------------------------------------------------------------------------------------
+
+def test_the_flag_scope_is_every_error_and_the_nutrition_number_warning_families_only():
+    assert lib.in_flag_scope("error", "en:salt-does-not-match-sodium")
+    assert lib.in_flag_scope("warning", "en:value-very-high-for-category-salt")
+    assert lib.in_flag_scope("warning", "en:value-very-low-for-category-energy")
+    assert lib.in_flag_scope("warning", "en:value-under-0-001-g-salt") and lib.in_flag_scope("warning", "en:value-under-0-01-g-salt")
+    assert lib.in_flag_scope("warning", "en:nutrition-packaging-as-sold-100g-value-very-high-for-category-salt")          # source marker is stripped
+    assert lib.in_flag_scope("warning", "en:3-or-more-values-are-identical")
+    assert not lib.in_flag_scope("warning", "en:environmental-score-packaging-packaging-data-missing")
+    assert not lib.in_flag_scope("warning", "en:value-under-0-1-g-salt-extra")
+    assert not lib.in_flag_scope("info", "en:value-very-high-for-category-salt")
+
+
+def test_the_open_flags_of_a_real_snapshot_slice_match_an_independent_count():
+    rows, products, in_snapshot = lib.open_flag_rows(RESULT_CON, "n")
+    assert in_snapshot == 197 and len(rows) == len({(r[0], r[2], r[3]) for r in rows})           # one row per product and tag
+    assert {r[2] for r in rows} == {"error", "warning"}
+    assert all(lib.in_flag_scope(r[2], r[3]) and r[4] == lib.family_key(r[3]) for r in rows)
+    expected = 0                                                                                    # recount in Python from the raw lists
+    for alias, sev, _ in lib.SEVERITIES:
+        if sev == "info":
+            continue
+        for (tags,) in RESULT_CON.execute(f"select {alias} from n").fetchall():
+            expected += len({t for t in (tags or []) if lib.in_flag_scope(sev, t)})
+    assert len(rows) == expected > 0
+    assert products == len({r[0] for r in rows}) < in_snapshot
+
+
+def test_the_flags_worker_runs_as_its_own_process_and_writes_the_rows(tmp_path):
+    import subprocess
+    pq_p, _ = _write_local_parquet(tmp_path)
+    spec = {"sha": "a" * 40, "local": pq_p.as_posix(), "out": str(tmp_path / "out.json"), "memory_limit_mb": 2000, "temp_dir": str(tmp_path / "spill"), "threads": 2}
+    (tmp_path / "spec.json").write_text(json.dumps(spec), encoding="utf-8")
+    proc = subprocess.run([sys.executable, str(HERE.parent / "snapshot_lib.py"), "flags-worker", str(tmp_path / "spec.json")], capture_output=True, text=True, timeout=120)
+    assert proc.returncode == 0, proc.stderr[-500:]
+    out = json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))
+    ref_rows, ref_products, ref_total = lib.open_flag_rows(RESULT_CON, "p")
+    assert sorted(map(tuple, out["rows"])) == sorted(map(tuple, ref_rows))
+    assert out["products_with_flags"] == ref_products and out["products_in_snapshot"] == ref_total and out["rx_bytes"] == 0
+
+
+def test_the_open_flags_notebook_keeps_the_bounds_and_the_manifest_last():
+    text = (HERE.parent / "notebooks" / "snapshot_open_flags.py").read_text(encoding="utf-8")
+    assert "duckdb==1.5.6" in text and "import duckdb" not in text                  # DuckDB lives only in the worker process
+    assert "flags-worker" in text and "subprocess.run" in text and "timeout=" in text
+    assert "should_stop" in text and "byte_guard_mb" in text and "max_snapshots" in text
+    assert text.index("delete from {SCHEMA}.snapshot_open_flags where") < text.index('append("snapshot_open_flags", rows')
+    assert text.index('append("snapshot_open_flags", rows') < text.index('append("snapshot_open_flags_manifest"')
+    for word in ("editors", "creator", "last_editor", "informers"):
+        assert word not in text
