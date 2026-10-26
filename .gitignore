@@ -31,6 +31,9 @@ dist/
 output/
 *.log
 
+# --- the owner's model results (measured figures, not published) ---
+p7_triage_ml/final_*.txt
+
 # --- no data in git (constraint: no raw or bulk data on the laptop) ---
 data/
 *.parquet
