@@ -186,9 +186,13 @@ per-pair bookkeeping of the snapshot comparison (counts, bytes read, run id). 16
 
 which OFF quality flags (every error flag and the nutrition-number warning families) were open on which product at one weekly snapshot of OFF's public dataset (barcode, flag tag, edit time; no contributor field). 7 columns: 7 public, 0 personal, 0 internal.
 
+### `workspace.packsense_snapshots.snapshot_features`: public
+
+what each product with an open flag looked like at one weekly snapshot of OFF's public dataset (serving size, first brand tag, category tags, the core nutrients per 100 g; no contributor field). 11 columns: 11 public, 0 personal, 0 internal.
+
 ### `workspace.packsense_snapshots.snapshot_open_flags_manifest`: internal
 
-per-snapshot bookkeeping of the open-flag read (counts, bytes read, run id). 9 columns: 0 public, 0 personal, 9 internal.
+per-snapshot bookkeeping of the open-flag read (counts, bytes read, run id). 11 columns: 0 public, 0 personal, 11 internal.
 
 ### `workspace.packsense_silver.silver_existence_check`: public
 

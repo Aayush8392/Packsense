@@ -30,12 +30,13 @@ SEVERITIES = (
     ("w", "warning", "data_quality_warnings_tags"),
     ("i", "info", "data_quality_info_tags"),
 )
+FEATURE_GUARD = 1_500_000_000   # the feature read (nutrition, brands, categories): measured 2026-10-26 at about 380 MB over the footer; a read past 1.5 GB is stopped
 BYTE_GUARD = 1_000_000_000      # one snapshot is ~310 MB for these columns; a read that passes 1 GB is stopped
 RETENTION_MONTHS = 13           # flag events older than this (by the newer snapshot's date) are deleted at the end of a run
 
 DEFAULT_SCHEMA = "workspace.packsense_snapshots"
 TABLES = ("snapshot_flag_events", "snapshot_open_counts", "snapshot_presence_events", "snapshot_manifest",
-          "snapshot_open_flags", "snapshot_open_flags_manifest")
+          "snapshot_open_flags", "snapshot_features", "snapshot_open_flags_manifest")
 
 # The open flags kept per product for the triage model (roadmap item 17, agreed 2026-10-26): every error flag, and the warning flags of the
 # nutrition-number families the labelling gate covers. Measured 2026-10-18: 259,679 error and 647,429 such warning flags open in one snapshot,
@@ -233,9 +234,12 @@ def ddl(schema: str) -> dict[str, str]:
             snapshot_sha STRING, snapshot_date DATE, severity STRING, flag STRING, family STRING, open_pairs BIGINT) USING DELTA""",
         "snapshot_open_flags": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_open_flags (
             snapshot_sha STRING, snapshot_date DATE, code STRING, severity STRING, flag STRING, family STRING, lm BIGINT) USING DELTA""",
+        "snapshot_features": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_features (
+            snapshot_sha STRING, snapshot_date DATE, code STRING, lm BIGINT, serving_size STRING, brand STRING, categories ARRAY<STRING>,
+            nutrients MAP<STRING, DOUBLE>, n_nutrients INT, max_mass_g DOUBLE) USING DELTA""",
         "snapshot_open_flags_manifest": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_open_flags_manifest (
             snapshot_sha STRING, snapshot_date DATE, flag_rows BIGINT, products_with_flags BIGINT, products_in_snapshot BIGINT,
-            rx_mb BIGINT, seconds DOUBLE, job_run_id STRING, finished_at TIMESTAMP) USING DELTA""",
+            rx_mb BIGINT, seconds DOUBLE, job_run_id STRING, finished_at TIMESTAMP, feature_rows BIGINT, products_with_nutrients BIGINT) USING DELTA""",
         "snapshot_presence_events": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_presence_events (
             pair_id STRING, date_from DATE, date_to DATE, code STRING, event STRING, lm_from BIGINT) USING DELTA""",
         "snapshot_manifest": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_manifest (
@@ -285,6 +289,94 @@ def open_flag_rows(con, table: str) -> tuple[list[list], int, int]:
                 rows.append([code, lm, sev, tag, family_key(tag)])
     products = len({r[0] for r in rows})
     return rows, products, con.execute(f"select count(*) from {table}").fetchone()[0]
+
+
+# --- the product features of each snapshot (roadmap item 17, option 2 agreed 2026-10-26) ----------------------------------------------------
+# The triage model must see each flagged product as it WAS at snapshot t (today's numbers would contain the fix). Measured 2026-10-26 on the
+# 25 Oct snapshot (4,833,923 products, 4,721 row groups): the nutriments columns cost 256 MB compressed (name 60, 100g 168, unit 29), brand tags
+# 33, category tags 44, serving size 11, on top of the 107 MB footer and 124 MB for code, last-modified time and the three flag lists that every
+# read already pays. A filter on `code` does NOT skip row groups (a one-code lookup read the whole code column: 59 MB, 248 s), so the read is a
+# full column scan and the features are taken for the flagged products only AFTER the scan.
+# What the Parquet carries is OFF's AGGREGATED nutriments (name, 100g, unit), not the per-source input sets: rules checked on it agree poorly with
+# OFF's flags for five of the 11 rules (context file A71), so the numbers are features and context, not rule verdicts.
+
+CORE_NUTRIENTS = ("energy", "energy-kj", "energy-kcal", "fat", "saturated-fat", "carbohydrates", "sugars", "starch", "proteins", "salt", "sodium",
+                  "fiber", "polyols", "erythritol", "isomalt", "maltitol", "sorbitol", "alcohol")
+NUTRIMENTS_TYPE = ('STRUCT("name" VARCHAR, "value" FLOAT, "100g" FLOAT, serving FLOAT, unit VARCHAR, prepared_value FLOAT, prepared_100g FLOAT, '
+                   'prepared_serving FLOAT, prepared_unit VARCHAR)[]')
+REQUIRED_TYPES = {"code": "VARCHAR", "last_modified_t": "BIGINT", "nutriments": NUTRIMENTS_TYPE, "brands_tags": "VARCHAR[]",
+                  "categories_tags": "VARCHAR[]", "serving_size": "VARCHAR", "data_quality_errors_tags": "VARCHAR[]",
+                  "data_quality_warnings_tags": "VARCHAR[]", "data_quality_info_tags": "VARCHAR[]"}
+
+
+class SchemaError(RuntimeError):
+    """A snapshot's Parquet schema is not the one this module was written for. Raised BEFORE any heavy read, so nothing is written."""
+
+
+def check_schema(described: dict) -> None:
+    """`described` maps column name to the type DuckDB reports. Raises SchemaError naming every missing or changed column."""
+    problems = []
+    for col, want in REQUIRED_TYPES.items():
+        have = described.get(col)
+        if have is None:
+            problems.append(f"{col}: missing")
+        elif have != want:
+            problems.append(f"{col}: is {have}, expected {want}")
+    if problems:
+        raise SchemaError("snapshot schema changed: " + "; ".join(problems))
+
+
+def flagged_table_sql(table: str) -> str:
+    """A table `flagged(code)` of every product with an error flag or a warning flag that might be in scope (the SQL prefilter is looser than
+    `in_flag_scope`, so the products with flag rows are a subset)."""
+    return (f"create or replace table flagged as select distinct code from (select code, unnest(list_distinct(e)) as tag from {table} "
+            f"where e is not null) union select distinct code from (select code, unnest(list_distinct(w)) as tag from {table} where w is not null) "
+            f"where regexp_matches(tag, '{WARNING_SCOPE_SQL}')")
+
+
+def feature_load_sql(table: str, source: str) -> str:
+    """`table` from the snapshot at `source` (a URL or a local Parquet file): one row per flagged product, newest row per barcode."""
+    return (f"create table {table} as select code, last_modified_t as lm, serving_size, brands_tags[1] as brand, categories_tags, nutriments "
+            f"from read_parquet('{source}') where code in (select code from flagged) "
+            f"qualify row_number() over (partition by code order by last_modified_t desc) = 1")
+
+
+def feature_rows(con, table: str) -> list[list]:
+    """[code, lm, serving_size, brand, categories, nutrient names, per-100 values, number of nutrients with a value, largest mass value] per product.
+    Values go FLOAT to text to DOUBLE so 68.8 stays 68.8 (a plain cast gives 68.80000305175781)."""
+    core = "[" + ", ".join(f"'{k}'" for k in CORE_NUTRIENTS) + "]"
+    sql = (f"select code, lm, serving_size, brand, categories_tags, list_transform(sel, x -> x.name), "
+           f"list_transform(sel, x -> cast(cast(x.\"100g\" as varchar) as double)), "
+           f"coalesce(len(list_filter(nutriments, x -> x.\"100g\" is not null)), 0), "
+           f"list_max(list_transform(list_filter(nutriments, x -> x.\"100g\" is not null and not starts_with(x.name, 'energy') and x.unit = 'g'), "
+           f"x -> cast(cast(x.\"100g\" as varchar) as double))) "
+           f"from (select *, list_filter(nutriments, x -> x.\"100g\" is not null and list_contains({core}, x.name)) as sel from {table})")
+    return [list(r) for r in con.execute(sql).fetchall()]
+
+
+def validate_snapshot(flag_rows: list[list], features: list[list], products_in_snapshot: int, min_products: int = 1_000_000) -> dict:
+    """Checks made before anything is written. Raises ValueError naming the first thing that is wrong; returns counts for the manifest."""
+    if not flag_rows:
+        raise ValueError("no open flags were read")
+    flag_lm = {}
+    for code, lm, *_ in flag_rows:
+        flag_lm[code] = lm
+    feature_lm = {f[0]: f[1] for f in features}
+    if len(feature_lm) != len(features):
+        raise ValueError("a barcode appears twice in the product features")
+    missing = [c for c in flag_lm if c not in feature_lm]
+    if missing:
+        raise ValueError(f"{len(missing)} flagged products have no feature row (first: {missing[0]})")
+    differing = [c for c, lm in flag_lm.items() if feature_lm[c] != lm]
+    if differing:
+        raise ValueError(f"{len(differing)} products have a different last-modified time in the flag read and the feature read (first: {differing[0]})")
+    with_nutrients = sum(1 for f in features if f[5])
+    share = with_nutrients / len(features)
+    if not 0.2 <= share <= 1.0:
+        raise ValueError(f"only {share:.1%} of the flagged products carry any core nutrient; expected 20% or more")
+    if products_in_snapshot < min_products:
+        raise ValueError(f"the snapshot holds only {products_in_snapshot} products")
+    return {"feature_rows": len(features), "products_with_nutrients": with_nutrients}
 
 
 def compute_pair(con, prev: str = "p", cur: str = "n") -> dict:
@@ -383,19 +475,26 @@ def _load_side(con, table: str, side: dict, byte_guard: int) -> int:
     if local:
         con.execute(f"create table {table} as select * from read_parquet('{local}')")
         return 0
+    received = guarded_execute(con, load_sql(table, resolve_cdn(side["sha"])), byte_guard, side["sha"])
+    if side.get("cache"):
+        con.execute(f"copy {table} to '{side['cache']}' (format parquet, compression zstd)")
+    return received
+
+
+def guarded_execute(con, sql: str, byte_guard: int, sha: str) -> int:
+    """Run one statement that reads a snapshot over the network under the byte guard; returns the bytes the machine received meanwhile."""
+    guard = None
     try:
         with ByteGuard(read_rx_bytes, byte_guard, con.interrupt) as guard:
-            con.execute(load_sql(table, resolve_cdn(side["sha"])))
+            con.execute(sql)
     except Exception:
         # the guard's interrupt makes DuckDB raise before the check below: name the cause and the bytes seen (found 2026-10-26, a bare 'Interrupted!')
-        if guard.tripped:
-            raise RuntimeError(f"byte guard: reading snapshot {side['sha'][:8]} passed {byte_guard / 1e6:.0f} MB "
+        if guard is not None and guard.tripped:
+            raise RuntimeError(f"byte guard: reading snapshot {sha[:8]} passed {byte_guard / 1e6:.0f} MB "
                                f"({guard.received() / 1e6:.0f} MB received by the machine); stopped") from None
         raise
     if guard.tripped:
-        raise RuntimeError(f"byte guard: reading snapshot {side['sha'][:8]} passed {byte_guard / 1e6:.0f} MB; stopped")
-    if side.get("cache"):
-        con.execute(f"copy {table} to '{side['cache']}' (format parquet, compression zstd)")
+        raise RuntimeError(f"byte guard: reading snapshot {sha[:8]} passed {byte_guard / 1e6:.0f} MB; stopped")
     return guard.received()
 
 
@@ -438,14 +537,15 @@ def run_worker(spec: dict) -> dict:
 
 
 def run_flags_worker(spec: dict) -> dict:
-    """Read ONE snapshot and write its open flags in scope. spec: sha, out (path of the result JSON), local? (a Parquet file instead of the
-    network, for tests), memory_limit_mb, temp_dir, threads, byte_guard. The result holds the rows, the counts and the bytes received."""
+    """Read ONE snapshot: check its schema, then write its open flags in scope and the features of the flagged products, validated before anything
+    leaves this process. spec: sha, out (path of the result JSON), local_features? (an OFF-style Parquet file instead of the network, for tests), memory_limit_mb, temp_dir, threads, byte_guard (the flag read), feature_guard (the feature read),
+    check_only (stop after the schema check)."""
     import time
 
     import duckdb
     t0 = time.time()
     con = duckdb.connect()
-    if not spec.get("local"):
+    if not spec.get("local_features"):
         con.execute("INSTALL httpfs; LOAD httpfs;")
     con.execute(f"SET threads={int(spec.get('threads', 8))}")
     con.execute("SET allow_asterisks_in_http_paths = true")
@@ -453,10 +553,29 @@ def run_flags_worker(spec: dict) -> dict:
         con.execute(f"SET memory_limit='{int(spec['memory_limit_mb'])}MB'")
     if spec.get("temp_dir"):
         con.execute(f"SET temp_directory='{spec['temp_dir']}'")
-    rx = _load_side(con, "s", {"sha": spec["sha"], "local": spec.get("local")}, int(spec.get("byte_guard", BYTE_GUARD)))
-    rows, products, in_snapshot = open_flag_rows(con, "s")
-    res = {"rows": rows, "products_with_flags": products, "products_in_snapshot": in_snapshot, "rx_bytes": rx,
-           "seconds": round(time.time() - t0, 1), "peak_rss_mb": peak_rss_mb()}
+    flag_guard = int(spec.get("byte_guard", BYTE_GUARD))
+    feature_guard = int(spec.get("feature_guard", FEATURE_GUARD))
+    source = spec.get("local_features") or resolve_cdn(spec["sha"])
+
+    def read(sql, limit):
+        """A statement that reads the snapshot: under the byte guard on the network, plain for a local test file (bytes: 0)."""
+        if spec.get("local_features"):
+            con.execute(sql)
+            return 0
+        return guarded_execute(con, sql, limit, spec["sha"])
+
+    rx = read(f"create view v as select * from read_parquet('{source}')", flag_guard)
+    check_schema({r[0]: r[1] for r in con.execute("describe v").fetchall()})
+    res = {"schema_ok": True, "rx_bytes": rx, "peak_rss_mb": None}
+    if not spec.get("check_only"):
+        rx += read(load_sql("s", source), flag_guard)
+        rows, products, in_snapshot = open_flag_rows(con, "s")
+        con.execute(flagged_table_sql("s"))
+        rx += read(feature_load_sql("f", source), feature_guard)
+        features = feature_rows(con, "f")
+        counts = validate_snapshot(rows, features, in_snapshot, int(spec.get("min_products", 1_000_000)))
+        res.update({"rows": rows, "features": features, "products_with_flags": products, "products_in_snapshot": in_snapshot, **counts})
+    res.update({"rx_bytes": rx, "seconds": round(time.time() - t0, 1), "peak_rss_mb": peak_rss_mb()})
     with open(spec["out"], "w", encoding="utf-8") as fh:
         json.dump(res, fh)
     return res

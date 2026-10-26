@@ -524,13 +524,13 @@ def test_the_open_flags_of_a_real_snapshot_slice_match_an_independent_count():
 
 def test_the_flags_worker_runs_as_its_own_process_and_writes_the_rows(tmp_path):
     import subprocess
-    pq_p, _ = _write_local_parquet(tmp_path)
-    spec = {"sha": "a" * 40, "local": pq_p.as_posix(), "out": str(tmp_path / "out.json"), "memory_limit_mb": 2000, "temp_dir": str(tmp_path / "spill"), "threads": 2}
+    off = _off_style_parquet(tmp_path)
+    spec = {"sha": "a" * 40, "local_features": off.as_posix(), "out": str(tmp_path / "out.json"), "memory_limit_mb": 2000, "temp_dir": str(tmp_path / "spill"), "threads": 2, "min_products": 1}
     (tmp_path / "spec.json").write_text(json.dumps(spec), encoding="utf-8")
     proc = subprocess.run([sys.executable, str(HERE.parent / "snapshot_lib.py"), "flags-worker", str(tmp_path / "spec.json")], capture_output=True, text=True, timeout=120)
     assert proc.returncode == 0, proc.stderr[-500:]
     out = json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))
-    ref_rows, ref_products, ref_total = lib.open_flag_rows(RESULT_CON, "p")
+    ref_rows, ref_products, ref_total = lib.open_flag_rows(RESULT_CON, "n")
     assert sorted(map(tuple, out["rows"])) == sorted(map(tuple, ref_rows))
     assert out["products_with_flags"] == ref_products and out["products_in_snapshot"] == ref_total and out["rx_bytes"] == 0
 
@@ -539,8 +539,116 @@ def test_the_open_flags_notebook_keeps_the_bounds_and_the_manifest_last():
     text = (HERE.parent / "notebooks" / "snapshot_open_flags.py").read_text(encoding="utf-8")
     assert "duckdb==1.5.6" in text and "import duckdb" not in text                  # DuckDB lives only in the worker process
     assert "flags-worker" in text and "subprocess.run" in text and "timeout=" in text
-    assert "should_stop" in text and "byte_guard_mb" in text and "max_snapshots" in text
-    assert text.index("delete from {SCHEMA}.snapshot_open_flags where") < text.index('append("snapshot_open_flags", rows')
-    assert text.index('append("snapshot_open_flags", rows') < text.index('append("snapshot_open_flags_manifest"')
+    assert "should_stop" in text and "byte_guard_mb" in text and "feature_guard_mb" in text and "max_snapshots" in text and "preflight" in text
+    order = [text.index(x) for x in ('delete from {SCHEMA}.{table} where snapshot_sha', 'append("snapshot_open_flags", flag_rows',
+                                     'append("snapshot_features", feature_rows', "no manifest row written", 'append("snapshot_open_flags_manifest"')]
+    assert order == sorted(order)                                                   # delete, write both tables, compare the counts, manifest LAST
+    assert "feature_rows is not null" in text                                       # a snapshot of the flags-only first version is redone
+    assert "reversed(snaps)" in text                                                # newest first
     for word in ("editors", "creator", "last_editor", "informers"):
         assert word not in text
+
+
+
+# --- features and the schema check (roadmap item 17, option 2) ---------------------------------------------------------------------------------
+
+GOLD_FIXTURE = HERE.parents[1] / "p4_modelling" / "fixtures" / "stg_silver_versions.jsonl"
+
+
+def _real_nutrient_maps(n_wanted):
+    """Real nutrient maps (name to value) of products in the gold fixture, in file order."""
+    out = []
+    for line in GOLD_FIXTURE.read_text(encoding="utf-8").splitlines():
+        row = json.loads(line)
+        if row.get("nutrients"):
+            out.append({k: v["value"] for k, v in row["nutrients"].items() if v.get("value") is not None})
+        if len(out) == n_wanted:
+            break
+    return out
+
+
+def _off_style_parquet(tmp_path, nutriments_type=None):
+    """The `n` fixture rows (real flags) as a file with OFF's own column names and types (probe of the 25 Oct snapshot, 2026-10-26). The
+    nutrient values are real ones from the gold fixture, attached to these products so the reader has something to read."""
+    con = duckdb.connect()
+    con.execute("create table src (code varchar, last_modified_t bigint, nutriments " + (nutriments_type or lib.NUTRIMENTS_TYPE) + ", brands_tags varchar[], "
+                "categories_tags varchar[], serving_size varchar, data_quality_errors_tags varchar[], data_quality_warnings_tags varchar[], "
+                "data_quality_info_tags varchar[])")
+    maps = _real_nutrient_maps(60)
+    for i, (code, lm, e, w, inf) in enumerate(RESULT_CON.execute("select code, lm, e, w, i from n order by code").fetchall()):
+        m = maps[i % len(maps)] if i % 3 else {}                                        # every third product has no nutrition at all
+        entries = [{"name": k, "value": None, "100g": v, "serving": None, "unit": "kJ" if k.startswith("energy") and k != "energy-kcal" else "g",
+                    "prepared_value": None, "prepared_100g": None, "prepared_serving": None, "prepared_unit": None} for k, v in m.items()]
+        con.execute("insert into src values (?,?,?,?,?,?,?,?,?)", [code, lm, entries or None, [f"xx:brand{i % 7}"], ["en:snacks", "en:biscuits"], "30 g", e, w, inf])
+    path = tmp_path / "off_style.parquet"
+    con.execute(f"copy src to '{path.as_posix()}' (format parquet)")
+    return path
+
+
+def test_the_schema_check_accepts_the_known_schema_and_names_every_change():
+    ok = dict(lib.REQUIRED_TYPES)
+    lib.check_schema(ok)
+    with pytest.raises(lib.SchemaError, match=r"nutriments: is .*expected"):
+        lib.check_schema({**ok, "nutriments": "VARCHAR"})
+    with pytest.raises(lib.SchemaError, match="code: missing"):
+        lib.check_schema({k: v for k, v in ok.items() if k != "code"})
+
+
+def test_the_worker_reads_flags_and_features_of_one_snapshot_and_checks_them(tmp_path):
+    off = _off_style_parquet(tmp_path)
+    flags_pq, _ = _write_local_parquet(tmp_path)
+    spec = {"sha": "a" * 40, "local": None, "local_features": off.as_posix(), "out": str(tmp_path / "out.json"), "memory_limit_mb": 2000,
+            "temp_dir": str(tmp_path / "spill"), "threads": 2, "min_products": 1}
+    res = lib.run_flags_worker(spec)
+    ref_rows, ref_products, ref_total = lib.open_flag_rows(RESULT_CON, "n")
+    assert res["schema_ok"] and sorted(map(tuple, res["rows"])) == sorted(map(tuple, ref_rows))
+    assert res["products_with_flags"] == ref_products and res["products_in_snapshot"] == ref_total
+    feats = {f[0]: f for f in res["features"]}
+    assert set(feats) >= {r[0] for r in ref_rows}                                        # every flagged product has a feature row
+    assert res["feature_rows"] == len(res["features"]) and 0 < res["products_with_nutrients"] < res["feature_rows"]
+    maps = _real_nutrient_maps(60)
+    codes = [r[0] for r in RESULT_CON.execute("select code from n order by code").fetchall()]
+    checked = 0
+    for i, code in enumerate(codes):
+        if code in feats and i % 3:
+            want = {k: v for k, v in maps[i % len(maps)].items() if k in lib.CORE_NUTRIENTS}
+            got = dict(zip(feats[code][5], feats[code][6]))
+            assert got.keys() == want.keys()
+            for k in want:
+                assert got[k] == pytest.approx(want[k], rel=1e-5)                        # float32 storage, no float32 noise (68.8 stays 68.8)
+            assert all(v == float(f"{v:.9g}") for v in got.values())                   # at most 9 significant digits: the float32 shortest text, no 68.80000305
+            assert feats[code][3] == f"xx:brand{i % 7}" and feats[code][4] == ["en:snacks", "en:biscuits"] and feats[code][2] == "30 g"
+            checked += 1
+    assert checked > 20
+    json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))
+
+
+def test_the_worker_stops_on_a_changed_schema_before_reading_anything_heavy(tmp_path):
+    bad = _off_style_parquet(tmp_path, nutriments_type='STRUCT("name" VARCHAR, "value" DOUBLE, "100g" DOUBLE, serving DOUBLE, unit VARCHAR, '
+                                                       'prepared_value DOUBLE, prepared_100g DOUBLE, prepared_serving DOUBLE, prepared_unit VARCHAR)[]')
+    spec = {"sha": "a" * 40, "local_features": bad.as_posix(), "out": str(tmp_path / "out.json")}
+    with pytest.raises(lib.SchemaError, match="nutriments"):
+        lib.run_flags_worker(spec)
+    assert not (tmp_path / "out.json").exists()
+    ok = _off_style_parquet(tmp_path)
+    res = lib.run_flags_worker({"sha": "a" * 40, "local_features": ok.as_posix(), "out": str(tmp_path / "chk.json"), "check_only": True})
+    assert res["schema_ok"] and "rows" not in res and "features" not in res
+
+
+def test_validation_names_the_first_thing_that_is_wrong():
+    rows = [["1", 10, "error", "en:x", "x"], ["2", 20, "error", "en:x", "x"]]
+    feats = [["1", 10, "30 g", "b", [], ["fat"], [1.0], 1, 1.0], ["2", 20, "30 g", "b", [], [], [], 0, None]]
+    good = lib.validate_snapshot(rows, feats, 4_800_000)
+    assert good == {"feature_rows": 2, "products_with_nutrients": 1}
+    with pytest.raises(ValueError, match="no open flags"):
+        lib.validate_snapshot([], feats, 4_800_000)
+    with pytest.raises(ValueError, match="no feature row"):
+        lib.validate_snapshot(rows, feats[:1], 4_800_000)
+    with pytest.raises(ValueError, match="different last-modified"):
+        lib.validate_snapshot(rows, [feats[0], ["2", 99, *feats[1][2:]]], 4_800_000)
+    with pytest.raises(ValueError, match="appears twice"):
+        lib.validate_snapshot(rows, [feats[0], feats[0]], 4_800_000)
+    with pytest.raises(ValueError, match="core nutrient"):
+        lib.validate_snapshot(rows, [[*feats[0][:5], [], [], 0, None], feats[1]], 4_800_000)
+    with pytest.raises(ValueError, match="holds only"):
+        lib.validate_snapshot(rows, feats, 500)

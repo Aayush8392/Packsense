@@ -74,6 +74,9 @@ tables:
   - name: workspace.packsense_snapshots.snapshot_open_flags
     class: public
     why: which OFF quality flags (every error flag and the nutrition-number warning families) were open on which product at one weekly snapshot of OFF's public dataset (barcode, flag tag, edit time; no contributor field)
+  - name: workspace.packsense_snapshots.snapshot_features
+    class: public
+    why: what each product with an open flag looked like at one weekly snapshot of OFF's public dataset (serving size, first brand tag, category tags, the core nutrients per 100 g; no contributor field)
   - name: workspace.packsense_snapshots.snapshot_open_flags_manifest
     class: internal
     why: per-snapshot bookkeeping of the open-flag read (counts, bytes read, run id)
