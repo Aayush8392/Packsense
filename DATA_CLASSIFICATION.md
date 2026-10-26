@@ -182,6 +182,14 @@ barcodes that were in one weekly snapshot of OFF and not in the next (deletion c
 
 per-pair bookkeeping of the snapshot comparison (counts, bytes read, run id). 16 columns: 0 public, 0 personal, 16 internal.
 
+### `workspace.packsense_snapshots.snapshot_open_flags`: public
+
+which OFF quality flags (every error flag and the nutrition-number warning families) were open on which product at one weekly snapshot of OFF's public dataset (barcode, flag tag, edit time; no contributor field). 7 columns: 7 public, 0 personal, 0 internal.
+
+### `workspace.packsense_snapshots.snapshot_open_flags_manifest`: internal
+
+per-snapshot bookkeeping of the open-flag read (counts, bytes read, run id). 9 columns: 0 public, 0 personal, 9 internal.
+
 ### `workspace.packsense_silver.silver_existence_check`: public
 
 whether each product we hold is still in OFF's food database (a barcode and a status; from a snapshot of OFF's public dataset and from OFF's public API). 7 columns: 4 public, 0 personal, 3 internal.

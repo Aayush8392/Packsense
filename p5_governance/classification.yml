@@ -71,6 +71,12 @@ tables:
   - name: workspace.packsense_snapshots.snapshot_manifest
     class: internal
     why: per-pair bookkeeping of the snapshot comparison (counts, bytes read, run id)
+  - name: workspace.packsense_snapshots.snapshot_open_flags
+    class: public
+    why: which OFF quality flags (every error flag and the nutrition-number warning families) were open on which product at one weekly snapshot of OFF's public dataset (barcode, flag tag, edit time; no contributor field)
+  - name: workspace.packsense_snapshots.snapshot_open_flags_manifest
+    class: internal
+    why: per-snapshot bookkeeping of the open-flag read (counts, bytes read, run id)
   - name: workspace.packsense_silver.silver_existence_check
     class: public
     why: whether each product we hold is still in OFF's food database (a barcode and a status; from a snapshot of OFF's public dataset and from OFF's public API)
