@@ -12,7 +12,7 @@
 # is still present has a newer one; API answers are kept for ever). Nothing here needs a secret except the optional healthchecks ping.
 
 # COMMAND ----------
-# MAGIC %pip install -q duckdb requests
+# MAGIC %pip install -q duckdb==1.5.6 requests
 
 # COMMAND ----------
 dbutils.library.restartPython()
@@ -109,8 +109,8 @@ def run():
         con.execute(f"create table snap as select code, max(last_modified_t) as lm from read_parquet('{slib.resolve_cdn(sha)}') group by code")
     if guard.tripped:
         raise RuntimeError(f"byte guard: reading snapshot {sha[:8]} passed {BYTE_GUARD / 1e6:.0f} MB; stopped")
-    snap_max_lm = con.execute("select max(lm) from snap").fetchone()[0]
-    n_snap = con.execute("select count(*) from snap").fetchone()[0]
+    snap_max_lm = con.execute("select max(lm) from snap").fetchall()[0][0]
+    n_snap = con.execute("select count(*) from snap").fetchall()[0][0]
 
     silver = spark.sql(f"select code, max(last_modified_t) as lm from {SILVER}.silver_product_versions group by code").toPandas()
     api_only = f"(select * from {SILVER}.{lib.TABLE} where evidence_source = '{lib.EVIDENCE_API}')"
@@ -125,7 +125,7 @@ def run():
     candidates = [r[0] for r in con.execute(lib.candidates_sql(snap_max_lm, now_epoch, RECHECK_DAYS)).fetchall()]
     present = [r[0] for r in con.execute("select s.code from silver s join snap using (code) order by s.code").fetchall()]
     n_silver = len(silver)
-    missing = con.execute("select count(*) from silver where code not in (select code from snap)").fetchone()[0]
+    missing = con.execute("select count(*) from silver where code not in (select code from snap)").fetchall()[0][0]
     print(f"snapshot {sha[:8]} {snap_time:%Y-%m-%d %H:%M} UTC: {n_snap} products, newest edit {snap_max_lm}; silver {n_silver} products, {len(present)} present, "
           f"{missing} missing, {len(candidates)} candidates to ask OFF about ({time.time() - t0:.0f} s, {guard.received() / 1e6:.0f} MB read)", flush=True)
 

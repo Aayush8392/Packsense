@@ -28,7 +28,7 @@ SCHEMA = "workspace.packsense_dev_snapshots"
 TELEMETRY = f"{SCHEMA}._soak_telemetry"
 
 NOTEBOOK = r'''# Databricks notebook source
-# MAGIC %pip install -q duckdb
+# MAGIC %pip install -q duckdb==1.5.6
 
 # COMMAND ----------
 dbutils.library.restartPython()

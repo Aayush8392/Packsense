@@ -652,3 +652,10 @@ def test_validation_names_the_first_thing_that_is_wrong():
         lib.validate_snapshot(rows, [[*feats[0][:5], [], [], 0, None], feats[1]], 4_800_000)
     with pytest.raises(ValueError, match="holds only"):
         lib.validate_snapshot(rows, feats, 500)
+
+
+def test_the_candidates_notebook_pins_duckdb_and_drains_its_results():
+    # the first real run (2026-10-27) failed on DuckDB 2.0.0 with 'connection has an unfinished result' at con.register after a fetchone (inferred cause: the unpinned install)
+    text = (HERE.parent / "notebooks" / "reconcile_candidates.py").read_text(encoding="utf-8")
+    assert "%pip install -q duckdb==1.5.6 " in text
+    assert ".fetchone()" not in text
