@@ -659,3 +659,59 @@ def test_the_candidates_notebook_pins_duckdb_and_drains_its_results():
     text = (HERE.parent / "notebooks" / "reconcile_candidates.py").read_text(encoding="utf-8")
     assert "%pip install -q duckdb==1.5.6 " in text
     assert ".fetchone()" not in text
+
+
+# --- a half-size snapshot (measured on 2026-10-27: the newest commit was 4.30 GB, every other one from 23 to 27 October 7.98 to 8.00 GB) ------------
+
+REAL_SIZES = {"89cfb571": 4_303_670_415, "af1dccb0": 7_995_957_119, "8fad78a3": 7_995_957_119, "3ac7e8b6": 7_995_957_119,
+              "78d2f122": 7_985_733_144, "a35a70b8": 7_985_733_144}
+REAL_COMMITS = [{"id": k + "0" * 32, "date": "2026-10-27T09:07:24.000Z"} for k in REAL_SIZES]
+
+
+def _size_of(sizes):
+    return lambda sha: sizes.get(sha[:8])
+
+
+def test_the_half_size_newest_snapshot_is_skipped_and_the_next_full_one_is_taken():
+    got, skipped = lib.newest_complete(REAL_COMMITS, _size_of(REAL_SIZES))
+    assert got["id"].startswith("af1dccb0")
+    assert [s["sha"] for s in skipped] == ["89cfb571"] and skipped[0]["bytes"] == 4_303_670_415
+
+
+def test_a_normal_newest_snapshot_is_taken_with_nothing_skipped():
+    got, skipped = lib.newest_complete(REAL_COMMITS[1:], _size_of(REAL_SIZES))
+    assert got["id"].startswith("af1dccb0") and skipped == []
+
+
+def test_a_snapshot_a_few_percent_smaller_is_still_taken_but_a_tenth_smaller_is_not():
+    base = 8_000_000_000
+    commits = [{"id": c + "0" * 32, "date": "d"} for c in ("aaaaaaaa", "bbbbbbbb", "cccccccc", "dddddddd")]
+    ok, _ = lib.newest_complete(commits, _size_of({"aaaaaaaa": int(base * 0.95), "bbbbbbbb": base, "cccccccc": base, "dddddddd": base}))
+    assert ok["id"].startswith("aaaaaaaa")
+    got, skipped = lib.newest_complete(commits, _size_of({"aaaaaaaa": int(base * 0.89), "bbbbbbbb": base, "cccccccc": base, "dddddddd": base}))
+    assert got["id"].startswith("bbbbbbbb") and len(skipped) == 1
+
+
+def test_a_commit_whose_size_cannot_be_read_is_not_trusted():
+    sizes = {k: v for k, v in REAL_SIZES.items() if k != "af1dccb0"}
+    got, skipped = lib.newest_complete(REAL_COMMITS[1:], _size_of(sizes))
+    assert got["id"].startswith("8fad78a3") and skipped[0]["bytes"] is None
+
+
+def test_it_refuses_when_nothing_can_be_measured_or_nothing_is_big_enough():
+    with pytest.raises(RuntimeError, match="cannot read the size"):
+        lib.newest_complete(REAL_COMMITS, _size_of({}))
+    with pytest.raises(RuntimeError, match="no recent snapshot"):
+        lib.newest_complete(REAL_COMMITS[:1] + REAL_COMMITS[:1], _size_of({"89cfb571": 4_000_000_000}), min_ratio=1.1)
+
+
+def test_snapshot_size_is_none_when_the_address_cannot_be_resolved(monkeypatch):
+    def boom(sha, build_opener=None):
+        raise lib.urllib.error.URLError("down")
+    monkeypatch.setattr(lib, "resolve_cdn", boom)
+    assert lib.snapshot_size("a" * 40) is None
+
+
+def test_the_candidates_notebook_uses_the_size_guard_and_not_the_bare_newest_commit():
+    text = (HERE.parent / "notebooks" / "reconcile_candidates.py").read_text(encoding="utf-8")
+    assert "slib.newest_complete(" in text and "fetch_commits(pages=1)[0]" not in text

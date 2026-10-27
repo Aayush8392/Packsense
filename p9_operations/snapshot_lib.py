@@ -177,6 +177,32 @@ def resolve_cdn(sha: str, build_opener=urllib.request.build_opener) -> str:
     return url
 
 
+def snapshot_size(sha: str, build_opener=urllib.request.build_opener, opener=urllib.request.urlopen) -> int | None:
+    """The byte size of `food.parquet` at a commit, from one HEAD request on the CDN address (nothing is downloaded); None if it cannot be read."""
+    try:
+        req = urllib.request.Request(resolve_cdn(sha, build_opener), method="HEAD", headers=UA)
+        return int(opener(req).headers["Content-Length"])
+    except (urllib.error.URLError, KeyError, TypeError, ValueError):
+        return None
+
+
+def newest_complete(commits: list[dict], size_of, look: int = 6, min_ratio: float = 0.9) -> tuple[dict, list[dict]]:
+    """The newest of the first `look` commits whose file is at least `min_ratio` of the MEDIAN size of those commits, and the newer ones skipped as too small.
+    On 2026-10-27 OFF published a 4.3 GB file between 8.0 GB ones; a deletion check on it listed 138,395 live products as missing. A size that cannot be read
+    is skipped (a commit we cannot measure is not trusted); raises if no commit qualifies."""
+    sized = [(c, size_of(c["id"])) for c in commits[:look]]
+    known = sorted(s for _, s in sized if s)
+    if not known:
+        raise RuntimeError("cannot read the size of any recent snapshot")
+    median = known[len(known) // 2] if len(known) % 2 else (known[len(known) // 2 - 1] + known[len(known) // 2]) / 2
+    skipped = []
+    for c, s in sized:
+        if s and s >= min_ratio * median:
+            return c, skipped
+        skipped.append({"sha": c["id"][:8], "date": c["date"], "bytes": s, "median_bytes": int(median)})
+    raise RuntimeError(f"no recent snapshot is at least {min_ratio:.0%} of the median size ({median / 1e9:.2f} GB)")
+
+
 class ByteGuard:
     """Stops a read that downloads more than `limit` bytes: a watcher thread compares the machine's received bytes with the count at the start
     and calls `interrupt` once. Used around every snapshot load, because Databricks Free Edition publishes no limit of its own."""

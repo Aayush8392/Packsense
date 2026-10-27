@@ -97,7 +97,9 @@ def run():
     import duckdb
     t0 = time.time()
     spark.sql(lib.ddl(SILVER))
-    newest = slib.fetch_commits(pages=1)[0]
+    newest, skipped = slib.newest_complete(slib.fetch_commits(pages=1), slib.snapshot_size)      # OFF once published a half-size file (2026-10-27)
+    if skipped:
+        print("skipped as too small:", json.dumps(skipped), flush=True)
     sha, snap_time = newest["id"], slib.parse_commit_date(newest["date"])
     snap_date = snap_time.date()
 
@@ -148,7 +150,7 @@ def run():
         json.dump(doc, fh)
     os.replace(path + ".tmp", path)
     return {"snapshot": sha[:8], "snapshot_date": str(snap_date), "silver_products": n_silver, "present": len(present), "missing": missing,
-            "candidates": len(candidates), "rx_mb": round(guard.received() / 1e6), "seconds": round(time.time() - t0), "candidates_file": lib.candidates_path(snap_date)}
+            "candidates": len(candidates), "skipped_small": len(skipped), "rx_mb": round(guard.received() / 1e6), "seconds": round(time.time() - t0), "candidates_file": lib.candidates_path(snap_date)}
 
 
 ping("/start")
