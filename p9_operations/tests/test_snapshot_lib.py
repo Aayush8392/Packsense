@@ -544,6 +544,7 @@ def test_the_open_flags_notebook_keeps_the_bounds_and_the_manifest_last():
                                      'append("snapshot_features", feature_rows', "no manifest row written", 'append("snapshot_open_flags_manifest"')]
     assert order == sorted(order)                                                   # delete, write both tables, compare the counts, manifest LAST
     assert "feature_rows is not null" in text                                       # a snapshot of the flags-only first version is redone
+    assert "columns_version = {lib.COLUMNS_VERSION}" in text and "*extra" in text   # a snapshot without the version-2 columns is read again, and they are written
     assert "reversed(snaps)" in text                                                # newest first
     for word in ("editors", "creator", "last_editor", "informers"):
         assert word not in text
@@ -573,13 +574,16 @@ def _off_style_parquet(tmp_path, nutriments_type=None):
     con = duckdb.connect()
     con.execute("create table src (code varchar, last_modified_t bigint, nutriments " + (nutriments_type or lib.NUTRIMENTS_TYPE) + ", brands_tags varchar[], "
                 "categories_tags varchar[], serving_size varchar, data_quality_errors_tags varchar[], data_quality_warnings_tags varchar[], "
-                "data_quality_info_tags varchar[])")
+                "data_quality_info_tags varchar[], " + ", ".join(f"{n} {t}" for n, t in lib.EXTRA_COLUMNS) + ")")
     maps = _real_nutrient_maps(60)
     for i, (code, lm, e, w, inf) in enumerate(RESULT_CON.execute("select code, lm, e, w, i from n order by code").fetchall()):
         m = maps[i % len(maps)] if i % 3 else {}                                        # every third product has no nutrition at all
         entries = [{"name": k, "value": None, "100g": v, "serving": None, "unit": "kJ" if k.startswith("energy") and k != "energy-kcal" else "g",
                     "prepared_value": None, "prepared_100g": None, "prepared_serving": None, "prepared_unit": None} for k, v in m.items()]
-        con.execute("insert into src values (?,?,?,?,?,?,?,?,?)", [code, lm, entries or None, [f"xx:brand{i % 7}"], ["en:snacks", "en:biscuits"], "30 g", e, w, inf])
+        extras = [lm - 1_000_000, lm, ["app"] if i % 3 else None, i, i % 5 if i % 2 else None, i % 5 if i % 2 else None, 0.8, ["en:nutrition-facts-completed"],
+                  None, ["en:india"], None if i % 4 == 0 else lm - 5, i % 6, "b", None, 3]     # plumbing values: NULL lists, a FLOAT, NULL numbers; the real check is the soak
+        con.execute("insert into src values (" + ",".join("?" * (9 + len(extras))) + ")",
+                    [code, lm, entries or None, [f"xx:brand{i % 7}"], ["en:snacks", "en:biscuits"], "30 g", e, w, inf, *extras])
     path = tmp_path / "off_style.parquet"
     con.execute(f"copy src to '{path.as_posix()}' (format parquet)")
     return path
@@ -621,6 +625,61 @@ def test_the_worker_reads_flags_and_features_of_one_snapshot_and_checks_them(tmp
             checked += 1
     assert checked > 20
     json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))
+
+
+def test_the_extra_columns_arrive_typed_with_null_lists_stored_as_empty_ones_and_the_float_exact(tmp_path):
+    off = _off_style_parquet(tmp_path)
+    res = lib.run_flags_worker({"sha": "a" * 40, "local_features": off.as_posix(), "out": str(tmp_path / "out.json"), "memory_limit_mb": 2000,
+                                "temp_dir": str(tmp_path / "spill"), "threads": 2, "min_products": 1})
+    assert all(len(f) == lib.BASE_FEATURE_FIELDS + len(lib.EXTRA_NAMES) for f in res["features"])
+    ix = {n: lib.BASE_FEATURE_FIELDS + i for i, n in enumerate(lib.EXTRA_NAMES)}
+    for f in res["features"]:
+        assert f[ix["completeness"]] == 0.8                                            # FLOAT 0.8 through text, not 0.800000011920929
+        assert f[ix["labels_tags"]] == [] and isinstance(f[ix["data_sources_tags"]], list)    # NULL lists are stored empty
+        assert f[ix["countries_tags"]] == ["en:india"] and f[ix["states_tags"]] == ["en:nutrition-facts-completed"]
+        assert f[ix["nova_group"]] is None and f[ix["rev"]] == 3 and f[ix["created_t"]] == f[1] - 1_000_000 and f[ix["last_updated_t"]] == f[1]
+    assert any(f[ix["data_sources_tags"]] == [] for f in res["features"]) and any(f[ix["data_sources_tags"]] == ["app"] for f in res["features"])
+
+
+def test_the_schema_check_names_a_missing_or_retyped_extra_column():
+    ok = dict(lib.REQUIRED_TYPES)
+    assert set(lib.EXTRA_NAMES) <= set(ok)
+    with pytest.raises(lib.SchemaError, match="created_t: missing"):
+        lib.check_schema({k: v for k, v in ok.items() if k != "created_t"})
+    with pytest.raises(lib.SchemaError, match=r"completeness: is DOUBLE, expected FLOAT"):
+        lib.check_schema({**ok, "completeness": "DOUBLE"})
+
+
+def test_validation_refuses_a_snapshot_whose_created_time_or_revision_is_mostly_empty():
+    rows = [["1", 10, "error", "en:x", "x"], ["2", 20, "error", "en:x", "x"]]
+    ix = {n: lib.BASE_FEATURE_FIELDS + i for i, n in enumerate(lib.EXTRA_NAMES)}
+
+    def feat(code, lm, **over):
+        f = [code, lm, "30 g", "b", [], ["fat"], [1.0], 1, 1.0] + [1] * len(lib.EXTRA_NAMES)
+        for k, v in over.items():
+            f[ix[k]] = v
+        return f
+    assert lib.validate_snapshot(rows, [feat("1", 10), feat("2", 20)], 4_800_000)["feature_rows"] == 2
+    for name in ("created_t", "rev"):
+        with pytest.raises(ValueError, match=name):
+            lib.validate_snapshot(rows, [feat("1", 10), feat("2", 20, **{name: None})], 4_800_000)
+
+
+def test_the_feature_table_definition_the_alter_list_and_the_extra_columns_agree():
+    ddl_text = " ".join(lib.ddl("s")["snapshot_features"].split())
+    assert len(lib.EXTRA_SPARK_TYPES) == len(lib.EXTRA_NAMES)
+    for name, spark_type in zip(lib.EXTRA_NAMES, lib.EXTRA_SPARK_TYPES):
+        assert f"{name} {spark_type}" in ddl_text
+    assert "columns_version INT" in " ".join(lib.ddl("s")["snapshot_open_flags_manifest"].split())
+
+
+def test_no_contributor_column_is_read_or_stored_by_the_snapshot_path():
+    # decided 2026-10-28: version 2 takes no contributor counts either (informers, correctors, checkers, editors, photographers, creator, last editor, owner)
+    forbidden = ("editor", "informer", "corrector", "checker", "photographer", "creator", "owner", "uploader", "contributor", "last_modified_by")
+    for name in list(lib.EXTRA_NAMES) + list(lib.REQUIRED_TYPES):
+        assert not any(w in name for w in forbidden), name
+    sql = lib.feature_load_sql("f", "u") + " " + lib.ddl("s")["snapshot_features"]
+    assert not any(w in sql for w in forbidden)
 
 
 def test_the_worker_stops_on_a_changed_schema_before_reading_anything_heavy(tmp_path):

@@ -262,10 +262,14 @@ def ddl(schema: str) -> dict[str, str]:
             snapshot_sha STRING, snapshot_date DATE, code STRING, severity STRING, flag STRING, family STRING, lm BIGINT) USING DELTA""",
         "snapshot_features": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_features (
             snapshot_sha STRING, snapshot_date DATE, code STRING, lm BIGINT, serving_size STRING, brand STRING, categories ARRAY<STRING>,
-            nutrients MAP<STRING, DOUBLE>, n_nutrients INT, max_mass_g DOUBLE) USING DELTA""",
+            nutrients MAP<STRING, DOUBLE>, n_nutrients INT, max_mass_g DOUBLE,
+            created_t BIGINT, last_updated_t BIGINT, data_sources_tags ARRAY<STRING>, popularity_key BIGINT, scans_n INT, unique_scans_n INT,
+            completeness DOUBLE, states_tags ARRAY<STRING>, labels_tags ARRAY<STRING>, countries_tags ARRAY<STRING>, last_image_t BIGINT,
+            max_imgid INT, nutriscore_grade STRING, nova_group INT, rev INT) USING DELTA""",
         "snapshot_open_flags_manifest": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_open_flags_manifest (
             snapshot_sha STRING, snapshot_date DATE, flag_rows BIGINT, products_with_flags BIGINT, products_in_snapshot BIGINT,
-            rx_mb BIGINT, seconds DOUBLE, job_run_id STRING, finished_at TIMESTAMP, feature_rows BIGINT, products_with_nutrients BIGINT) USING DELTA""",
+            rx_mb BIGINT, seconds DOUBLE, job_run_id STRING, finished_at TIMESTAMP, feature_rows BIGINT, products_with_nutrients BIGINT,
+            columns_version INT) USING DELTA""",
         "snapshot_presence_events": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_presence_events (
             pair_id STRING, date_from DATE, date_to DATE, code STRING, event STRING, lm_from BIGINT) USING DELTA""",
         "snapshot_manifest": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_manifest (
@@ -335,6 +339,28 @@ REQUIRED_TYPES = {"code": "VARCHAR", "last_modified_t": "BIGINT", "nutriments": 
                   "data_quality_warnings_tags": "VARCHAR[]", "data_quality_info_tags": "VARCHAR[]"}
 
 
+# Version 2 of the feature table (2026-10-28): 15 more columns of the same snapshot, chosen from the history look of that day (see the buildlog): only columns that are
+# filled at a stable share from 22 Mar 2026 on; no contributor column of any kind (names or lists of names), no retiring fields (`nutrition_data_per`, `no_nutrition_data`).
+# Types read from the 22 Mar and 27 Oct snapshots (identical). `completeness` is FLOAT in the file and becomes a DOUBLE through text, like the nutrient values.
+COLUMNS_VERSION = 2
+EXTRA_COLUMNS = (("created_t", "BIGINT"), ("last_updated_t", "BIGINT"), ("data_sources_tags", "VARCHAR[]"), ("popularity_key", "BIGINT"), ("scans_n", "INTEGER"),
+                 ("unique_scans_n", "INTEGER"), ("completeness", "FLOAT"), ("states_tags", "VARCHAR[]"), ("labels_tags", "VARCHAR[]"), ("countries_tags", "VARCHAR[]"),
+                 ("last_image_t", "BIGINT"), ("max_imgid", "INTEGER"), ("nutriscore_grade", "VARCHAR"), ("nova_group", "INTEGER"), ("rev", "INTEGER"))
+EXTRA_NAMES = tuple(n for n, _ in EXTRA_COLUMNS)
+EXTRA_SPARK_TYPES = ("BIGINT", "BIGINT", "ARRAY<STRING>", "BIGINT", "INT", "INT", "DOUBLE", "ARRAY<STRING>", "ARRAY<STRING>", "ARRAY<STRING>", "BIGINT", "INT", "STRING", "INT", "INT")
+EXTRA_ARRAYS = tuple(i for i, (_, t) in enumerate(EXTRA_COLUMNS) if t.endswith("[]"))      # a NULL list is stored as an empty one
+BASE_FEATURE_FIELDS = 9                                                                     # code, lm, serving_size, brand, categories, names, values, n, max mass
+EXTRA_MIN_FILLED = ("created_t", "rev")                                                     # filled on 100% of products on every date looked at; under 99% means a broken read
+
+
+REQUIRED_TYPES.update(dict(EXTRA_COLUMNS))
+
+
+def feature_extras(extra: list) -> list:
+    """The 15 extra values of one product as they are stored: a NULL list becomes an empty list, everything else stays."""
+    return [[] if (i in EXTRA_ARRAYS and v is None) else v for i, v in enumerate(extra)]
+
+
 class SchemaError(RuntimeError):
     """A snapshot's Parquet schema is not the one this module was written for. Raised BEFORE any heavy read, so nothing is written."""
 
@@ -362,22 +388,28 @@ def flagged_table_sql(table: str) -> str:
 
 def feature_load_sql(table: str, source: str) -> str:
     """`table` from the snapshot at `source` (a URL or a local Parquet file): one row per flagged product, newest row per barcode."""
-    return (f"create table {table} as select code, last_modified_t as lm, serving_size, brands_tags[1] as brand, categories_tags, nutriments "
-            f"from read_parquet('{source}') where code in (select code from flagged) "
+    return (f"create table {table} as select code, last_modified_t as lm, serving_size, brands_tags[1] as brand, categories_tags, nutriments, "
+            f"{', '.join(EXTRA_NAMES)} from read_parquet('{source}') where code in (select code from flagged) "
             f"qualify row_number() over (partition by code order by last_modified_t desc) = 1")
 
 
+def _extra_select(name: str) -> str:
+    """FLOAT goes to DOUBLE through text, so 0.8 stays 0.8 (a plain cast gives 0.800000011920929)."""
+    return f"cast(cast({name} as varchar) as double)" if dict(EXTRA_COLUMNS)[name] == "FLOAT" else name
+
+
 def feature_rows(con, table: str) -> list[list]:
-    """[code, lm, serving_size, brand, categories, nutrient names, per-100 values, number of nutrients with a value, largest mass value] per product.
+    """[code, lm, serving_size, brand, categories, nutrient names, per-100 values, number of nutrients with a value, largest mass value, then the 15 EXTRA_COLUMNS] per product.
     Values go FLOAT to text to DOUBLE so 68.8 stays 68.8 (a plain cast gives 68.80000305175781)."""
     core = "[" + ", ".join(f"'{k}'" for k in CORE_NUTRIENTS) + "]"
     sql = (f"select code, lm, serving_size, brand, categories_tags, list_transform(sel, x -> x.name), "
            f"list_transform(sel, x -> cast(cast(x.\"100g\" as varchar) as double)), "
            f"coalesce(len(list_filter(nutriments, x -> x.\"100g\" is not null)), 0), "
            f"list_max(list_transform(list_filter(nutriments, x -> x.\"100g\" is not null and not starts_with(x.name, 'energy') and x.unit = 'g'), "
-           f"x -> cast(cast(x.\"100g\" as varchar) as double))) "
+           f"x -> cast(cast(x.\"100g\" as varchar) as double))), "
+           f"{', '.join(_extra_select(n) for n in EXTRA_NAMES)} "
            f"from (select *, list_filter(nutriments, x -> x.\"100g\" is not null and list_contains({core}, x.name)) as sel from {table})")
-    return [list(r) for r in con.execute(sql).fetchall()]
+    return [list(r[:BASE_FEATURE_FIELDS]) + feature_extras(list(r[BASE_FEATURE_FIELDS:])) for r in con.execute(sql).fetchall()]
 
 
 def validate_snapshot(flag_rows: list[list], features: list[list], products_in_snapshot: int, min_products: int = 1_000_000) -> dict:
@@ -402,6 +434,11 @@ def validate_snapshot(flag_rows: list[list], features: list[list], products_in_s
         raise ValueError(f"only {share:.1%} of the flagged products carry any core nutrient; expected 20% or more")
     if products_in_snapshot < min_products:
         raise ValueError(f"the snapshot holds only {products_in_snapshot} products")
+    if len(features[0]) > BASE_FEATURE_FIELDS:
+        for name in EXTRA_MIN_FILLED:
+            filled = sum(1 for f in features if f[BASE_FEATURE_FIELDS + EXTRA_NAMES.index(name)] is not None) / len(features)
+            if filled < 0.99:
+                raise ValueError(f"`{name}` is filled on only {filled:.1%} of the flagged products; it is 100% in every snapshot looked at")
     return {"feature_rows": len(features), "products_with_nutrients": with_nutrients}
 
 

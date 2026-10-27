@@ -46,6 +46,14 @@ reads local files); the process-per-pair design bounds it, but that is a protect
 worth is measured only for error flags that OFF's own arithmetic rules can recompute (about 93% genuine numeric fixes at family level); warnings
 and info flags were not examined, and a numeric fix is not proof of a correct value.
 
+**Open flags and product features (`notebooks/snapshot_open_flags.py`, task `open_flags` of the same job).** For the triage model (`p7_triage_ml`) each
+weekly snapshot also keeps the error flags and the nutrition-number warning families that are open on a product (`snapshot_open_flags`), and the product
+as it was that week (`snapshot_features`: nutrition per 100 g, brand, categories, serving size, and since 2026-10-28 (columns version 2) fifteen more
+columns such as creation and update time, data sources, popularity, completeness, labels and Nutri-Score). A snapshot counts as done only when its manifest
+row carries the current `columns_version`, so a snapshot read before a column was added is read again. No contributor column of any kind is read: not names,
+not lists of names, not counts of them (a test checks the column names). The history starts at the 22 Mar 2026 snapshot: OFF rewrote its nutrition flag
+rules between 1 and 15 Mar 2026 (107 new error flag names, 5,971 products), and the weeks before it come from another rule set. DuckDB is pinned to 1.5.6.
+
 ## Pipeline health (`health_lib.py`, `notebooks/health_collect.py`, bundle `health/`, job `packsense-health`)
 
 Phase B item 9 (the capacity panel and dependency health). Once a day (08:40 UTC, after the gold build and before the publish) the job writes one long table,

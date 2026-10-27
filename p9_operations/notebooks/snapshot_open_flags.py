@@ -85,12 +85,18 @@ MANIFEST_SCHEMA = T.StructType([
     T.StructField("snapshot_sha", T.StringType()), T.StructField("snapshot_date", T.DateType()), T.StructField("flag_rows", T.LongType()),
     T.StructField("products_with_flags", T.LongType()), T.StructField("products_in_snapshot", T.LongType()), T.StructField("rx_mb", T.LongType()),
     T.StructField("seconds", T.DoubleType()), T.StructField("job_run_id", T.StringType()), T.StructField("finished_at", T.TimestampType()),
-    T.StructField("feature_rows", T.LongType()), T.StructField("products_with_nutrients", T.LongType())])
+    T.StructField("feature_rows", T.LongType()), T.StructField("products_with_nutrients", T.LongType()), T.StructField("columns_version", T.IntegerType())])
 FEATURE_SCHEMA = T.StructType([
     T.StructField("snapshot_sha", T.StringType()), T.StructField("snapshot_date", T.DateType()), T.StructField("code", T.StringType()),
     T.StructField("lm", T.LongType()), T.StructField("serving_size", T.StringType()), T.StructField("brand", T.StringType()),
     T.StructField("categories", T.ArrayType(T.StringType())), T.StructField("nutrients", T.MapType(T.StringType(), T.DoubleType())),
-    T.StructField("n_nutrients", T.IntegerType()), T.StructField("max_mass_g", T.DoubleType())])
+    T.StructField("n_nutrients", T.IntegerType()), T.StructField("max_mass_g", T.DoubleType()),
+    T.StructField("created_t", T.LongType()), T.StructField("last_updated_t", T.LongType()), T.StructField("data_sources_tags", T.ArrayType(T.StringType())),
+    T.StructField("popularity_key", T.LongType()), T.StructField("scans_n", T.IntegerType()), T.StructField("unique_scans_n", T.IntegerType()),
+    T.StructField("completeness", T.DoubleType()), T.StructField("states_tags", T.ArrayType(T.StringType())),
+    T.StructField("labels_tags", T.ArrayType(T.StringType())), T.StructField("countries_tags", T.ArrayType(T.StringType())),
+    T.StructField("last_image_t", T.LongType()), T.StructField("max_imgid", T.IntegerType()), T.StructField("nutriscore_grade", T.StringType()),
+    T.StructField("nova_group", T.IntegerType()), T.StructField("rev", T.IntegerType())])
 
 
 def append(table, rows, schema, batch=50000):
@@ -111,6 +117,12 @@ def prepare_tables():
     for col in ("feature_rows", "products_with_nutrients"):
         if col not in have:
             spark.sql(f"alter table {SCHEMA}.snapshot_open_flags_manifest add columns ({col} bigint)")
+    if "columns_version" not in have:                                       # version 2 of the feature table (2026-10-28): a snapshot without it is read again
+        spark.sql(f"alter table {SCHEMA}.snapshot_open_flags_manifest add columns (columns_version int)")
+    have_features = {r[0] for r in spark.sql(f"describe {SCHEMA}.snapshot_features").collect()}
+    for name, sql_type in zip(lib.EXTRA_NAMES, lib.EXTRA_SPARK_TYPES):
+        if name not in have_features:
+            spark.sql(f"alter table {SCHEMA}.snapshot_features add columns ({name} {sql_type})")
 
 
 def run_worker(s, work, total_mb, check_only):
@@ -131,7 +143,7 @@ def run_worker(s, work, total_mb, check_only):
 
 def run():
     prepare_tables()
-    done = {r[0] for r in spark.sql(f"select snapshot_sha from {SCHEMA}.snapshot_open_flags_manifest where feature_rows is not null").collect()}
+    done = {r[0] for r in spark.sql(f"select snapshot_sha from {SCHEMA}.snapshot_open_flags_manifest where feature_rows is not null and columns_version = {lib.COLUMNS_VERSION}").collect()}
     now = dt.datetime.now(dt.timezone.utc)
     snaps = lib.pick_snapshots(lib.fetch_commits(), lib.weekly_targets(now, WEEKS))
     todo = [s for s in reversed(snaps) if s.sha not in done][:MAX_SNAPSHOTS]            # newest first: the newest is the one the weekly job needs
@@ -159,8 +171,8 @@ def run():
         res = run_worker(s, work, total_mb, check_only=False)               # the worker has already validated its own output
         d = s.date.date()
         flag_rows = [(s.sha, d, code, sev, tag, fam, lm) for code, lm, sev, tag, fam in res["rows"]]
-        feature_rows = [(s.sha, d, code, lm, serving, brand, cats or [], dict(zip(keys or [], vals or [])), n, mx)
-                        for code, lm, serving, brand, cats, keys, vals, n, mx in res["features"]]
+        feature_rows = [(s.sha, d, code, lm, serving, brand, cats or [], dict(zip(keys or [], vals or [])), n, mx, *extra)
+                        for code, lm, serving, brand, cats, keys, vals, n, mx, *extra in res["features"]]
         # idempotent write: remove whatever an interrupted run left for this snapshot, rewrite, CHECK the counts, manifest row LAST
         for table in ("snapshot_open_flags", "snapshot_features"):
             spark.sql(f"delete from {SCHEMA}.{table} where snapshot_sha = '{s.sha}'")
@@ -174,7 +186,7 @@ def run():
         secs = time.time() - t0
         append("snapshot_open_flags_manifest", [(s.sha, d, len(flag_rows), res["products_with_flags"], res["products_in_snapshot"], round(res["rx_bytes"] / 1e6),
                                                  round(secs, 1), RUN_ID, dt.datetime.now(dt.timezone.utc).replace(tzinfo=None),
-                                                 len(feature_rows), res["products_with_nutrients"])], MANIFEST_SCHEMA)
+                                                 len(feature_rows), res["products_with_nutrients"], lib.COLUMNS_VERSION)], MANIFEST_SCHEMA)
         total_rx += res["rx_bytes"]
         run_n += 1
         seconds_history.append(secs)
