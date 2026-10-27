@@ -1,5 +1,5 @@
 # The DuckDB side of the engine comparison (design 6.6). Install together with requirements.txt (the same dbt-core pin).
 # Versions are at least two weeks old when pinned: dbt-duckdb 1.11.0 (2026-08-07), duckdb 1.5.6 (2026-09-28; the 2.0 line is still dev builds).
 dbt-duckdb==1.11.0
-duckdb==1.5.6
+duckdb==2.0.0
 pytest==9.1.1          # runs tests/test_rule_verdicts_agree.py in the engines job (the same pin as requirements-dev.txt)
