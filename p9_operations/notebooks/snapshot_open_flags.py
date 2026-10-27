@@ -145,7 +145,7 @@ def run():
     prepare_tables()
     done = {r[0] for r in spark.sql(f"select snapshot_sha from {SCHEMA}.snapshot_open_flags_manifest where feature_rows is not null and columns_version = {lib.COLUMNS_VERSION}").collect()}
     now = dt.datetime.now(dt.timezone.utc)
-    snaps = lib.pick_snapshots(lib.fetch_commits(), lib.weekly_targets(now, WEEKS))
+    snaps = lib.pick_snapshots(lib.fetch_commits(pages=lib.commit_pages(WEEKS)), lib.weekly_targets(now, WEEKS))
     todo = [s for s in reversed(snaps) if s.sha not in done][:MAX_SNAPSHOTS]            # newest first: the newest is the one the weekly job needs
     print(f"{len(snaps)} weekly snapshots ({snaps[0].date.date()} to {snaps[-1].date.date()}), {len(done)} done, {len(todo)} to do this run (cap {MAX_SNAPSHOTS})")
     for s in todo:

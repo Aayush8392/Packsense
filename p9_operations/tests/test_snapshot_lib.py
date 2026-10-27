@@ -774,3 +774,12 @@ def test_snapshot_size_is_none_when_the_address_cannot_be_resolved(monkeypatch):
 def test_the_candidates_notebook_uses_the_size_guard_and_not_the_bare_newest_commit():
     text = (HERE.parent / "notebooks" / "reconcile_candidates.py").read_text(encoding="utf-8")
     assert "slib.newest_complete(" in text and "fetch_commits(pages=1)[0]" not in text
+
+
+def test_the_commit_list_is_fetched_deep_enough_for_the_weeks_asked_for():
+    # 2026-10-28: weeks=31 listed 14 snapshots because the list stopped after 4 pages (about 100 days); OFF has about 1.8 commits a day
+    assert lib.commit_pages(13) == 5 and lib.commit_pages(0) == 4               # 13 weeks need 3.64 pages: rounded up, plus one page of margin
+    assert lib.commit_pages(31) * 50 >= 31 * 7 * 2 and lib.commit_pages(54) * 50 >= 54 * 7 * 2
+    assert lib.commit_pages(54) >= 16
+    text = (HERE.parent / "notebooks" / "snapshot_open_flags.py").read_text(encoding="utf-8")
+    assert "fetch_commits(pages=lib.commit_pages(WEEKS))" in text and "fetch_commits()" not in text

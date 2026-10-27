@@ -164,6 +164,12 @@ def fetch_commits(pages: int = 4, opener=urllib.request.urlopen) -> list[dict]:
     return out
 
 
+def commit_pages(weeks: int) -> int:
+    """Pages of the commit list (50 per page) needed to reach `weeks` weeks back: OFF's dataset gets about two commits a day (689 commits in 382 days, measured
+    2026-10-28), so 4 pages (the old fixed value) reach only about 100 days. Never fewer than 4. Found 2026-10-28: a 31-week request listed 14 snapshots."""
+    return max(4, -(-weeks * 7 * 2 // 50) + 1)
+
+
 def resolve_cdn(sha: str, build_opener=urllib.request.build_opener) -> str:
     """One request to Hugging Face's resolver for `food.parquet` at a commit; returns the signed CDN address it redirects to. Reading that
     address directly spends none of the resolver's quota (3,000 requests per 5 minutes, measured) on the thousands of range reads."""
