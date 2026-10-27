@@ -4,7 +4,7 @@
 #   .venv\Scripts\python.exe -m pytest p1_intake/tests p2_lakehouse/tests
 # The capture's own pins (boto3, requests) come from its requirements file so the tests run on the same versions as the workflow.
 -r p1_intake/requirements.txt
-databricks-sdk==0.151.0
+databricks-sdk==0.156.0
 pytest==9.1.1
 PyYAML==6.0.3
 ruff==0.8.4
