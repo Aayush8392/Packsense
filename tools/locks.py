@@ -26,6 +26,8 @@ SECURITY_FIX = {                                  # packages locked newer than t
 NEWER_OK = {"databricks-sdk": "2026-10-21T00:00:00Z", **{pkg: "2026-10-21T00:00:00Z" for pkg in SECURITY_FIX}}   # databricks-sdk: pinned on purpose before it was two weeks old
 # Not fixable here, so accepted in .github/workflows/security.yml (`--ignore-vuln`, p4 lock only): PYSEC-2026-4114, oauthlib 3.3.1 (fixed in 4.0.0). dbt-databricks 1.12.6 caps
 # databricks-sql-connector at 4.4.0, which needs oauthlib < 4. It is a timing flaw in the server-side PKCE check of an OAuth provider; we run client flows only.
+# Also accepted: CVE-2026-49272 (GHSA-3jp2-3mrg-2vxc, published 2026-10-27, same package and same fix version): the device-code token endpoint of an OAuth provider does not check
+# the device code. Again server-side code that we do not run.
 # Revisit when dbt-databricks moves to a connector that allows oauthlib 4.
 
 LOCKS = {                                         # lock file -> its input files

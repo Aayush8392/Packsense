@@ -67,6 +67,6 @@ jobs:
         run: |
           pip-audit -r requirements-dev.lock --no-deps --disable-pip --require-hashes
           pip-audit -r p1_intake/requirements.lock --no-deps --disable-pip --require-hashes
-          # PYSEC-2026-4114 (oauthlib 3.3.1) is accepted on purpose: dbt-databricks 1.12.6 caps its connector at a version that needs oauthlib < 4, and the flaw is in
-          # the server-side PKCE check, which a client does not run. The reasoning and the point to revisit are in tools/locks.py.
-          pip-audit -r p4_modelling/requirements.lock --no-deps --disable-pip --require-hashes --ignore-vuln PYSEC-2026-4114
+          # PYSEC-2026-4114 and CVE-2026-49272 (both oauthlib 3.3.1) are accepted on purpose: dbt-databricks 1.12.6 caps its connector at a version that needs oauthlib < 4, and
+          # both flaws are in server-side code (the PKCE check, the device-code token endpoint), which a client does not run. The reasoning and the point to revisit are in tools/locks.py.
+          pip-audit -r p4_modelling/requirements.lock --no-deps --disable-pip --require-hashes --ignore-vuln PYSEC-2026-4114 --ignore-vuln CVE-2026-49272

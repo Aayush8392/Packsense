@@ -119,10 +119,11 @@ def test_the_ruleset_requires_tests_lint_and_engines_and_ci_has_those_jobs():
         assert re.search(rf"^  {job}:", ci, re.M), job
 
 
-def test_the_only_accepted_advisory_is_the_documented_oauthlib_one_and_only_on_the_gold_lock():
+def test_the_only_accepted_advisories_are_the_documented_oauthlib_ones_and_only_on_the_gold_lock():
     sec = (WORKFLOWS / "security.yml").read_text(encoding="utf-8")
     ignored = re.findall(r"--ignore-vuln (\S+)", sec)
-    assert ignored == ["PYSEC-2026-4114"]
+    assert ignored == ["PYSEC-2026-4114", "CVE-2026-49272"]
     line = next(x for x in sec.splitlines() if "--ignore-vuln" in x)
     assert "p4_modelling/requirements.lock" in line
-    assert "PYSEC-2026-4114" in (ROOT / "tools" / "locks.py").read_text(encoding="utf-8")
+    locks = (ROOT / "tools" / "locks.py").read_text(encoding="utf-8")
+    assert "PYSEC-2026-4114" in locks and "CVE-2026-49272" in locks
