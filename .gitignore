@@ -90,3 +90,6 @@ p6_serving/bot/fresh2_labels.psv
 
 # a one-off measurement log (counts of tokens per call); the script that makes it is committed
 p8_steward/bootstrap/measure_tokens_result.json
+
+# Stitch design zips are local only; the extracted folders are committed
+p6_serving/app/designs/*.zip
