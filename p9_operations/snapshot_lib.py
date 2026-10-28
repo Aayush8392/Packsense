@@ -19,6 +19,7 @@ import json
 import re
 import sys
 import threading
+import time
 import urllib.error
 import urllib.request
 
@@ -32,6 +33,12 @@ SEVERITIES = (
 )
 FEATURE_GUARD = 1_500_000_000   # the feature read (nutrition, brands, categories): measured 2026-10-26 at about 380 MB over the footer; a read past 1.5 GB is stopped
 BYTE_GUARD = 1_000_000_000      # one snapshot is ~310 MB for these columns; a read that passes 1 GB is stopped
+# A read that receives fewer than STALL_MIN_BYTES in STALL_SECONDS is hung (found 2026-10-28: four runs of the backfill each lost about 30 minutes to a read that
+# stopped moving, after which the notebook's Spark session had expired). A normal read of these columns moves tens of MB a minute; the 7 minutes leave room for the
+# CPU-only stretch after the last bytes arrive. The read is interrupted and tried again, up to STALL_RETRIES times, before the run is failed.
+STALL_SECONDS = 420
+STALL_MIN_BYTES = 100_000
+STALL_RETRIES = 2
 RETENTION_MONTHS = 13           # flag events older than this (by the newer snapshot's date) are deleted at the end of a run
 
 DEFAULT_SCHEMA = "workspace.packsense_snapshots"
@@ -213,9 +220,12 @@ class ByteGuard:
     """Stops a read that downloads more than `limit` bytes: a watcher thread compares the machine's received bytes with the count at the start
     and calls `interrupt` once. Used around every snapshot load, because Databricks Free Edition publishes no limit of its own."""
 
-    def __init__(self, read_rx, limit: int, interrupt, poll: float = 1.0):
+    def __init__(self, read_rx, limit: int, interrupt, poll: float = 1.0, stall_seconds: float | None = None, stall_min_bytes: int = STALL_MIN_BYTES,
+                 clock=time.monotonic):
         self.read_rx, self.limit, self.interrupt, self.poll = read_rx, limit, interrupt, poll
+        self.stall_seconds, self.stall_min_bytes, self.clock = stall_seconds, stall_min_bytes, clock
         self.tripped = False
+        self.stalled = False
         self._done = threading.Event()
         self._start = 0
         self._thread: threading.Thread | None = None
@@ -227,9 +237,17 @@ class ByteGuard:
         return self
 
     def _watch(self):
+        last_rx, last_move = self._start, self.clock()
         while not self._done.wait(self.poll):
-            if self.read_rx() - self._start > self.limit:
+            rx = self.read_rx()
+            if rx - self._start > self.limit:
                 self.tripped = True
+                self.interrupt()
+                return
+            if rx - last_rx >= self.stall_min_bytes:
+                last_rx, last_move = rx, self.clock()
+            elif self.stall_seconds and self.clock() - last_move > self.stall_seconds:
+                self.stalled = True
                 self.interrupt()
                 return
 
@@ -550,21 +568,69 @@ def _load_side(con, table: str, side: dict, byte_guard: int) -> int:
     return received
 
 
-def guarded_execute(con, sql: str, byte_guard: int, sha: str) -> int:
-    """Run one statement that reads a snapshot over the network under the byte guard; returns the bytes the machine received meanwhile."""
-    guard = None
-    try:
-        with ByteGuard(read_rx_bytes, byte_guard, con.interrupt) as guard:
-            con.execute(sql)
-    except Exception:
-        # the guard's interrupt makes DuckDB raise before the check below: name the cause and the bytes seen (found 2026-10-26, a bare 'Interrupted!')
-        if guard is not None and guard.tripped:
-            raise RuntimeError(f"byte guard: reading snapshot {sha[:8]} passed {byte_guard / 1e6:.0f} MB "
-                               f"({guard.received() / 1e6:.0f} MB received by the machine); stopped") from None
-        raise
-    if guard.tripped:
-        raise RuntimeError(f"byte guard: reading snapshot {sha[:8]} passed {byte_guard / 1e6:.0f} MB; stopped")
-    return guard.received()
+class ReadStalled(RuntimeError):
+    """A snapshot read received (almost) nothing for STALL_SECONDS on every attempt."""
+
+
+def guarded_execute(con, sql: str, byte_guard: int, sha: str, stall_seconds: float | None = STALL_SECONDS, stall_retries: int = STALL_RETRIES,
+                    read_rx=None, log=print) -> int:
+    """Run one statement that reads a snapshot over the network under the byte guard; returns the bytes the machine received meanwhile.
+    A read that stops moving (see STALL_SECONDS) is interrupted and tried again on the same connection; the byte guard counts every attempt."""
+    read_rx = read_rx or read_rx_bytes                  # looked up now, not when the module loaded, so a test (or a different machine) can replace it
+    spent = 0
+    for attempt in range(stall_retries + 1):
+        guard = None
+        try:
+            with ByteGuard(read_rx, byte_guard - spent, con.interrupt, stall_seconds=stall_seconds) as guard:
+                con.execute(sql)
+        except Exception:
+            # the guard's interrupt makes DuckDB raise before the check below: name the cause and the bytes seen (found 2026-10-26, a bare 'Interrupted!')
+            if guard is not None and guard.tripped:
+                raise RuntimeError(f"byte guard: reading snapshot {sha[:8]} passed {byte_guard / 1e6:.0f} MB "
+                                   f"({(spent + guard.received()) / 1e6:.0f} MB received by the machine); stopped") from None
+            if guard is not None and guard.stalled:
+                spent += guard.received()
+                if attempt < stall_retries:
+                    log(f"read of snapshot {sha[:8]} received under {guard.stall_min_bytes // 1000} KB in {stall_seconds:.0f} s: interrupted, trying again "
+                        f"({attempt + 1} of {stall_retries})")
+                    continue
+                raise ReadStalled(f"reading snapshot {sha[:8]} stalled {stall_retries + 1} times (under {guard.stall_min_bytes // 1000} KB in {stall_seconds:.0f} s each)") from None
+            raise
+        if guard.tripped:
+            raise RuntimeError(f"byte guard: reading snapshot {sha[:8]} passed {byte_guard / 1e6:.0f} MB; stopped")
+        return spent + guard.received()
+    raise AssertionError("unreachable")
+
+
+class KeepAlive:
+    """Calls `ping` every `every` seconds on a background thread while the block runs. The notebook's Spark session expires after about 30 minutes without a
+    request, and the worker process that reads a snapshot makes none (found 2026-10-28). A failing ping is ignored: it must never end the run."""
+
+    def __init__(self, ping, every: float = 240.0):
+        self.ping, self.every = ping, every
+        self.pings = 0
+        self.failures = 0
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def _run(self):
+        while not self._stop.wait(self.every):
+            try:
+                self.ping()
+                self.pings += 1
+            except Exception:
+                self.failures += 1
+
+    def __enter__(self):
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=5)
+        return False
 
 
 def peak_rss_mb() -> float | None:
@@ -631,7 +697,7 @@ def run_flags_worker(spec: dict) -> dict:
         if spec.get("local_features"):
             con.execute(sql)
             return 0
-        return guarded_execute(con, sql, limit, spec["sha"])
+        return guarded_execute(con, sql, limit, spec["sha"], stall_seconds=spec.get("stall_seconds", STALL_SECONDS))
 
     rx = read(f"create view v as select * from read_parquet('{source}')", flag_guard)
     check_schema({r[0]: r[1] for r in con.execute("describe v").fetchall()})

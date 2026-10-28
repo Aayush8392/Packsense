@@ -783,3 +783,110 @@ def test_the_commit_list_is_fetched_deep_enough_for_the_weeks_asked_for():
     assert lib.commit_pages(54) >= 16
     text = (HERE.parent / "notebooks" / "snapshot_open_flags.py").read_text(encoding="utf-8")
     assert "fetch_commits(pages=lib.commit_pages(WEEKS))" in text and "fetch_commits()" not in text
+
+
+# --- a read that stops moving, and the Spark keep-alive (found 2026-10-28) ---------------------------------------------------------------------
+
+def _wait_for(flag, seconds=3.0):
+    end = time.time() + seconds
+    while time.time() < end and not flag():
+        time.sleep(0.005)
+    return flag()
+
+
+def test_a_read_that_receives_almost_nothing_is_marked_stalled_and_interrupted():
+    fired = threading.Event()
+    with lib.ByteGuard(lambda: 5_000, 10**9, fired.set, poll=0.01, stall_seconds=0.15, stall_min_bytes=100_000) as g:
+        assert _wait_for(fired.is_set)
+    assert g.stalled and not g.tripped
+
+
+def test_a_read_that_keeps_moving_is_never_marked_stalled():
+    counter = {"n": 0}
+    fired = threading.Event()
+
+    def rx():
+        counter["n"] += 40_000                                   # 40 KB per poll: the 100 KB threshold is passed every third poll
+        return counter["n"]
+    with lib.ByteGuard(rx, 10**12, fired.set, poll=0.01, stall_seconds=0.1, stall_min_bytes=100_000) as g:
+        time.sleep(0.5)
+    assert not g.stalled and not fired.is_set()
+
+
+def test_no_stall_seconds_means_no_stall_check():
+    fired = threading.Event()
+    with lib.ByteGuard(lambda: 0, 10**9, fired.set, poll=0.01) as g:
+        time.sleep(0.2)
+    assert not g.stalled and not fired.is_set()
+
+
+class _FakeCon:
+    """First `hangs` calls block until interrupted (then raise as DuckDB does); later calls return at once."""
+
+    def __init__(self, hangs):
+        self.hangs, self.calls, self._ev = hangs, 0, threading.Event()
+
+    def interrupt(self):
+        self._ev.set()
+
+    def execute(self, sql):
+        self.calls += 1
+        if self.calls <= self.hangs:
+            self._ev.clear()
+            self._ev.wait(10)
+            raise RuntimeError("Interrupted!")
+
+
+def test_a_stalled_read_is_tried_again_and_the_bytes_of_every_attempt_are_counted():
+    con, logged = _FakeCon(hangs=1), []
+    got = lib.guarded_execute(con, "select 1", 10**9, "a" * 40, stall_seconds=0.15, read_rx=lambda: 0, log=logged.append)
+    assert con.calls == 2 and got == 0 and len(logged) == 1 and "trying again" in logged[0]
+
+
+def test_a_read_that_stalls_on_every_attempt_fails_with_a_clear_error():
+    con = _FakeCon(hangs=99)
+    with pytest.raises(lib.ReadStalled, match="stalled 3 times"):
+        lib.guarded_execute(con, "select 1", 10**9, "b" * 40, stall_seconds=0.1, stall_retries=2, read_rx=lambda: 0, log=lambda m: None)
+    assert con.calls == 3
+
+
+def test_the_byte_guard_still_wins_over_the_stall_retry():
+    counter = {"n": 0}
+
+    def rx():
+        counter["n"] += 10_000_000
+        return counter["n"]
+    con = _FakeCon(hangs=99)
+    with pytest.raises(RuntimeError, match="byte guard"):
+        lib.guarded_execute(con, "select 1", 50_000_000, "c" * 40, stall_seconds=5, read_rx=rx, log=lambda m: None)
+
+
+def test_a_real_duckdb_statement_that_is_interrupted_leaves_a_connection_that_runs_the_same_create_again():
+    con = duckdb.connect()
+    sql = "create table big as select count(*) as n from range(3000000000) r(a) where a % 7 = 3"          # long enough to be interrupted, then cheap to replace
+    with pytest.raises(lib.ReadStalled):
+        lib.guarded_execute(con, sql, 10**9, "d" * 40, stall_seconds=0.2, stall_retries=1, read_rx=lambda: 0, log=lambda m: None)
+    con.execute("create table big as select 1 as n")                                                     # the same name is free: the aborted statement left nothing behind
+    assert con.execute("select n from big").fetchall() == [(1,)]
+
+
+def test_the_keep_alive_pings_while_the_block_runs_ignores_failures_and_stops_after():
+    seen = {"n": 0}
+
+    def ping():
+        seen["n"] += 1
+        if seen["n"] == 2:
+            raise ConnectionError("session gone")
+    with lib.KeepAlive(ping, every=0.02) as ka:
+        assert _wait_for(lambda: seen["n"] >= 4)
+    n = seen["n"]
+    time.sleep(0.1)
+    assert seen["n"] == n and ka.failures == 1 and ka.pings >= 3
+
+
+def test_the_open_flags_notebook_keeps_spark_alive_around_the_worker_and_passes_the_stall_setting():
+    text = (HERE.parent / "notebooks" / "snapshot_open_flags.py").read_text(encoding="utf-8")
+    i_ka, i_run = text.index("with lib.KeepAlive("), text.index('"flags-worker", spec_path]')
+    assert i_ka < i_run                                                                  # the ping is running when the worker process is started
+    assert 'dbutils.widgets.text("stall_seconds"' in text and '"stall_seconds": STALL_SECONDS' in text
+    assert "spark.sql(\"select 1\")" in text

@@ -63,6 +63,7 @@ dbutils.widgets.text("dry_run", "false")
 dbutils.widgets.text("byte_guard_mb", str(lib.BYTE_GUARD // 1_000_000))      # the flag read of one snapshot
 dbutils.widgets.text("feature_guard_mb", str(lib.FEATURE_GUARD // 1_000_000))  # the feature read of one snapshot
 dbutils.widgets.text("preflight", "false")                                    # true: check every snapshot's schema, write nothing
+dbutils.widgets.text("stall_seconds", str(lib.STALL_SECONDS))                 # a read that receives almost nothing for this long is interrupted and tried again
 
 RUN_ID = dbutils.widgets.get("run_id")
 SCHEMA = dbutils.widgets.get("schema")
@@ -73,6 +74,7 @@ DRY = dbutils.widgets.get("dry_run").strip().lower() == "true"
 BYTE_GUARD = int(dbutils.widgets.get("byte_guard_mb")) * 1_000_000
 FEATURE_GUARD = int(dbutils.widgets.get("feature_guard_mb")) * 1_000_000
 PREFLIGHT = dbutils.widgets.get("preflight").strip().lower() == "true"
+STALL_SECONDS = float(dbutils.widgets.get("stall_seconds"))
 
 # COMMAND ----------
 from pyspark.sql import types as T  # noqa: E402
@@ -127,11 +129,14 @@ def prepare_tables():
 
 def run_worker(s, work, total_mb, check_only):
     spec = {"sha": s.sha, "out": f"{work}/{s.sha[:12]}.json", "memory_limit_mb": int(0.5 * total_mb), "temp_dir": f"{work}/spill",
-            "threads": 8, "byte_guard": BYTE_GUARD, "feature_guard": FEATURE_GUARD, "check_only": check_only}
+            "threads": 8, "byte_guard": BYTE_GUARD, "feature_guard": FEATURE_GUARD, "stall_seconds": STALL_SECONDS, "check_only": check_only}
     spec_path = f"{work}/{s.sha[:12]}.spec.json"
     with open(spec_path, "w", encoding="utf-8") as fh:
         json.dump(spec, fh)
-    proc = subprocess.run([sys.executable, os.path.join(find_p9(), "snapshot_lib.py"), "flags-worker", spec_path], capture_output=True, text=True, timeout=3600)
+    # The worker makes no Spark request for up to 20 minutes, and the notebook's Spark session expires after about 30 without one (found 2026-10-28: four runs died of
+    # it): a background ping keeps the session alive while the worker runs.
+    with lib.KeepAlive(lambda: spark.sql("select 1").collect()):
+        proc = subprocess.run([sys.executable, os.path.join(find_p9(), "snapshot_lib.py"), "flags-worker", spec_path], capture_output=True, text=True, timeout=3600)
     if proc.returncode != 0:
         raise RuntimeError(f"snapshot {s.sha[:8]} ({s.date.date()}): the worker process ended with code {proc.returncode} (-9 means killed for memory). "
                            f"stderr: {proc.stderr[-700:]}")
