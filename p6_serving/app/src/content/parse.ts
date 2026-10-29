@@ -80,6 +80,24 @@ export function frameCallouts(html: string): string {
   return html.slice(0, firstHeading) + rest;
 }
 
+export interface Sections {
+  /** Everything before the first section heading. */
+  intro: string;
+  sections: { title: string; html: string }[];
+}
+
+/** Cuts rendered HTML at its section headings, so a page can lay each section out as its own panel. */
+export function splitSections(html: string): Sections {
+  const [intro, ...parts] = html.split(/(?=<h2>)/);
+  return {
+    intro,
+    sections: parts.map((part) => {
+      const end = part.indexOf('</h2>');
+      return { title: part.slice('<h2>'.length, end), html: part.slice(end + '</h2>'.length) };
+    }),
+  };
+}
+
 /** The top-level blocks (paragraphs, lists, headings, framed tables) of rendered HTML, in order. */
 export function splitBlocks(html: string): string[] {
   return html.match(/<(p|ul|ol|h2|h3)>[\s\S]*?<\/\1>|<div class="table-card">[\s\S]*?<\/table><\/div>/g) ?? [];

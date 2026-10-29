@@ -1,0 +1,354 @@
+/* Data pages: controls, headline, charts, text panels and the India block. Tokens and the page frame are in tokens.css and base.css. */
+.data-page > * + * {
+  margin-top: var(--space-lg);
+}
+.data-loading {
+  margin: 0;
+  padding: var(--space-lg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--fg-muted);
+}
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  overflow: hidden;
+}
+.segmented__option {
+  min-height: var(--tap);
+  padding-inline: var(--space-lg);
+  border: 0;
+  background: transparent;
+  color: var(--secondary);
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+.segmented__option + .segmented__option {
+  border-inline-start: 1px solid var(--border);
+}
+.segmented__option[aria-checked='true'] {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.button--quiet {
+  min-height: var(--tap);
+  border-color: var(--border);
+  background: transparent;
+  color: var(--primary);
+}
+.button--quiet:hover {
+  background: var(--soft);
+}
+.headline {
+  padding: var(--space-lg);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--primary);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--soft);
+}
+.headline__range {
+  margin: 0 0 var(--space-md);
+  font-size: var(--text-small);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--secondary);
+}
+.headline dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-md) var(--space-xl);
+  margin: 0;
+}
+.headline dt {
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.headline dd {
+  margin: var(--space-xs) 0 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-headline-md);
+  color: var(--primary);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.chart-section h2,
+.text-panel h2,
+.india-today h2 {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--text-headline-md);
+}
+.chart-section__note {
+  margin: 0 0 var(--space-md);
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.chart-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+.chart-section__head h2 {
+  margin: 0;
+}
+.chart-grid {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: 1fr;
+  /* Each card is as tall as its own content: opening one card's table must not stretch its neighbours. */
+  align-items: start;
+}
+@media (min-width: 48rem) {
+  .chart-grid--two,
+  .chart-grid--four {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 64.0625rem) {
+  .chart-grid--three {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .chart-grid--four {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.chart-card {
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  min-width: 0;
+}
+.chart-card h3 {
+  margin: 0;
+  font-size: var(--text-title);
+}
+.chart-card__note {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.chart-card .button {
+  margin-top: var(--space-sm);
+}
+.chart {
+  margin-top: var(--space-sm);
+  min-width: 0;
+}
+.chart svg {
+  display: block;
+  max-width: 100%;
+}
+.chart__grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.chart__tick {
+  fill: var(--fg-muted);
+  font-size: var(--text-label);
+  font-family: var(--font-body);
+}
+.chart__cursor {
+  stroke: var(--secondary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.chart__readout {
+  min-height: 1.5rem;
+  margin: var(--space-xs) 0 0;
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--fg);
+}
+.chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-small);
+}
+.chart__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.chart__legend span {
+  color: var(--fg);
+}
+.table-card--figures td,
+.table-card--plain td {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.code {
+  display: block;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: var(--text-label);
+  font-weight: 400;
+  color: var(--fg-muted);
+}
+.panels {
+  display: grid;
+  gap: var(--space-md);
+}
+@media (min-width: 64.0625rem) {
+  .panels {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.text-panel {
+  padding: var(--space-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--soft);
+}
+.text-panel .prose p,
+.text-panel .prose li {
+  font-size: var(--text-body);
+}
+.text-panel h2 {
+  font-size: var(--text-headline-sm);
+}
+.india-today {
+  padding: var(--space-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.india-today h3 {
+  margin: var(--space-md) 0 var(--space-sm);
+  font-size: var(--text-headline-sm);
+}
+.india-today h4,
+.example h4 {
+  margin: var(--space-lg) 0 var(--space-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-title);
+  font-weight: 600;
+  color: var(--primary);
+}
+.india-today__day {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--secondary);
+}
+.india-today__grid {
+  display: grid;
+  gap: var(--space-xl);
+}
+@media (min-width: 64.0625rem) {
+  .india-today__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.india-today__counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-md);
+  margin: 0;
+}
+.india-today__counts dt {
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.india-today__counts dd {
+  margin: var(--space-xs) 0 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-display);
+  color: var(--primary);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.kind-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-sm);
+}
+.kind-bars li {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) 1fr minmax(6rem, auto);
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-small);
+}
+.kind-bars__track {
+  display: block;
+  block-size: 0.75rem;
+  background: var(--raised);
+  border-radius: var(--radius);
+}
+.kind-bars__fill {
+  display: block;
+  block-size: 100%;
+  background: var(--primary);
+  border-radius: var(--radius);
+}
+.kind-bars__value {
+  font-variant-numeric: tabular-nums lining-nums;
+  text-align: end;
+}
+@media (max-width: 40rem) {
+  .kind-bars li {
+    grid-template-columns: 1fr auto;
+  }
+  .kind-bars__track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+.example {
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--soft);
+}
+.example h4 {
+  margin-top: 0;
+}
+.example p {
+  margin: 0 0 var(--space-xs);
+}
+.example__label {
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.example__name {
+  font-family: var(--font-heading);
+  font-size: var(--text-headline-sm);
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+.pager__status {
+  flex: 1 1 10rem;
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.pager .button {
+  margin-top: 0;
+}
+.pager .button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.table-card--plain th[scope='row'] {
+  white-space: nowrap;
+}

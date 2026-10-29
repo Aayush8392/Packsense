@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseCsv } from './csv';
 import { dailyJobsVerdict, editsOnDay, JOBS, nextUpdateDue, rightNow } from './derive';
 import { DataError, fetchText, parseChangeDaily, parsePipelineHealth, parseSiteStatus, type HealthRow } from './siteData';
-import { addDays, describeMoment, formatCount, formatDay } from '../format';
+import { addDays, describeMoment, formatCount, formatDay, formatPerProduct } from '../format';
 
 // Real rows of the published files: the change file from the gold fixture (1 to 15 Oct 2026) and the health file from the collector's real output.
 const fixture = (name: string) => readFileSync(join(import.meta.dirname, 'fixtures', name), 'utf-8');
@@ -174,6 +174,11 @@ describe('formats', () => {
     expect(describeMoment(new Date('2026-10-28T06:31:15Z'), now)).toBe('today, 06:31 UTC');
     expect(describeMoment(new Date('2026-10-27T06:31:15Z'), now)).toBe('yesterday, 06:31 UTC');
     expect(describeMoment(new Date('2026-10-23T06:31:15Z'), now)).toBe('23 Oct, 06:31 UTC');
+  });
+
+  it('keeps small flags-per-product values apart on an axis (0.05 is not 0.1)', () => {
+    expect([0, 0.05, 0.1, 0.15].map(formatPerProduct)).toEqual(['0.00', '0.05', '0.10', '0.15']);
+    expect([1, 2, 9.43, 10].map(formatPerProduct)).toEqual(['1', '2', '9.4', '10']);
   });
 
   it('steps a day across a month end', () => {
