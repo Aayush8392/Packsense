@@ -5,6 +5,11 @@ export function formatCount(value: number): string {
   return value.toLocaleString('en-GB');
 }
 
+/** Flags per product: two decimals below 1 (so 0.05 and 0.10 stay apart), one decimal above, without a trailing zero. 9.43 becomes "9.4". */
+export function formatPerProduct(value: number): string {
+  return value < 1 ? value.toFixed(2) : String(Number(value.toFixed(1)));
+}
+
 /** "2026-10-27" becomes "27 Oct 2026". */
 export function formatDay(iso: string): string {
   const [year, month, day] = iso.slice(0, 10).split('-').map(Number);

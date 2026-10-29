@@ -55,9 +55,11 @@ export function Shell() {
       firstRender.current = false;
       return;
     }
+    // A choice made on the page (the market, a chart view) changes the address but not the page: leave the scroll and the focus alone.
+    if ((location.state as { keepScroll?: boolean } | null)?.keepScroll) return;
     main.current?.focus({ preventScroll: true });
     window.scrollTo(0, 0);
-  }, [location.key]);
+  }, [location.key, location.state]);
 
   useEffect(() => {
     if (!menuOpen) return;

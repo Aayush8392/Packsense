@@ -32,6 +32,18 @@ export interface HealthRow {
   detail: string;
 }
 
+export interface QualityRow {
+  day: string;
+  scope: string;
+  severity: string;
+  /** The kind of flag: an Open Food Facts tag such as en:food-groups-warnings, or 'unmapped'. */
+  family: string;
+  /** Flags open that day; null when the count was 1 to 4 and blanked on purpose. */
+  openFlags: number | null;
+  /** Products PackSense held that day (the same on every row of a day and scope). */
+  productsHeld: number;
+}
+
 function requireColumns(rows: Record<string, string>[], file: string, columns: string[]): void {
   if (rows.length === 0) throw new DataError(`${file} has no rows`);
   const missing = columns.filter((name) => !(name in rows[0]));
@@ -79,6 +91,19 @@ export function parseChangeDaily(text: string): ChangeRow[] {
   }));
 }
 
+export function parseQualityDaily(text: string): QualityRow[] {
+  const rows = parseCsv(text);
+  requireColumns(rows, 'quality_daily.csv', ['snapshot_date', 'scope', 'severity', 'flag_family', 'open_spans', 'n_products_held']);
+  return rows.map((row) => ({
+    day: row.snapshot_date,
+    scope: row.scope,
+    severity: row.severity,
+    family: row.flag_family,
+    openFlags: countOrNull(row.open_spans, 'quality_daily.csv'),
+    productsHeld: numberOf(row.n_products_held, 'quality_daily.csv'),
+  }));
+}
+
 export function parsePipelineHealth(text: string): HealthRow[] {
   const rows = parseCsv(text);
   requireColumns(rows, 'pipeline_health.csv', ['metric_date', 'subject', 'metric', 'value', 'unit', 'detail']);
@@ -113,4 +138,5 @@ export async function fetchText(name: string): Promise<string> {
 
 export const siteStatus = createResource(async () => parseSiteStatus(await fetchText('site_status.csv')));
 export const changeDaily = createResource(async () => parseChangeDaily(await fetchText('change_daily.csv')));
+export const qualityDaily = createResource(async () => parseQualityDaily(await fetchText('quality_daily.csv')));
 export const pipelineHealth = createResource(async () => parsePipelineHealth(await fetchText('pipeline_health.csv')));

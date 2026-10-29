@@ -5,7 +5,7 @@ import axe from 'axe-core';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { changeDaily, pipelineHealth, siteStatus } from './data/siteData';
+import { changeDaily, pipelineHealth, qualityDaily, siteStatus } from './data/siteData';
 import { NAV_PAGES } from './nav';
 import { routes } from './routes';
 
@@ -35,7 +35,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.unstubAllGlobals();
-  for (const resource of [siteStatus, changeDaily, pipelineHealth]) resource.reset();
+  for (const resource of [siteStatus, changeDaily, pipelineHealth, qualityDaily]) resource.reset();
 });
 
 describe('page 02 end to end', () => {
@@ -222,6 +222,120 @@ describe('home with the published files', () => {
   });
 });
 
+const DATA_FILES = { ...ALL_FILES, 'quality_daily.csv': fixture('quality_daily.sample.csv') };
+
+describe('data quality over time', () => {
+  it('shows the headline facts, five charts, the kinds of flag and the two text panels, from the real rows', async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/quality');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Is the data getting better or worse?');
+    const headline = await screen.findByRole('region', { name: 'Headline' });
+    expect(headline.textContent).toContain('1 Oct 2026 to 15 Oct 2026, 15 whole days');
+    expect(within(headline).getAllByText('9.4')).toHaveLength(2);
+    expect(within(headline).getByText('233')).toBeTruthy();
+    expect(document.querySelectorAll('.chart-card')).toHaveLength(5);
+    expect(screen.getByRole('heading', { level: 2, name: 'How to read it' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'What this page can and cannot tell you' })).toBeTruthy();
+  });
+
+  it('names the biggest kind of flag in Open Food Facts words, with its tag and its share, until a plain name is written', async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/quality');
+    const first = (await screen.findAllByRole('rowheader'))[0];
+    expect(first.textContent).toContain('Environmental score quality warnings');
+    expect(first.textContent).toContain('en:environmental-score-quality-warnings');
+    expect(first.closest('tr')?.textContent).toContain('41.0%');
+    expect(screen.getByText(/made readable/)).toBeTruthy();
+  });
+
+  it('keeps the market in the address and shows the India figures when it is chosen', async () => {
+    serveFiles(DATA_FILES);
+    const { router } = renderAt('/explore/quality');
+    await screen.findByRole('region', { name: 'Headline' });
+    const before = screen.getByRole('region', { name: 'Headline' }).textContent;
+    fireEvent.click(screen.getByRole('radio', { name: 'India' }));
+    await waitFor(() => expect(router.state.location.search).toBe('?market=india'));
+    expect(screen.getByRole('radio', { name: 'India' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('region', { name: 'Headline' }).textContent).not.toBe(before);
+    fireEvent.click(screen.getByRole('radio', { name: 'All markets' }));
+    await waitFor(() => expect(router.state.location.search).toBe(''));
+  });
+
+  it('opens on India straight from a link that carries the market', async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/quality?market=india');
+    await screen.findByRole('region', { name: 'Headline' });
+    expect(screen.getByRole('radio', { name: 'India' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('says plainly when the figures could not be loaded, and keeps the text of the page', async () => {
+    renderAt('/explore/quality');
+    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/could not be loaded just now/));
+    expect(screen.getByRole('heading', { level: 2, name: 'How to read it' })).toBeTruthy();
+  });
+
+  it('has no accessibility violations that jsdom can detect', async () => {
+    serveFiles(DATA_FILES);
+    const { container } = renderAt('/explore/quality');
+    await screen.findByRole('region', { name: 'Headline' });
+    const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
+    expect(result.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
+  });
+});
+
+describe('daily changes', () => {
+  it('shows the headline figures of the newest day, the busiest day, and the kinds without a total', async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/changes');
+    const headline = await screen.findByRole('region', { name: 'Headline' });
+    expect(headline.textContent).toContain('Products edited, 15 Oct 2026 (at least)13');
+    expect(headline.textContent).toContain('20, 13 Oct 2026');
+    const kinds = screen.getByRole('heading', { level: 2, name: /Work by kind of edit, 15 Oct 2026/ });
+    const table = kinds.parentElement?.querySelector('table') as HTMLElement;
+    expect(within(table).getAllByRole('rowheader')).toHaveLength(8);
+    expect(table.textContent).not.toMatch(/total|sum of/i);
+  });
+
+  it('switches between the two chart views and keeps the view in the address', async () => {
+    serveFiles(DATA_FILES);
+    const { router } = renderAt('/explore/changes');
+    await screen.findByRole('region', { name: 'Headline' });
+    expect(screen.getByRole('radio', { name: 'Products edited and new' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getAllByRole('figure')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('radio', { name: 'Work by kind' }));
+    await waitFor(() => expect(router.state.location.search).toBe('?view=kinds'));
+    expect(screen.getAllByRole('figure')).toHaveLength(8);
+    expect(screen.getByText(/never added together/)).toBeTruthy();
+  });
+
+  it('shows Today in India with its own counts, the days before and a labelled example product', async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/changes');
+    const india = await screen.findByRole('region', { name: 'Today in India' });
+    expect(india.textContent).toContain('Newest complete day: 15 Oct 2026');
+    expect(india.textContent).toContain('Products edited (at least)8');
+    expect(within(india).getByText('parle monaco 700g')).toBeTruthy();
+    expect(within(india).getByText(/not necessarily one of today's edits/)).toBeTruthy();
+    expect(within(india).getByRole('link', { name: 'See it on Open Food Facts' }).getAttribute('href')).toBe('https://world.openfoodfacts.org/product/8901719135170');
+    expect(within(india).getByRole('heading', { level: 2, name: 'What this page can and cannot tell you' })).toBeTruthy();
+  });
+
+  it('keeps the India block on India when the main charts show all markets', async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/changes');
+    await screen.findByRole('region', { name: 'Today in India' });
+    expect(screen.getByRole('radio', { name: 'All markets' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('has no accessibility violations that jsdom can detect', async () => {
+    serveFiles(DATA_FILES);
+    const { container } = renderAt('/explore/changes');
+    await screen.findByRole('region', { name: 'Today in India' });
+    const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
+    expect(result.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
+  });
+});
+
 describe('theme button', () => {
   afterEach(() => {
     delete document.documentElement.dataset.theme;
@@ -241,6 +355,40 @@ describe('theme button', () => {
   it('is in the header on every page', () => {
     renderAt('/how-it-works/differences');
     expect(within(screen.getByRole('banner')).getByRole('button', { name: /Switch to the (dark|light) theme/ })).toBeTruthy();
+  });
+});
+
+describe('choices on a page', () => {
+  it('do not scroll the page to the top or move focus: the market and chart-view switches', async () => {
+    serveFiles(DATA_FILES);
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+    const { router } = renderAt('/explore/changes');
+    await screen.findByRole('region', { name: 'Headline' });
+    scrollTo.mockClear();
+    focus.mockClear();
+    fireEvent.click(screen.getByRole('radio', { name: 'India' }));
+    await waitFor(() => expect(router.state.location.search).toBe('?market=india'));
+    fireEvent.click(screen.getByRole('radio', { name: 'Work by kind' }));
+    await waitFor(() => expect(router.state.location.search).toContain('view=kinds'));
+    fireEvent.click(screen.getByRole('radio', { name: 'Products edited and new' }));
+    await waitFor(() => expect(router.state.location.search).not.toContain('view='));
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalledWith({ preventScroll: true });
+    scrollTo.mockRestore();
+    focus.mockRestore();
+  });
+
+  it('do not scroll on the quality page either', async () => {
+    serveFiles(DATA_FILES);
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const { router } = renderAt('/explore/quality');
+    await screen.findByRole('region', { name: 'Headline' });
+    scrollTo.mockClear();
+    fireEvent.click(screen.getByRole('radio', { name: 'India' }));
+    await waitFor(() => expect(router.state.location.search).toBe('?market=india'));
+    expect(scrollTo).not.toHaveBeenCalled();
+    scrollTo.mockRestore();
   });
 });
 

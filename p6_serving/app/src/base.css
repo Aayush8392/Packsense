@@ -382,55 +382,55 @@ main:focus {
 }
 /* On a narrow screen every row becomes its own card: the row's question as its title, then each answer under the column's name. */
 @media (max-width: 40rem) {
-  .table-card {
+  .table-card:not(.table-card--plain) {
     border: 0;
     background: none;
     overflow: visible;
   }
-  .table-card table,
-  .table-card tbody,
-  .table-card tr,
-  .table-card th,
-  .table-card td {
+  .table-card:not(.table-card--plain) table,
+  .table-card:not(.table-card--plain) tbody,
+  .table-card:not(.table-card--plain) tr,
+  .table-card:not(.table-card--plain) th,
+  .table-card:not(.table-card--plain) td {
     display: block;
     width: auto;
   }
-  .table-card thead {
+  .table-card:not(.table-card--plain) thead {
     position: absolute;
     inline-size: 1px;
     block-size: 1px;
     overflow: hidden;
     clip-path: inset(50%);
   }
-  .table-card tbody tr {
+  .table-card:not(.table-card--plain) tbody tr {
     margin-bottom: var(--space-md);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--card);
     overflow: hidden;
   }
-  .table-card tbody tr + tr > * {
+  .table-card:not(.table-card--plain) tbody tr + tr > * {
     border-top: 0;
   }
-  .table-card tbody th[scope='row'] {
+  .table-card:not(.table-card--plain) tbody th[scope='row'] {
     width: auto;
     padding: var(--space-md) var(--space-md) var(--space-sm);
     font-family: var(--font-heading);
     font-size: var(--text-title);
     color: var(--primary);
   }
-  .table-card td {
+  .table-card:not(.table-card--plain) td {
     padding: var(--space-sm) var(--space-md);
     border-inline-start: 0;
   }
-  .table-card td::before {
+  .table-card:not(.table-card--plain) td::before {
     content: attr(data-label);
     display: block;
     font-size: var(--text-small);
     font-weight: 600;
     color: var(--secondary);
   }
-  .table-card tbody td.col-emph {
+  .table-card:not(.table-card--plain) tbody td.col-emph {
     border-inline-start: 0;
     background: var(--soft);
     padding-block: var(--space-md);

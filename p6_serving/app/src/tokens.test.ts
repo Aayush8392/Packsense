@@ -78,6 +78,11 @@ describe('layout', () => {
     expect(base).not.toMatch(/column-count/);
   });
 
+  it('keeps every card in a chart grid as tall as its own content, so opening one table does not stretch the others', () => {
+    const data = readFileSync(join(import.meta.dirname, 'dataPages.css'), 'utf-8');
+    expect(data).toMatch(/\.chart-grid \{[^}]*align-items: start;/);
+  });
+
   it('lets the padded barcode input win over the plain input rule', () => {
     const base = readFileSync(join(import.meta.dirname, 'base.css'), 'utf-8');
     expect(base).toContain('.barcode-box .barcode-box__field input {');

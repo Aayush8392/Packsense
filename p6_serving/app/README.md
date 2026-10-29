@@ -7,10 +7,14 @@ content loader, which turns each file in `content/` into a page at build time. E
 
 Run it from this folder (Node 24): `npm ci --ignore-scripts`, then `npm run dev` (development), `npm test` (types are checked by `npm run typecheck`), `npm run lint` and `npm run build`.
 Packages are pinned exactly and were chosen at least two weeks after their release (`npm install --before=<date>`); `undici` is overridden to a patched release because `jsdom` (tests only) pulled in a vulnerable one.
-**Data (slice 2 on).** The app reads the published CSV files from its own `data/` folder (`site_status.csv`, `change_daily.csv`, `pipeline_health.csv`; more in later slices) and never shows a number it did not read. For local
+**Data (slice 2 on).** The app reads the published CSV files from its own `data/` folder (`site_status.csv`, `change_daily.csv`, `quality_daily.csv`, `pipeline_health.csv`; more in later slices) and never shows a number it did not read. For local
 development put the real files in `p6_serving/app/public/data/` (git ignores that folder): run `HF_SITE_READ_TOKEN=... python p6_serving/fetch_site_data.py Anonymous8392/packsense-site-data <folder>` and copy the CSVs there. The
 Pages workflow copies the same files next to the built app at cutover (slice 8). `src/data/fixtures/` holds real rows of the same files for the tests; `src/data/jobs.json` lists the pipeline jobs and their cadence (a test in
 `p6_serving/tests/test_app_jobs.py` keeps it in step with the collector).
+
+**Slice 3:** the chart toolkit (`src/charts/`: our own SVG lines on d3-scale and d3-shape, drawn at the real width so text never shrinks; series differ by marker and dash as well as colour; each chart can be read with the arrow keys and
+shown as a table), the pages Data quality over time and Daily changes (with the India block) and the plain names of kinds of flag, which the owner writes in `src/data/flag-names.json` (tag to name; until a name is written the page shows
+Open Food Facts' own tag made readable). The example product of the India block is in `src/data/indiaExample.json` (from the four-product showcase).
 
 Page 06 (India today) and page 11 (Ask a question) have no address of their own: they become a block inside Daily changes and a panel inside Look up, and their files stay here until those slices.
 
