@@ -1,0 +1,85 @@
+/* Design tokens (see DESIGN_SPEC.md). Light values from the page-02 design; dark values from the same page's dark block.
+   The theme follows the system setting until the visitor presses the theme button, which sets data-theme on <html> and is remembered.
+   The dark values appear twice (system setting and the chosen theme); src/tokens.test.ts checks that they are identical and that the
+   contrast of every text pair is enough in both themes. */
+:root {
+  color-scheme: light;
+
+  --bg: #faf9f7;
+  --fg: #1a1c1b;
+  --fg-muted: #43474e;
+  --primary: #09284c;
+  --primary-hover: #061b33;
+  --on-primary: #ffffff;
+  --problem: #ba1a1a;
+  --secondary: #515f74;
+  --border: #c4c6cf;
+  --card: #ffffff;
+  --soft: #f4f3f1;
+  --raised: #efeeec;
+  --advisory-bg: #fef3c7;
+  --advisory-fg: #92400e;
+
+  --font-heading: 'Newsreader', Georgia, serif;
+  --font-body: 'Public Sans', system-ui, sans-serif;
+
+  --text-label: 0.75rem;
+  --text-small: 0.8125rem;
+  --text-body: 0.9375rem;
+  --text-body-lg: 1.0625rem;
+  --text-title: 1.125rem;
+  --text-headline-sm: 1.25rem;
+  --text-headline-md: 1.5rem;
+  --text-headline-lg: clamp(1.625rem, 1.3rem + 1.2vw, 2rem);
+  --text-display: clamp(2rem, 1.5rem + 2vw, 2.75rem);
+
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --gutter: clamp(1rem, 0.5rem + 2vw, 3rem);
+  --measure: 72ch;
+  --radius: 0.25rem;
+  --tap: 2.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #141718;
+    --fg: #f1f1ef;
+    --fg-muted: #b9c7df;
+    --primary: #aec8f4;
+    --primary-hover: #c6d9f7;
+    --on-primary: #141718;
+    --problem: #ffb4ab;
+    --secondary: #b9c7df;
+    --border: #43474e;
+    --card: #1c1f21;
+    --soft: #23272a;
+    --raised: #2c3135;
+    --advisory-bg: #3a2a08;
+    --advisory-fg: #fcd34d;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #141718;
+  --fg: #f1f1ef;
+  --fg-muted: #b9c7df;
+  --primary: #aec8f4;
+  --primary-hover: #c6d9f7;
+  --on-primary: #141718;
+  --problem: #ffb4ab;
+  --secondary: #b9c7df;
+  --border: #43474e;
+  --card: #1c1f21;
+  --soft: #23272a;
+  --raised: #2c3135;
+  --advisory-bg: #3a2a08;
+  --advisory-fg: #fcd34d;
+}

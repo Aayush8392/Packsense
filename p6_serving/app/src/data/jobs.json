@@ -1,0 +1,14 @@
+[
+  { "name": "packsense-policy", "cadence": "daily" },
+  { "name": "packsense-bronze-load", "cadence": "daily", "at": "06:45" },
+  { "name": "packsense-gold-build", "cadence": "daily" },
+  { "name": "packsense-health", "cadence": "daily" },
+  { "name": "packsense-publish", "cadence": "daily" },
+  { "name": "packsense-reconcile-lookup", "cadence": "daily" },
+  { "name": "packsense-archive", "cadence": "daily" },
+  { "name": "packsense-snapshots", "cadence": "weekly" },
+  { "name": "packsense-reconcile-candidates", "cadence": "weekly" },
+  { "name": "packsense-reconcile-load", "cadence": "weekly" },
+  { "name": "packsense-egress-check", "cadence": "monthly" },
+  { "name": "packsense-release", "cadence": "monthly" }
+]

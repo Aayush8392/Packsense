@@ -10,6 +10,12 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 3
+  # The public app's packages (p6_serving/app). Versions are pinned exactly and chosen at least two weeks after release; each bump is reviewed on its merits.
+  - package-ecosystem: "npm"
+    directory: "/p6_serving/app"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
   # Add further ecosystems only when their manifests exist (more pip folders).
   - package-ecosystem: "pip"
     directory: "/p1_intake"
