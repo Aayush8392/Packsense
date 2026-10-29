@@ -93,3 +93,8 @@ p8_steward/bootstrap/measure_tokens_result.json
 
 # Stitch design zips are local only; the extracted folders are committed
 p6_serving/app/designs/*.zip
+
+# Real site data for local development (made by fetch_site_data.py); never committed.
+p6_serving/app/public/data/
+# The app's own source folder is called data too: keep it.
+!p6_serving/app/src/data/
