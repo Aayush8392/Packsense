@@ -1,5 +1,28 @@
 export const PAGE_SIZE = 10;
 
+/** How many empty rows keep the last page as tall as the others. Nothing is added when there is only one page. */
+export function padCount(total: number, shown: number, size = PAGE_SIZE): number {
+  return total > size ? Math.max(0, size - shown) : 0;
+}
+
+/** Empty table rows of the usual height, so the Previous and Next buttons stay where they were. Hidden from screen readers. */
+export function PadRows({ count, columns }: { count: number; columns: number }) {
+  return (
+    <>
+      {Array.from({ length: count }, (_, i) => (
+        <tr key={`pad-${i}`} className="pad-row" aria-hidden="true">
+          <td colSpan={columns} />
+        </tr>
+      ))}
+    </>
+  );
+}
+
+/** Text held to two lines, with the whole text on hover, so every row of a paged table is the same height. */
+export function Clip({ children }: { children: string }) {
+  return <span className="clip" title={children}>{children}</span>;
+}
+
 export interface PageWindow {
   /** Index of the first row on the page, 0-based, and one past the last. */
   start: number;
@@ -29,13 +52,13 @@ export function Pager({ total, page, onPage, noun, size = PAGE_SIZE }: {
   return (
     <div className="pager">
       <button type="button" className="button button--quiet" disabled={current === 0} onClick={() => onPage(current - 1)}>
-        Previous 10
+        Previous
       </button>
       <p className="pager__status" role="status">
         {noun[0].toUpperCase() + noun.slice(1)} {start + 1} to {end} of {total}
       </p>
       <button type="button" className="button button--quiet" disabled={current >= pages - 1} onClick={() => onPage(current + 1)}>
-        Next 10
+        Next
       </button>
     </div>
   );

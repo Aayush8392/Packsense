@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ChartCard } from './ChartCard';
-import { PAGE_SIZE, pageWindow } from './Pager';
+import { PAGE_SIZE, padCount, pageWindow } from './Pager';
 import { LineChart, describeSeries, markerPath, tickStep, type LineSeries } from './LineChart';
 
 afterEach(cleanup);
@@ -122,6 +122,13 @@ describe('paging of the table behind a chart', () => {
     expect(pageWindow(11, 0).pages).toBe(2);
   });
 
+  it('pads the last page to a full page so the buttons stay put, and pads nothing when there is one page', () => {
+    expect(padCount(28, 8)).toBe(2);
+    expect(padCount(28, 10)).toBe(0);
+    expect(padCount(8, 8)).toBe(0);
+    expect(padCount(22, 11, 11)).toBe(0);
+  });
+
   it('shows ten days at a time, newest first, and moves with Previous and Next', () => {
     render(<ChartCard title="Long" series={manyDays(28)} format={format} unknownText="n/a" />);
     fireEvent.click(screen.getByRole('button', { name: 'Show as a table' }));
@@ -129,21 +136,21 @@ describe('paging of the table behind a chart', () => {
     expect(bodyRows()).toHaveLength(10);
     expect(bodyRows()[0]).toBe('27 Oct 2026');
     expect(screen.getByRole('status').textContent).toBe('Days 1 to 10 of 28');
-    expect((screen.getByRole('button', { name: 'Previous 10' }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Next 10' }));
+    expect((screen.getByRole('button', { name: 'Previous' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(bodyRows()[0]).toBe('17 Oct 2026');
     expect(screen.getByRole('status').textContent).toBe('Days 11 to 20 of 28');
-    fireEvent.click(screen.getByRole('button', { name: 'Next 10' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(bodyRows()).toHaveLength(8);
     expect(bodyRows()[7]).toBe('30 Sep 2026');
     expect(screen.getByRole('status').textContent).toBe('Days 21 to 28 of 28');
-    expect((screen.getByRole('button', { name: 'Next 10' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Next' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('starts again on the first page each time the table is opened', () => {
     render(<ChartCard title="Long" series={manyDays(28)} format={format} unknownText="n/a" />);
     fireEvent.click(screen.getByRole('button', { name: 'Show as a table' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next 10' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     fireEvent.click(screen.getByRole('button', { name: 'Hide the table' }));
     fireEvent.click(screen.getByRole('button', { name: 'Show as a table' }));
     expect(screen.getByRole('status').textContent).toBe('Days 1 to 10 of 28');
@@ -152,7 +159,7 @@ describe('paging of the table behind a chart', () => {
   it('draws no pager when ten days or fewer fit on one page', () => {
     render(<ChartCard title="Short" series={manyDays(10)} format={format} unknownText="n/a" />);
     fireEvent.click(screen.getByRole('button', { name: 'Show as a table' }));
-    expect(screen.queryByRole('button', { name: 'Next 10' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
   });
 
   it('opens and closes each card on its own', () => {

@@ -1,14 +1,14 @@
 [
-  { "name": "packsense-policy", "cadence": "daily" },
-  { "name": "packsense-bronze-load", "cadence": "daily", "at": "06:45" },
-  { "name": "packsense-gold-build", "cadence": "daily" },
-  { "name": "packsense-health", "cadence": "daily" },
-  { "name": "packsense-publish", "cadence": "daily" },
-  { "name": "packsense-reconcile-lookup", "cadence": "daily" },
-  { "name": "packsense-archive", "cadence": "daily" },
-  { "name": "packsense-snapshots", "cadence": "weekly" },
-  { "name": "packsense-reconcile-candidates", "cadence": "weekly" },
-  { "name": "packsense-reconcile-load", "cadence": "weekly" },
-  { "name": "packsense-egress-check", "cadence": "monthly" },
-  { "name": "packsense-release", "cadence": "monthly" }
+  { "name": "packsense-policy", "cadence": "daily", "cron": "0 0 3 * * ?", "purpose": "Checks every night that the access rules are still as written: who can see and change what." },
+  { "name": "packsense-bronze-load", "cadence": "daily", "at": "06:45", "cron": "0 45 6 * * ?", "purpose": "The daily update: fetches Open Food Facts' newest daily file, then loads it and cleans it." },
+  { "name": "packsense-gold-build", "cadence": "daily", "cron": "0 15 8 * * ?", "purpose": "Builds the finished tables that the pages of this site are drawn from." },
+  { "name": "packsense-health", "cadence": "daily", "cron": "0 40 8 * * ?", "purpose": "Records how every job and outside service did, which is what this page shows." },
+  { "name": "packsense-publish", "cadence": "daily", "cron": "0 0 9 * * ?", "purpose": "Sends the day's checked figures to this site." },
+  { "name": "packsense-reconcile-lookup", "cadence": "daily", "cron": "0 0 10 * * ?", "purpose": "Asks Open Food Facts about products that seem to have gone, one by one, to see whether they were really removed." },
+  { "name": "packsense-archive", "cadence": "daily", "cron": "0 0 16 * * ?", "purpose": "Copies the day's raw files to a second place, so there is a backup." },
+  { "name": "packsense-snapshots", "cadence": "weekly", "cron": "0 0 12 ? * MON", "purpose": "Reads a full weekly copy of Open Food Facts to follow how its flags open and close over time." },
+  { "name": "packsense-reconcile-candidates", "cadence": "weekly", "cron": "0 0 7 ? * TUE", "purpose": "Makes the list of products that have vanished from Open Food Facts' daily files and may have been removed." },
+  { "name": "packsense-reconcile-load", "cadence": "weekly", "cron": "0 0 7 ? * THU", "purpose": "Saves the results of those lookups, so every product gets a status." },
+  { "name": "packsense-egress-check", "cadence": "monthly", "cron": "0 0 5 1 * ?", "purpose": "Checks that the outside services the jobs depend on can still be reached from where the jobs run." },
+  { "name": "packsense-release", "cadence": "monthly", "cron": "0 30 10 3 * ?", "purpose": "Builds the monthly India data download." }
 ]

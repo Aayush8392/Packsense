@@ -51,6 +51,20 @@ describe('colour tokens', () => {
     }
   }
 
+  for (const theme of ['light', 'dark'] as const) {
+    const series = [1, 2, 3, 4, 5].map((n) => `series-${n}`);
+    for (const name of series) {
+      for (const background of ['card', 'bg']) {
+        it(`${theme}: chart colour ${name} on ${background} is at least 3:1 (a line, not text)`, () => {
+          expect(contrastRatio(themes[theme][name], themes[theme][background])).toBeGreaterThanOrEqual(3);
+        });
+      }
+    }
+    it(`${theme}: the five chart colours are all different`, () => {
+      expect(new Set(series.map((name) => themes[theme][name].toLowerCase())).size).toBe(5);
+    });
+  }
+
   it('measures a known pair correctly (black on white is 21:1)', () => {
     expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 5);
   });
@@ -78,9 +92,10 @@ describe('layout', () => {
     expect(base).not.toMatch(/column-count/);
   });
 
-  it('keeps every card in a chart grid as tall as its own content, so opening one table does not stretch the others', () => {
+  it('makes the cards of a chart grid one height while all are closed, and lets each be as tall as its own content once one is open', () => {
     const data = readFileSync(join(import.meta.dirname, 'dataPages.css'), 'utf-8');
-    expect(data).toMatch(/\.chart-grid \{[^}]*align-items: start;/);
+    expect(data).toMatch(/\.chart-grid \{[^}]*align-items: stretch;/);
+    expect(data).toMatch(/\.chart-grid:has\(\[aria-expanded='true'\]\) \{[^}]*align-items: start;/);
   });
 
   it('lets the padded barcode input win over the plain input rule', () => {

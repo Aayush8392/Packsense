@@ -102,7 +102,11 @@
   display: grid;
   gap: var(--space-md);
   grid-template-columns: 1fr;
-  /* Each card is as tall as its own content: opening one card's table must not stretch its neighbours. */
+  /* Cards in a row are the same height while all are closed. As soon as one opens its table, each card is as tall as its own content,
+     so the neighbours of the open card do not stretch. */
+  align-items: stretch;
+}
+.chart-grid:has([aria-expanded='true']) {
   align-items: start;
 }
 @media (min-width: 48rem) {
@@ -120,6 +124,8 @@
   }
 }
 .chart-card {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: var(--space-md);
   border: 1px solid var(--border);
@@ -138,6 +144,14 @@
 }
 .chart-card .button {
   margin-top: var(--space-sm);
+}
+/* The button sits at the foot of the card, so cards of one height keep their buttons on one line. */
+.chart-card > .chart {
+  margin-bottom: var(--space-sm);
+}
+.chart-card > .button {
+  align-self: flex-start;
+  margin-top: auto;
 }
 .chart {
   margin-top: var(--space-sm);
@@ -203,6 +217,10 @@
 @media (min-width: 64.0625rem) {
   .panels {
     grid-template-columns: 1fr 1fr;
+  }
+  /* A page with a single panel gives it the whole width instead of leaving half the row empty. */
+  .panels > :only-child {
+    grid-column: 1 / -1;
   }
 }
 .text-panel {
@@ -351,4 +369,513 @@
 }
 .table-card--plain th[scope='row'] {
   white-space: nowrap;
+}
+
+/* Brands: the score histogram, the search and order controls, and the ranked table. */
+.headline__sentence {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  line-height: 1.7;
+}
+.histogram h2 {
+  margin: 0;
+  font-size: var(--text-title);
+}
+.histogram__bars {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  gap: 0.25rem;
+  align-items: end;
+  height: 9rem;
+  margin-top: var(--space-md);
+  border-bottom: 1px solid var(--border);
+}
+.histogram__bar {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.histogram__fill {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  background: var(--secondary);
+}
+.histogram__bar:hover .histogram__fill {
+  background: var(--primary-hover);
+}
+.histogram__bar--on .histogram__fill {
+  background: var(--primary);
+}
+.histogram__bar--typical .histogram__fill {
+  outline: 2px solid var(--fg);
+  outline-offset: 1px;
+}
+.histogram__bar:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.histogram__axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-xs);
+  font-size: var(--text-label);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.histogram__legend {
+  margin: var(--space-sm) 0 var(--space-md);
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.brand-list h2 {
+  margin-top: 0;
+}
+.brand-list__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+.field {
+  flex: 1 1 14rem;
+  max-width: 24rem;
+}
+.field label {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--fg);
+}
+.field input,
+.field select {
+  width: 100%;
+  min-height: var(--tap);
+  padding-inline: var(--space-md);
+  border: 1px solid var(--secondary);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+}
+.filter-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--soft);
+  font-weight: 600;
+}
+.filter-chip .button {
+  margin-top: 0;
+}
+.brand-list__count {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.table-card--brands tbody th[scope='row'] {
+  width: auto;
+  min-width: 9rem;
+  overflow-wrap: anywhere;
+}
+
+/* Pipeline health: the verdict words (always a glyph and a word, never colour alone), the jobs and services tables. */
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.verdict--on-time {
+  color: var(--fg);
+}
+.verdict--late {
+  background: var(--advisory-bg);
+  border-color: var(--advisory-fg);
+  color: var(--advisory-fg);
+}
+.verdict--missed {
+  border-color: var(--problem);
+  color: var(--problem);
+}
+.verdict--unknown {
+  color: var(--fg-muted);
+  border-style: dashed;
+}
+.verdict-key {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.table-card--jobs tbody th[scope='row'],
+.table-card--services tbody th[scope='row'] {
+  width: auto;
+  min-width: 9rem;
+  overflow-wrap: anywhere;
+}
+
+/* How PackSense works: the three-step flow, the product switcher, the key-and-value lists and the gold tables. */
+.switcher > * + * {
+  margin-top: var(--space-sm);
+}
+.switcher h2 {
+  margin: 0;
+}
+.switcher__about {
+  margin: 0;
+  color: var(--fg-muted);
+}
+.flow {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.flow li {
+  position: relative;
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.flow h3 {
+  margin: 0;
+  font-size: var(--text-title);
+}
+.flow p {
+  margin: var(--space-xs) 0 0;
+}
+.flow__name {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--secondary);
+}
+.flow li + li::before {
+  content: '↓';
+  position: absolute;
+  inset-block-start: calc(-1 * var(--space-md) - 0.4rem);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  color: var(--secondary);
+}
+@media (min-width: 48rem) {
+  .flow {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .flow li + li::before {
+    content: '→';
+    inset-block-start: 50%;
+    inset-inline-start: calc(-1 * var(--space-md) / 2);
+    transform: translate(-50%, -50%);
+  }
+}
+.table-card--same td,
+.table-card--same th[scope='row'] {
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.kv {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.kv__row {
+  display: grid;
+  align-content: center;
+  gap: var(--space-xs);
+  min-height: 5.5rem;
+  padding: var(--space-sm) var(--space-md);
+}
+.kv__row + .kv__row {
+  border-top: 1px solid var(--border);
+}
+.kv dt {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: var(--text-small);
+  color: var(--secondary);
+}
+.kv dt,
+.kv dd summary,
+.kv dd > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.kv dd {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--text-small);
+}
+.kv dd summary {
+  display: block;
+}
+.kv dd pre {
+  margin: var(--space-xs) 0 0;
+  padding: var(--space-sm);
+  background: var(--soft);
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--text-label);
+}
+.kv summary {
+  cursor: pointer;
+}
+.kv__row--hidden {
+  background: var(--soft);
+}
+.kv__marker {
+  display: inline-block;
+  padding: 0 var(--space-sm);
+  border: 1px dashed var(--secondary);
+  border-radius: var(--radius);
+  color: var(--fg-muted);
+  font-style: italic;
+}
+@media (min-width: 48rem) {
+  .kv__row {
+    min-height: 3.75rem;
+    grid-template-columns: minmax(10rem, 16rem) minmax(0, 1fr);
+    gap: var(--space-md);
+  }
+}
+.gold-stack {
+  display: grid;
+  gap: var(--space-lg);
+}
+.gold-card h3 {
+  margin: 0;
+  font-size: var(--text-title);
+}
+.gold-card__signal {
+  margin: 0 0 var(--space-sm);
+}
+.table-card--gold th,
+.table-card--gold td {
+  padding: var(--space-sm);
+  font-size: var(--text-small);
+}
+.done-list {
+  margin: 0;
+  padding-inline-start: var(--space-lg);
+}
+.done-list li + li {
+  margin-top: var(--space-xs);
+}
+
+/* Paged tables: every row is two lines tall, so a last page of fewer rows keeps the frame and the buttons below it do not move. */
+.table-card--paged {
+  --pad: var(--space-md);
+}
+.table-card--gold {
+  --pad: var(--space-sm);
+}
+.table-card--paged th,
+.table-card--paged td {
+  padding: var(--pad);
+  height: calc(3.2em + 2 * var(--pad));
+  vertical-align: middle;
+}
+.table-card--paged thead th {
+  height: auto;
+}
+.table-card--paged td,
+.table-card--paged th[scope='row'] {
+  white-space: nowrap;
+}
+.clip {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+}
+.table-card--paged td:has(.clip),
+.table-card--paged th:has(.clip) {
+  white-space: normal;
+}
+.pad-row > td {
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 40rem) {
+  .table-card:not(.table-card--plain) .pad-row {
+    display: none;
+  }
+  .table-card--paged:not(.table-card--plain) th,
+  .table-card--paged:not(.table-card--plain) td {
+    height: auto;
+  }
+}
+/* Equal columns keep the header from re-wrapping when the figures underneath change from page to page. */
+.table-card--plain.table-card--paged table {
+  table-layout: fixed;
+}
+
+/* Brands: how complete one brand's products are, one bar for each count from all 7 down to none. */
+.brand-details {
+  margin: var(--space-md) 0;
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.brand-details__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.brand-details h3 {
+  margin: 0;
+  font-size: var(--text-title);
+}
+.brand-details h3:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.brand-details .button {
+  margin-top: 0;
+}
+.brand-details__lines {
+  display: grid;
+  gap: var(--space-xs);
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.brand-details__lines li {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) 8.5rem;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-small);
+}
+.brand-details__bar {
+  display: block;
+  height: 0.75rem;
+  border-radius: var(--radius);
+  background: var(--soft);
+}
+.brand-details__bar > span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: var(--radius);
+  background: var(--primary);
+}
+.brand-details__count {
+  text-align: end;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--secondary);
+}
+@media (max-width: 40rem) {
+  .brand-details {
+    padding-inline: var(--space-md);
+  }
+  .brand-details__lines li {
+    grid-template-columns: 3.5rem minmax(0, 1fr) 6.25rem;
+    gap: var(--space-xs);
+  }
+}
+
+/* The India release: the download card, the credit line, the opening steps and the states. */
+.release-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+  margin: var(--space-sm) 0;
+}
+.release-card__facts dt {
+  font-size: var(--text-small);
+  color: var(--secondary);
+}
+.release-card__facts dd {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-headline-sm);
+}
+.release-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0;
+}
+.release-card__actions .button {
+  margin-top: 0;
+}
+.release-credit {
+  width: 100%;
+  padding: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-small);
+  resize: vertical;
+}
+.release-credit__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: var(--space-sm) 0 0;
+}
+.release-credit__actions .button {
+  margin-top: 0;
+}
+.release-credit__status {
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.steps {
+  display: grid;
+  gap: var(--space-lg);
+}
+.steps h3 {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--text-title);
+}
+.steps ol {
+  margin: 0;
+  padding-inline-start: var(--space-lg);
+}
+.steps li + li {
+  margin-top: var(--space-xs);
+}
+.release-state p {
+  margin: var(--space-sm) 0;
+}
+@media (min-width: 48rem) {
+  .steps {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.release-card__status {
+  align-self: center;
+  font-size: var(--text-small);
+  color: var(--fg-muted);
 }

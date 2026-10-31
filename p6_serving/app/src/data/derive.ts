@@ -7,6 +7,10 @@ export interface Job {
   cadence: 'daily' | 'weekly' | 'monthly';
   /** The time of day (UTC) a daily job starts, where the page says it. */
   at?: string;
+  /** The job's schedule as the bundle writes it (Quartz cron, UTC); a test keeps it equal to the bundles. */
+  cron: string;
+  /** What the job is for, in plain words, as shown on the Pipeline health page. */
+  purpose: string;
 }
 
 export const JOBS: Job[] = jobs as Job[];

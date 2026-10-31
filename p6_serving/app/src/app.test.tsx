@@ -5,7 +5,10 @@ import axe from 'axe-core';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { changeDaily, pipelineHealth, qualityDaily, siteStatus } from './data/siteData';
+import { release } from './data/release';
+import { showcase } from './data/showcase';
+import { brandScorecard, changeDaily, pipelineHealth, qualityDaily, siteStatus } from './data/siteData';
+import { withSpread } from './data/fixtures/withSpread';
 import { NAV_PAGES } from './nav';
 import { routes } from './routes';
 
@@ -35,7 +38,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.unstubAllGlobals();
-  for (const resource of [siteStatus, changeDaily, pipelineHealth, qualityDaily]) resource.reset();
+  for (const resource of [siteStatus, changeDaily, pipelineHealth, qualityDaily, brandScorecard, showcase, release]) resource.reset();
 });
 
 describe('page 02 end to end', () => {
@@ -278,6 +281,453 @@ describe('data quality over time', () => {
     serveFiles(DATA_FILES);
     const { container } = renderAt('/explore/quality');
     await screen.findByRole('region', { name: 'Headline' });
+    const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
+    expect(result.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
+  });
+});
+
+const RELEASE_FILES = {
+  'release_manifest.json': fixture('release_manifest.fixture.json'),
+  'CHANGELOG.md': fixture('release_changelog.fixture.md'),
+  'README.md': fixture('release_datacard.fixture.md'),
+  'india_sample.csv': fixture('release_sample.fixture.csv'),
+};
+
+describe('the India release page', () => {
+  it('shows the download card with the real counts, the first rows, and a download link to the public repository', async () => {
+    serveFiles(RELEASE_FILES);
+    renderAt('/get-the-data');
+    const card = await screen.findByRole('region', { name: /India product catalogue, release 2026-10-22/ });
+    expect(within(card).getByText('24,932')).toBeTruthy();
+    expect(within(card).getByRole('button', { name: 'Download the CSV file' })).toBeTruthy();
+    expect(within(card).getByRole('link', { name: 'Data card and all releases on Hugging Face' }).getAttribute('href')).toBe(
+      'https://huggingface.co/datasets/PackSense/packsense-india',
+    );
+    const sample = screen.getByRole('table', { name: 'The first rows of the India file' });
+    expect(within(sample).getAllByRole('row')).toHaveLength(11); // ten rows and the header
+    expect(within(sample).getByText('00000604')).toBeTruthy(); // the leading zeros are kept
+  });
+
+  it('downloads the file with a real save, not a link to the raw text, and falls back to the plain link when the fetch fails', async () => {
+    serveFiles(RELEASE_FILES);
+    const saved: { name: string; size: number }[] = [];
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url: string, ...rest: unknown[]) =>
+      String(url).includes('/resolve/main/india_products.csv') ? new Response(['code,product_name', '00000604,x', ''].join(String.fromCharCode(10)), { status: 200 }) : (realFetch as (u: string, ...r: unknown[]) => Promise<Response>)(url, ...rest));
+    URL.createObjectURL = (blob: Blob) => { saved.push({ name: '', size: blob.size }); return 'blob:test'; };
+    URL.revokeObjectURL = () => {};
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { saved[saved.length - 1].name = this.download; });
+    renderAt('/get-the-data');
+    fireEvent.click(await screen.findByRole('button', { name: 'Download the CSV file' }));
+    await waitFor(() => expect(screen.getByText('The file was saved to your downloads.')).toBeTruthy());
+    expect(saved).toEqual([{ name: 'india_products_2026-10-22.csv', size: 29 }]);
+    click.mockRestore();
+    cleanup();
+    release.reset();
+    vi.stubGlobal('fetch', async (url: string, ...rest: unknown[]) =>
+      String(url).includes('/resolve/main/india_products.csv') ? new Response('', { status: 500 }) : (realFetch as (u: string, ...r: unknown[]) => Promise<Response>)(url, ...rest));
+    renderAt('/get-the-data');
+    fireEvent.click(await screen.findByRole('button', { name: 'Download the CSV file' }));
+    const fallback = await screen.findByRole('link', { name: 'Open the file in the browser' });
+    expect(fallback.getAttribute('href')).toContain('/resolve/main/india_products.csv');
+  });
+
+  it('pages the 36 columns ten at a time, with a plain sentence and the share of rows filled', async () => {
+    serveFiles(RELEASE_FILES);
+    renderAt('/get-the-data');
+    const section = (await screen.findByRole('heading', { name: 'The 36 columns, in plain words' })).closest('section') as HTMLElement;
+    expect(within(section).getByText('Columns 1 to 10 of 36')).toBeTruthy();
+    expect(within(section).getByText('100.0%')).toBeTruthy();
+    fireEvent.click(within(section).getByRole('button', { name: 'Next' }));
+    expect(within(section).getByText('Columns 11 to 20 of 36')).toBeTruthy();
+    expect(within(section).getByText('energy_kj')).toBeTruthy();
+  });
+
+  it('copies the credit line, and says so', async () => {
+    serveFiles(RELEASE_FILES);
+    const written: string[] = [];
+    vi.stubGlobal('navigator', { clipboard: { writeText: async (text: string) => { written.push(text); } } });
+    renderAt('/get-the-data');
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy the credit line' }));
+    await waitFor(() => expect(screen.getByText('Copied.')).toBeTruthy());
+    expect(written[0]).toContain('Contains data from Open Food Facts');
+    expect(written[0]).toContain('release 2026-10-22');
+  });
+
+  it('lists the versions with the monthly schedule, and the steps to open the file without breaking barcodes', async () => {
+    serveFiles(RELEASE_FILES);
+    renderAt('/get-the-data');
+    const versions = await screen.findByRole('table', { name: 'Releases of the India file' });
+    expect(within(versions).getByText('Latest')).toBeTruthy();
+    expect(within(versions).getByText('First release: 24,932 products.')).toBeTruthy();
+    expect(screen.getByText(/The 3rd of each month, 10:30 UTC/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'How to open the file without breaking barcodes' })).toBeTruthy();
+    expect(screen.getByText(/Set “Convert text to numbers, dates and formulas” to No/)).toBeTruthy();
+  });
+
+  it('says the first release is not published yet when the manifest is not there, and still shows the steps', async () => {
+    serveFiles({});
+    renderAt('/get-the-data');
+    expect(await screen.findByRole('heading', { name: 'The first release has not been published yet' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Download the CSV file' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'How to open the file without breaking barcodes' })).toBeTruthy();
+  });
+
+  it('says the details could not be loaded when a file fails, offers a retry, and still links the repository', async () => {
+    vi.stubGlobal('fetch', async () => new Response('', { status: 500 }));
+    renderAt('/get-the-data');
+    expect(await screen.findByRole('heading', { name: 'The release details could not be loaded just now' })).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: 'Data card and all releases on Hugging Face' }).length).toBeGreaterThan(0);
+    serveFiles(RELEASE_FILES);
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('region', { name: /India product catalogue, release 2026-10-22/ })).toBeTruthy();
+  });
+});
+
+const BRAND_FILES = { ...ALL_FILES, 'brand_scorecard.csv': fixture('brand_scorecard.sample.csv') };
+
+describe('how complete the products of a brand are', () => {
+  it('has no Details buttons while the published file lacks the eight columns', async () => {
+    serveFiles(BRAND_FILES);
+    renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    expect(screen.queryByRole('button', { name: /^Details for / })).toBeNull();
+  });
+
+  it('opens a panel of eight bars for one brand, moves focus to it, and closes again', async () => {
+    serveFiles({ ...ALL_FILES, 'brand_scorecard.csv': withSpread(fixture('brand_scorecard.sample.csv')) });
+    renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    const open = screen.getAllByRole('button', { name: /^Details for sodebo/ })[0];
+    expect(open.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(open);
+    const panel = document.getElementById('brand-details') as HTMLElement;
+    expect(within(panel).getByRole('heading', { name: 'How complete the products of sodebo are' })).toBe(document.activeElement);
+    expect(within(panel).getAllByRole('listitem')).toHaveLength(8);
+    expect(open.getAttribute('aria-expanded')).toBe('true');
+    expect(panel.textContent).toMatch(/fill all 7 things, and .* fill 5 or more/);
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close' }));
+    expect(document.getElementById('brand-details')).toBeNull();
+    fireEvent.click(open);
+    fireEvent.click(open); // pressing the same button again also closes it
+    expect(document.getElementById('brand-details')).toBeNull();
+  });
+});
+
+describe('ordering brands by how complete their products are', () => {
+  it('offers the two share orders only with the product groups, and shows the share it orders by', async () => {
+    serveFiles(BRAND_FILES);
+    renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    expect(screen.queryByRole('option', { name: /highest share first/ })).toBeNull();
+    cleanup();
+    brandScorecard.reset();
+    serveFiles({ ...ALL_FILES, 'brand_scorecard.csv': withSpread(fixture('brand_scorecard.sample.csv')) });
+    renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    expect(screen.queryByRole('columnheader', { name: 'Fill all 7' })).toBeNull();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Order by' }), { target: { value: 'full-share' } });
+    expect(screen.getByRole('columnheader', { name: 'Fill all 7' })).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Order by' }), { target: { value: 'most-share' } });
+    expect(screen.getByRole('columnheader', { name: 'Fill 5 or more' })).toBeTruthy();
+  });
+});
+
+describe('brands', () => {
+  const rowsOfTable = () => within(screen.getByRole('table', { name: /share of their products/ })).getAllByRole('row').slice(1);
+
+  it('shows the headline, the histogram, and the best ten brands first, from the real file', async () => {
+    serveFiles(BRAND_FILES);
+    renderAt('/explore/brands');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Which brands fill in their product information?');
+    const headline = await screen.findByRole('region', { name: 'Headline' });
+    expect(headline.textContent).toContain('As of 29 Oct 2026');
+    expect(within(headline).getByText('583')).toBeTruthy();
+    expect(screen.getByText(/583 brands across all markets have 30 or more products/)).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /^Score \d\.\d to \d\.\d: / })).toHaveLength(14);
+    const rows = rowsOfTable();
+    expect(rows).toHaveLength(10);
+    expect(within(rows[0]).getByRole('rowheader').textContent).toBe('sodebo');
+    expect(screen.getByText('Brands 1 to 10 of 583')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'What this page can and cannot tell you' })).toBeTruthy();
+  });
+
+  it('shows only the brands of a band when its bar is pressed, and all again when it is pressed twice', async () => {
+    serveFiles(BRAND_FILES);
+    renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    const bar = screen.getByRole('button', { name: /^Score 6\.5 to 7\.0: 10 brands/ });
+    fireEvent.click(bar);
+    expect(bar.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('Showing scores 6.5 to 7.0')).toBeTruthy();
+    expect(screen.getByText('10 of 583 brands')).toBeTruthy();
+    expect(rowsOfTable()).toHaveLength(10);
+    fireEvent.click(bar);
+    expect(screen.getByText('All 583 brands')).toBeTruthy();
+    expect(screen.queryByText(/^Showing scores/)).toBeNull();
+  });
+
+  it('finds a brand by name without caring about accents, and says so when nothing matches', async () => {
+    serveFiles(BRAND_FILES);
+    renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Find a brand' }), { target: { value: 'NESTLÉ' } });
+    const names = rowsOfTable().map((row) => within(row).getByRole('rowheader').textContent);
+    expect(names).toContain('nestle');
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Find a brand' }), { target: { value: 'zzzz-no-such-brand' } });
+    expect(screen.getByText(/No brand matches/)).toBeTruthy();
+    expect(screen.queryByRole('table', { name: /share of their products/ })).toBeNull();
+  });
+
+  it('pages the table ten brands at a time and goes back to the first page when the order changes', async () => {
+    serveFiles(BRAND_FILES);
+    renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Brands 11 to 20 of 583')).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Order by' }), { target: { value: 'name' } });
+    expect(screen.getByText('Brands 1 to 10 of 583')).toBeTruthy();
+    const names = rowsOfTable().map((row) => within(row).getByRole('rowheader').textContent ?? '');
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+  });
+
+  it('switches to the India brands and clears the band when the market changes, without moving the page', async () => {
+    serveFiles(BRAND_FILES);
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const { router } = renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    fireEvent.click(screen.getByRole('button', { name: /^Score 6\.5 to 7\.0/ }));
+    scrollTo.mockClear();
+    fireEvent.click(screen.getByRole('radio', { name: 'India' }));
+    await waitFor(() => expect(router.state.location.search).toBe('?market=india'));
+    expect(screen.getByText(/87 brands in India have 30 or more products/)).toBeTruthy();
+    expect(screen.getByText('All 87 brands')).toBeTruthy();
+    expect(scrollTo).not.toHaveBeenCalled();
+    scrollTo.mockRestore();
+  });
+
+  it('gives the same numbers as a table behind the histogram', async () => {
+    serveFiles(BRAND_FILES);
+    renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    fireEvent.click(screen.getByRole('button', { name: 'Show as a table' }));
+    const table = screen.getByRole('table', { name: 'Brands in each score band' });
+    expect(within(table).getAllByRole('row')).toHaveLength(15);
+    expect(within(within(table).getByRole('rowheader', { name: '3.5 to 4.0' }).closest('tr') as HTMLElement).getByText('82')).toBeTruthy();
+  });
+
+  it('says plainly when the file could not be loaded, and keeps the text of the page', async () => {
+    renderAt('/explore/brands');
+    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/could not be loaded just now/));
+    expect(screen.getByRole('heading', { level: 2, name: 'What this page can and cannot tell you' })).toBeTruthy();
+  });
+
+  it('has no accessibility violations that jsdom can detect', async () => {
+    serveFiles(BRAND_FILES);
+    const { container } = renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    fireEvent.click(screen.getByRole('button', { name: 'Show as a table' }));
+    const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
+    expect(result.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
+  });
+});
+
+const HEALTH_FILES = { ...DATA_FILES, 'pipeline_health.csv': fixture('pipeline_health.real.csv') };
+
+describe('pipeline health', () => {
+  const jobRows = () => within(screen.getByRole('table', { name: /scheduled jobs/ })).getAllByRole('row').slice(1);
+
+  it('shows the headline of the newest check, a row for each of the twelve jobs, and the key to the verdict words', async () => {
+    serveFiles(HEALTH_FILES);
+    renderAt('/how-it-works/health');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Is the system running right now?');
+    const headline = await screen.findByRole('region', { name: 'Headline' });
+    expect(headline.textContent).toContain('Checked once a day. Every day, 08:40 UTC. Newest check: 30 Oct 2026');
+    expect(within(headline).getByText('8 of 12')).toBeTruthy();
+    expect(within(headline).getByText('4')).toBeTruthy();
+    expect(within(headline).getByText('7 of 7')).toBeTruthy();
+    expect(jobRows()).toHaveLength(12);
+    const key = document.querySelector('.verdict-key') as HTMLElement;
+    expect(within(key).getAllByText(/On time|Late|Missed|Not known/)).toHaveLength(4);
+  });
+
+  it('judges a weekly job by its own week: the snapshot job is on time and the weekly load is late', async () => {
+    serveFiles(HEALTH_FILES);
+    renderAt('/how-it-works/health');
+    await screen.findByRole('region', { name: 'Headline' });
+    const row = (name: string) => jobRows().find((r) => within(r).getByRole('rowheader').textContent === name) as HTMLElement;
+    expect(row('snapshots').textContent).toContain('Mondays, 12:00 UTC');
+    expect(row('snapshots').textContent).toContain('On time');
+    expect(row('reconcile-load').textContent).toContain('Late');
+    expect(row('publish').textContent).toContain('Missed');
+    expect(row('snapshots').textContent).toContain('14 of 21');
+  });
+
+  it('says in plain words what each job and each outside service is for', async () => {
+    serveFiles(HEALTH_FILES);
+    renderAt('/how-it-works/health');
+    await screen.findByRole('region', { name: 'Headline' });
+    const jobs = within(screen.getByRole('table', { name: /scheduled jobs/ }));
+    expect(jobs.getByRole('columnheader', { name: 'What it is for' })).toBeTruthy();
+    expect(jobs.getAllByRole('row').slice(1).every((r) => (r.querySelector('td')?.textContent ?? '').length > 20)).toBe(true);
+    const services = within(screen.getByRole('table', { name: /outside services/ }));
+    expect(services.getByRole('columnheader', { name: 'What it is for' })).toBeTruthy();
+    expect(services.getAllByRole('row').slice(1).every((r) => (r.querySelector('td')?.textContent ?? '').length > 20)).toBe(true);
+  });
+
+  it('draws the run times and the products held, and gives the services with the expected refusal marked', async () => {
+    serveFiles(HEALTH_FILES);
+    renderAt('/how-it-works/health');
+    await screen.findByRole('region', { name: 'Headline' });
+    expect(document.querySelectorAll('.chart-card')).toHaveLength(2);
+    const services = within(screen.getByRole('table', { name: /outside services/ })).getAllByRole('row').slice(1);
+    expect(services).toHaveLength(7);
+    const b2 = services.find((r) => r.textContent?.includes('Backblaze')) as HTMLElement;
+    expect(b2.textContent).toContain('HTTP 403');
+    expect(b2.textContent).toContain('Expected');
+    expect(services.filter((r) => r.textContent?.includes('Expected'))).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 2, name: 'What this page can and cannot tell you' })).toBeTruthy();
+  });
+
+  it('says plainly when the file could not be loaded, and keeps the text of the page', async () => {
+    renderAt('/how-it-works/health');
+    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/could not be loaded just now/));
+    expect(screen.getByRole('heading', { level: 2, name: 'What this page can and cannot tell you' })).toBeTruthy();
+  });
+
+  it('has no accessibility violations that jsdom can detect', async () => {
+    serveFiles(HEALTH_FILES);
+    const { container } = renderAt('/how-it-works/health');
+    await screen.findByRole('region', { name: 'Headline' });
+    const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
+    expect(result.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
+  });
+});
+
+const SHOWCASE_FILES = { ...ALL_FILES, 'showcase.json': readFileSync(join(import.meta.dirname, '..', '..', 'showcase', 'showcase.json'), 'utf-8') };
+
+describe('how PackSense works', () => {
+  const lists = () => ({
+    raw: document.querySelector('section[aria-labelledby="raw-title"]') as HTMLElement,
+    silver: document.querySelector('section[aria-labelledby="silver-title"]') as HTMLElement,
+  });
+
+  it('shows the three steps with the real counts of the first product, and a switcher for the four products', async () => {
+    serveFiles(SHOWCASE_FILES);
+    renderAt('/how-it-works');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('From a raw file to a table you can read.');
+    const flow = await screen.findByRole('list', { name: 'The three steps' });
+    expect(flow.textContent).toContain('245 fields, exactly as they arrived.');
+    expect(flow.textContent).toContain('81 columns, 17 of them hidden on purpose.');
+    expect(flow.textContent).toContain('8 tables');
+    const group = screen.getByRole('radiogroup', { name: 'Product to follow' });
+    expect(within(group).getAllByRole('radio')).toHaveLength(4);
+    expect(within(group).getByRole('radio', { name: /Kinder Surprise/ }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByText(/barcode 8000500026731, brand Ferrero, Kinder/)).toBeTruthy();
+  });
+
+  it('shows the same four facts at each step, from real values', async () => {
+    serveFiles(SHOWCASE_FILES);
+    renderAt('/how-it-works');
+    const table = await screen.findByRole('table', { name: /Name, pack size, categories and energy of Kinder Surprise/ });
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows.map((r) => within(r).getByRole('rowheader').textContent)).toEqual(['Name', 'Pack size', 'Categories', 'Energy per 100 g']);
+    expect(rows[3].textContent).toContain('energy-kcal "561" in the packaging set per 100g; the record holds 3 separate sets');
+  });
+
+  it('lists the raw fields ten at a time, searches them, and says how many there are', async () => {
+    serveFiles(SHOWCASE_FILES);
+    renderAt('/how-it-works');
+    await screen.findByRole('list', { name: 'The three steps' });
+    const { raw } = lists();
+    expect(within(raw).getByText('All 245 fields')).toBeTruthy();
+    expect(raw.querySelectorAll('.kv__row')).toHaveLength(10);
+    expect(within(raw).getByText('Fields 1 to 10 of 245')).toBeTruthy();
+    fireEvent.change(within(raw).getByRole('searchbox', { name: 'Search the fields' }), { target: { value: 'PRODUCT_NAME' } });
+    expect(raw.querySelectorAll('.kv__row').length).toBeGreaterThan(0);
+    expect([...raw.querySelectorAll('.kv__row')].every((row) => (row.textContent ?? '').toLowerCase().includes('product_name'))).toBe(true);
+    expect(within(raw).getByText(/of 245 fields/)).toBeTruthy();
+    fireEvent.change(within(raw).getByRole('searchbox', { name: 'Search the fields' }), { target: { value: 'zzzz-nothing' } });
+    expect(within(raw).getByText('Nothing matches. Try another word.')).toBeTruthy();
+  });
+
+  it('cuts the cleaned row to the 17 hidden columns and marks each one "hidden on purpose"', async () => {
+    serveFiles(SHOWCASE_FILES);
+    renderAt('/how-it-works');
+    await screen.findByRole('list', { name: 'The three steps' });
+    const { silver } = lists();
+    expect(within(silver).getByText('All 81 columns')).toBeTruthy();
+    fireEvent.click(within(silver).getByRole('radio', { name: 'Hidden on purpose' }));
+    expect(within(silver).getByText('17 of 81 columns')).toBeTruthy();
+    expect(silver.querySelectorAll('.kv__row--hidden')).toHaveLength(10);
+    expect(within(silver).getAllByText('hidden on purpose')).toHaveLength(10);
+    fireEvent.click(within(silver).getByRole('button', { name: 'Next' }));
+    expect(within(silver).getByText('Columns 11 to 17 of 17')).toBeTruthy();
+    fireEvent.click(within(silver).getByRole('radio', { name: 'Kept' }));
+    expect(within(silver).getByText('64 of 81 columns')).toBeTruthy();
+  });
+
+  it('shows the eight gold tables with their real rows, and the signal words on the product card', async () => {
+    serveFiles(SHOWCASE_FILES);
+    renderAt('/how-it-works');
+    await screen.findByRole('list', { name: 'The three steps' });
+    expect(document.querySelectorAll('.gold-card')).toHaveLength(8);
+    const card = document.querySelector('section[aria-labelledby="gold-mart_product_card"]') as HTMLElement;
+    expect(within(card).getByText('Nothing flagged.')).toBeTruthy();
+    const flags = screen.getByRole('table', { name: /Flags it carried for Kinder Surprise/ });
+    expect(within(flags).getAllByRole('row')).toHaveLength(8); // seven flags and the header
+  });
+
+  it('keeps the 11 arithmetic checks together on one page, even for a product with 22 rows', async () => {
+    serveFiles(SHOWCASE_FILES);
+    renderAt('/how-it-works?product=long_history');
+    await screen.findByText(/A long edit history: 18 versions kept\./);
+    const checks = screen.getByRole('table', { name: /The arithmetic checks for/ });
+    expect(within(checks).getAllByRole('row')).toHaveLength(12); // eleven checks and the header
+    cleanup();
+    renderAt('/how-it-works');
+    await screen.findByRole('list', { name: 'The three steps' });
+    const kinder = screen.getByRole('table', { name: /The arithmetic checks for/ });
+    expect(within(kinder).getAllByRole('row')).toHaveLength(12);
+    expect(within(kinder.closest('section') as HTMLElement).queryByRole('button', { name: 'Next' })).toBeNull();
+  });
+
+  it('switches to another product from the switcher or from a link, and keeps the choice in the address', async () => {
+    serveFiles(SHOWCASE_FILES);
+    const { router } = renderAt('/how-it-works');
+    await screen.findByRole('list', { name: 'The three steps' });
+    fireEvent.click(screen.getByRole('radio', { name: /parle monaco/ }));
+    await waitFor(() => expect(router.state.location.search).toBe('?product=india'));
+    expect(screen.getByRole('table', { name: /Name, pack size, categories and energy of parle monaco 700g/ })).toBeTruthy();
+    expect(screen.getByText(/A product from India\./)).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'The three steps' }).textContent).toContain('178 fields');
+    cleanup();
+    renderAt('/how-it-works?product=long_history');
+    expect(await screen.findByText(/A long edit history: 18 versions kept\./)).toBeTruthy();
+    const history = screen.getByRole('table', { name: /Version history for Chocolate Reduced Fat Ultra-filtered Milk/ });
+    expect(within(history).getAllByRole('row')).toHaveLength(11); // ten rows a page and the header
+  });
+
+  it('lists what was removed or replaced, with the real counts', async () => {
+    serveFiles(SHOWCASE_FILES);
+    renderAt('/how-it-works');
+    const heading = await screen.findByRole('heading', { level: 2, name: 'What was removed or replaced before showing it' });
+    const section = heading.closest('section') as HTMLElement;
+    expect(section.textContent).toContain('102 fields that name volunteers');
+    expect(section.textContent).toContain('contributor-A, contributor-B, contributor-C');
+  });
+
+  it('says plainly when the file could not be loaded, and keeps the text of the page', async () => {
+    renderAt('/how-it-works');
+    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/could not be loaded just now/));
+    expect(screen.getByRole('heading', { level: 2, name: 'What this page can and cannot tell you' })).toBeTruthy();
+    expect(screen.getByText(/From a raw file/)).toBeTruthy();
+  });
+
+  it('has no accessibility violations that jsdom can detect', async () => {
+    serveFiles(SHOWCASE_FILES);
+    const { container } = renderAt('/how-it-works');
+    await screen.findByRole('list', { name: 'The three steps' });
     const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
     expect(result.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
   });

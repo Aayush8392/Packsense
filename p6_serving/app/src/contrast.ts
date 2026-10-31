@@ -19,7 +19,7 @@ export function contrastRatio(a: string, b: string): number {
 
 function readVars(block: string): Record<string, string> {
   const vars: Record<string, string> = {};
-  for (const m of block.matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) vars[m[1]] = m[2];
+  for (const m of block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) vars[m[1]] = m[2];
   return vars;
 }
 

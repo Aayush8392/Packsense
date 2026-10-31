@@ -19,6 +19,11 @@
   --raised: #efeeec;
   --advisory-bg: #fef3c7;
   --advisory-fg: #92400e;
+  --series-1: #1f5fa8;
+  --series-2: #c4551a;
+  --series-3: #1a7f64;
+  --series-4: #8c3fa8;
+  --series-5: #8a6d00;
 
   --font-heading: 'Newsreader', Georgia, serif;
   --font-body: 'Public Sans', system-ui, sans-serif;
@@ -62,6 +67,11 @@
     --raised: #2c3135;
     --advisory-bg: #3a2a08;
     --advisory-fg: #fcd34d;
+    --series-1: #7fb2ee;
+    --series-2: #f0925a;
+    --series-3: #4fc9a2;
+    --series-4: #c89be0;
+    --series-5: #e0c050;
   }
 }
 
@@ -82,4 +92,9 @@
   --raised: #2c3135;
   --advisory-bg: #3a2a08;
   --advisory-fg: #fcd34d;
+  --series-1: #7fb2ee;
+  --series-2: #f0925a;
+  --series-3: #4fc9a2;
+  --series-4: #c89be0;
+  --series-5: #e0c050;
 }
