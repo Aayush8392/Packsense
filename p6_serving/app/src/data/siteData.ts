@@ -44,6 +44,21 @@ export interface QualityRow {
   productsHeld: number;
 }
 
+/** One brand's row of the scorecard: how many of its products fill each of the seven things, on the day the file was made. */
+export interface BrandRow {
+  scope: string;
+  /** The first brand listed on the product, in lower case (the file's own grouping). */
+  name: string;
+  asOf: string;
+  products: number;
+  /** Products that fill each thing; the keys are the ones in `ITEMS` (data/brands.ts). */
+  filled: Record<string, number>;
+  /** The file's own total of the seven counts. */
+  points: number;
+  /** Products that fill exactly 0, 1, ... 7 of the seven things (index = how many). Null until the published file carries the columns. */
+  spread: number[] | null;
+}
+
 function requireColumns(rows: Record<string, string>[], file: string, columns: string[]): void {
   if (rows.length === 0) throw new DataError(`${file} has no rows`);
   const missing = columns.filter((name) => !(name in rows[0]));
@@ -117,6 +132,40 @@ export function parsePipelineHealth(text: string): HealthRow[] {
   }));
 }
 
+const BRAND_COLUMNS: [key: string, column: string][] = [
+  ['nutrition', 'n_with_nutrition'],
+  ['nutriscore', 'n_with_nutriscore'],
+  ['nova', 'n_with_nova'],
+  ['quantity', 'n_with_quantity'],
+  ['ingredients', 'n_with_ingredients'],
+  ['categories', 'n_with_categories'],
+  ['labels', 'n_with_labels'],
+];
+
+const SPREAD_COLUMNS = Array.from({ length: 8 }, (_, count) => `n_filled_${count}`);
+
+export function parseBrandScorecard(text: string): BrandRow[] {
+  const file = 'brand_scorecard.csv';
+  const rows = parseCsv(text);
+  requireColumns(rows, file, ['scope', 'brand_name', 'as_of_date', 'n_products', 'coverage_points', ...BRAND_COLUMNS.map(([, column]) => column)]);
+  // The eight "exactly this many" columns arrive with the next gold build; a file without them still loads, and the page leaves out the details.
+  const hasSpread = SPREAD_COLUMNS.every((column) => column in rows[0]);
+  return rows.map((row) => {
+    const products = numberOf(row.n_products, file);
+    const filled = Object.fromEntries(BRAND_COLUMNS.map(([key, column]) => [key, numberOf(row[column], file)]));
+    if (products <= 0) throw new DataError(`${file} has a brand with no products`);
+    if (Object.values(filled).some((count) => count > products)) throw new DataError(`${file} has a brand that fills a thing for more products than it has`);
+    const points = numberOf(row.coverage_points, file);
+    let spread: number[] | null = null;
+    if (hasSpread) {
+      spread = SPREAD_COLUMNS.map((column) => numberOf(row[column], file));
+      if (spread.reduce((sum, count) => sum + count, 0) !== products) throw new DataError(`${file} has a brand whose product groups do not add up to its products`);
+      if (spread.reduce((sum, count, filledCount) => sum + count * filledCount, 0) !== points) throw new DataError(`${file} has a brand whose product groups do not match its points`);
+    }
+    return { scope: row.scope, name: row.brand_name, asOf: row.as_of_date, products, filled, points, spread };
+  });
+}
+
 /** Where the published files are served from: the app's own `data/` folder, next to the page. */
 export function dataUrl(name: string): string {
   return `${import.meta.env.BASE_URL}data/${name}`;
@@ -140,3 +189,4 @@ export const siteStatus = createResource(async () => parseSiteStatus(await fetch
 export const changeDaily = createResource(async () => parseChangeDaily(await fetchText('change_daily.csv')));
 export const qualityDaily = createResource(async () => parseQualityDaily(await fetchText('quality_daily.csv')));
 export const pipelineHealth = createResource(async () => parsePipelineHealth(await fetchText('pipeline_health.csv')));
+export const brandScorecard = createResource(async () => parseBrandScorecard(await fetchText('brand_scorecard.csv')));

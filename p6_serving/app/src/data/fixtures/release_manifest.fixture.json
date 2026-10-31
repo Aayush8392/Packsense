@@ -1,0 +1,41 @@
+{
+  "attribution": "Contains data from Open Food Facts (https://openfoodfacts.org), available under the Open Database License (https://opendatacommons.org/licenses/odbl/1-0/). This release describes our own copy of the data at the stated build time, not Open Food Facts itself; the individual contents are under the Database Contents License and product images (not included) have their own licences.",
+  "built_at_utc": "2026-10-22T12:30:20",
+  "exit_function": {
+    "called": true,
+    "module": "silver_lib.egress.prepare_for_export",
+    "residue_scan": "passed"
+  },
+  "files": [
+    {
+      "kind": "data",
+      "path": "india_products.csv",
+      "rows": 24932,
+      "sha256": "4dd816d1a5c7d2cdf104634a957a741165cdffed1f02fba2f5fce39a3fa40600"
+    },
+    {
+      "kind": "page",
+      "path": "README.md",
+      "sha256": "250ea32c153267a198c4d851f6875f3f0dd1543416633797e6a836b319c43f88"
+    },
+    {
+      "kind": "page",
+      "path": "CHANGELOG.md",
+      "sha256": "533ccf28cf42b260047c873ea51af3bd74bc99b7e89832ee493907bf78c3ad36"
+    }
+  ],
+  "licence": "ODbL-1.0",
+  "release_version": "2026-10-22",
+  "reports": {
+    "india_products": {
+      "columns_dropped": 0,
+      "names_replaced": 35,
+      "ordinary_names_left_alone": 40,
+      "patterns_removed": 0,
+      "phone_shaped_blanked": 7,
+      "rows": 24932
+    }
+  },
+  "source": "Open Food Facts",
+  "source_dump_date": "2026-10-22"
+}

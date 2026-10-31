@@ -12,7 +12,7 @@ attribution: >-
 suppress_below: 5          # unused for product rows (no aggregate counts); the export library requires the key
 
 release:
-  hf_repo: Anonymous8392/packsense-india       # the PUBLIC dataset; created and its write token stored by the owner (bootstrap/setup_release.py)
+  hf_repo: PackSense/packsense-india       # the PUBLIC dataset, in the PackSense organisation since 31 Oct 2026 (moved from the personal account); created and its write token stored by the owner (bootstrap/setup_release.py)
   secret_scope: packsense_release               # admin-only scope: hf_release_token and healthchecks_release_ping_url
   data_file: india_products.csv
   array_separator: "|"                          # tag lists are written joined by this character

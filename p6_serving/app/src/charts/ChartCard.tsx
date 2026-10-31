@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from 'react';
 import { formatDay } from '../format';
 import { LineChart, type LineSeries } from './LineChart';
-import { Pager, pageWindow } from './Pager';
+import { PadRows, Pager, padCount, pageWindow } from './Pager';
 
 export interface ChartCardProps {
   title: string;
@@ -46,7 +46,7 @@ export function ChartCard({ title, note, series, format, unknownText, compact = 
       <div id={`${id}-table`} hidden={!asTable}>
         {asTable && (
           <>
-            <div className="table-card table-card--plain">
+            <div className="table-card table-card--plain table-card--paged">
               <table>
                 <caption className="visually-hidden">{title}, newest day first</caption>
                 <thead>
@@ -64,6 +64,7 @@ export function ChartCard({ title, note, series, format, unknownText, compact = 
                       ))}
                     </tr>
                   ))}
+                  <PadRows count={padCount(newestFirst.length, end - start)} columns={series.length + 1} />
                 </tbody>
               </table>
             </div>

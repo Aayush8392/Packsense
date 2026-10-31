@@ -4,7 +4,7 @@ title: India data release
 section: Get the data
 order: 8
 question: Can I download the India data, and what is in it?
-built_from: The monthly release on Hugging Face (huggingface.co/datasets/Anonymous8392/packsense-india)
+built_from: The monthly release on Hugging Face (huggingface.co/datasets/PackSense/packsense-india)
 design_notes:
   - "A download button and the first rows of the file sit here."
   - "The product count and date below are the first release (22 October 2026); the app should read the live numbers from the release's manifest when it is built."
