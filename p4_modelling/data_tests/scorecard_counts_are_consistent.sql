@@ -1,4 +1,4 @@
--- Internal rules of the brand scorecard: no count above the number of products, coverage_points is the sum of the seven counts, the ranked
+-- Internal rules of the brand scorecard: no count above the number of products, coverage_points is the sum of the seven counts, the eight n_filled counts add up to the products and to the points, the ranked
 -- flag follows the floor (and never a product-less or unnamed brand), a brand's India products never exceed its all-market products, and the
 -- spans held by the scorecard equal the open spans counted straight from product_flag_spans on the scorecard's day.
 with c as (
@@ -19,6 +19,14 @@ bad_rows as (
     select scorecard_key, 'coverage_points is not the sum'
     from c
     where coverage_points <> n_with_nutrition + n_with_nutriscore + n_with_nova + n_with_quantity + n_with_ingredients + n_with_categories + n_with_labels
+    union all
+    select scorecard_key, 'the n_filled counts do not add up to n_products'
+    from c
+    where n_filled_0 + n_filled_1 + n_filled_2 + n_filled_3 + n_filled_4 + n_filled_5 + n_filled_6 + n_filled_7 <> n_products
+    union all
+    select scorecard_key, 'the n_filled counts, weighted by 0 to 7, are not coverage_points'
+    from c
+    where n_filled_1 + 2 * n_filled_2 + 3 * n_filled_3 + 4 * n_filled_4 + 5 * n_filled_5 + 6 * n_filled_6 + 7 * n_filled_7 <> coverage_points
     union all
     select scorecard_key, 'is_ranked does not follow the floor'
     from c

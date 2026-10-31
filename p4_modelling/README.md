@@ -145,7 +145,7 @@ arithmetic checks; a flag means worth a look, not wrong; nothing flagged does no
 lower-cased, as in `dim_brand`; products with no brand form one row, `(no brand)`, never ranked). A snapshot of the products we hold as they stood at the end of the newest
 complete day (`as_of_date`), rebuilt in full each night: we hold only a few weeks, so a monthly series starts when a second month exists. Columns are counts, no floats:
 `n_products`, `n_with_nutrition` (new or legacy format), `n_with_nutriscore` (a to e), `n_with_nova`, `n_with_quantity`, `n_with_ingredients` (the fingerprint),
-`n_with_categories`, `n_with_labels`, `coverage_points` (their sum; 7 times `n_products` would be full coverage), `open_error_spans` and `open_warning_spans` (spans open on
+`n_with_categories`, `n_with_labels`, `n_filled_0` to `n_filled_7` (how many products fill exactly that many of the seven; they add up to `n_products` and, weighted 0 to 7, to `coverage_points`), `coverage_points` (their sum; 7 times `n_products` would be full coverage), `open_error_spans` and `open_warning_spans` (spans open on
 that day, spans not products), `n_products_with_error_flag` and `is_ranked` (a named brand with at least `scorecard_min_products` = 30 products: a share on 30 products
 carries about plus or minus 18 points). The coverage is our own, from the fields of each product's period; OFF's completeness score is not used (it is volatile and not
 in `product_history`). **It describes what we hold, not the brand's catalogue:** non-India products arrive only when edited since the capture began, and about 22,000 India

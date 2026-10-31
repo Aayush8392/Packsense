@@ -10,6 +10,8 @@
 --   n_with_*     field coverage from the product's period: a nutrition table (new or legacy format), a known Nutri-Score (a to e), a NOVA group,
 --                a quantity, an ingredients fingerprint, at least one category, at least one label. coverage_points is the sum of the seven
 --                counts (7 * n_products would be full coverage); shares are left to the reader, so no float crosses the engines.
+--   n_filled_0 .. n_filled_7   how many of the brand's products fill exactly 0, 1, ... 7 of those seven fields (the per-product count is mart_product_card.fields_filled);
+--                the eight counts add up to n_products and, weighted by 0 to 7, to coverage_points. Two brands with the same points can differ a lot here.
 --   open_error_spans / open_warning_spans   flag spans open at the end of as_of_date on those products (spans, not products);
 --   n_products_with_error_flag              products with at least one open error span.
 --   is_ranked    1 when the brand is named and has at least var scorecard_min_products (30) products: a share on fewer is too noisy to rank.
@@ -76,10 +78,17 @@ per_product as (
     left join open_spans as o on o.code = a.code
 ),
 
+filled as (
+    select
+        p.*,
+        p.has_nutrition + p.has_nutriscore + p.has_nova + p.has_quantity + p.has_ingredients + p.has_categories + p.has_labels as fields_filled
+    from per_product as p
+),
+
 scoped as (
-    select 'all' as scope, p.* from per_product as p
+    select 'all' as scope, p.* from filled as p
     union all
-    select 'india' as scope, p.* from per_product as p inner join india_codes as i on i.code = p.code
+    select 'india' as scope, p.* from filled as p inner join india_codes as i on i.code = p.code
 ),
 
 grouped as (
@@ -95,6 +104,14 @@ grouped as (
         sum(has_ingredients) as n_with_ingredients,
         sum(has_categories) as n_with_categories,
         sum(has_labels) as n_with_labels,
+        sum(case when fields_filled = 0 then 1 else 0 end) as n_filled_0,
+        sum(case when fields_filled = 1 then 1 else 0 end) as n_filled_1,
+        sum(case when fields_filled = 2 then 1 else 0 end) as n_filled_2,
+        sum(case when fields_filled = 3 then 1 else 0 end) as n_filled_3,
+        sum(case when fields_filled = 4 then 1 else 0 end) as n_filled_4,
+        sum(case when fields_filled = 5 then 1 else 0 end) as n_filled_5,
+        sum(case when fields_filled = 6 then 1 else 0 end) as n_filled_6,
+        sum(case when fields_filled = 7 then 1 else 0 end) as n_filled_7,
         sum(open_error_spans) as open_error_spans,
         sum(open_warning_spans) as open_warning_spans,
         sum(case when open_error_spans > 0 then 1 else 0 end) as n_products_with_error_flag
@@ -116,6 +133,14 @@ select
     n_with_ingredients,
     n_with_categories,
     n_with_labels,
+    n_filled_0,
+    n_filled_1,
+    n_filled_2,
+    n_filled_3,
+    n_filled_4,
+    n_filled_5,
+    n_filled_6,
+    n_filled_7,
     n_with_nutrition + n_with_nutriscore + n_with_nova + n_with_quantity + n_with_ingredients + n_with_categories + n_with_labels as coverage_points,
     open_error_spans,
     open_warning_spans,

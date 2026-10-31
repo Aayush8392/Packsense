@@ -18,7 +18,8 @@ datasets:
     table: mart_brand_scorecard
     where: "is_ranked = 1"          # a named brand with at least 30 products; the floor is the dbt var scorecard_min_products
     columns: [scope, brand_name, as_of_date, n_products, n_with_nutrition, n_with_nutriscore, n_with_nova, n_with_quantity,
-              n_with_ingredients, n_with_categories, n_with_labels, coverage_points]
+              n_with_ingredients, n_with_categories, n_with_labels, coverage_points,
+              n_filled_0, n_filled_1, n_filled_2, n_filled_3, n_filled_4, n_filled_5, n_filled_6, n_filled_7]
     # Deliberately NOT exported: open_error_spans, open_warning_spans, n_products_with_error_flag (no per-brand error counts in public).
     text_columns: [brand_name]      # passed through the exit function
     count_columns: []               # every row has at least 30 products

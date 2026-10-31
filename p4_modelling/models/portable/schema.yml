@@ -462,6 +462,30 @@ models:
         data_tests: [not_null]
       - name: n_products
         data_tests: [not_null]
+      - name: n_filled_0
+        description: Products of the brand that fill exactly 0 of the seven scorecard fields.
+        data_tests: [not_null]
+      - name: n_filled_1
+        description: Products of the brand that fill exactly 1 of the seven scorecard fields.
+        data_tests: [not_null]
+      - name: n_filled_2
+        description: Products of the brand that fill exactly 2 of the seven scorecard fields.
+        data_tests: [not_null]
+      - name: n_filled_3
+        description: Products of the brand that fill exactly 3 of the seven scorecard fields.
+        data_tests: [not_null]
+      - name: n_filled_4
+        description: Products of the brand that fill exactly 4 of the seven scorecard fields.
+        data_tests: [not_null]
+      - name: n_filled_5
+        description: Products of the brand that fill exactly 5 of the seven scorecard fields.
+        data_tests: [not_null]
+      - name: n_filled_6
+        description: Products of the brand that fill exactly 6 of the seven scorecard fields.
+        data_tests: [not_null]
+      - name: n_filled_7
+        description: Products of the brand that fill exactly 7 of the seven scorecard fields.
+        data_tests: [not_null]
       - name: is_ranked
         data_tests:
           - not_null
