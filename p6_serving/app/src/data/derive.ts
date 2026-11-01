@@ -1,4 +1,4 @@
-import { addDays } from '../format';
+import { addDays, istDay, istTime } from '../format';
 import jobs from './jobs.json';
 import type { ChangeRow, HealthRow } from './siteData';
 
@@ -77,6 +77,8 @@ export function nextUpdateDue(now: Date): string {
   const at = JOBS.find((job) => job.name === 'packsense-bronze-load')?.at ?? '06:45';
   const [hour, minute] = at.split(':').map(Number);
   const todays = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, minute));
-  return now < todays ? `today, about ${at} UTC` : `tomorrow, about ${at} UTC`;
+  const next = now < todays ? todays : new Date(todays.getTime() + 24 * 60 * 60 * 1000);
+  const when = istDay(next) === istDay(now) ? 'today' : 'tomorrow';
+  return `${when}, about ${istTime(next)}`;
 }
 

@@ -3,6 +3,7 @@ import { Clip, PAGE_SIZE, PadRows, Pager, padCount, pageWindow } from '../charts
 import { LoadState, PageTitle, Panels, Segmented, TextPanel, pageSections, useChoice } from '../components/pageParts';
 import { flagLines } from '../data/flagNames';
 import { useResource } from '../data/resource';
+import { JumpLink } from '../nav/JumpLink';
 import {
   GOLD_VIEWS, doneRows, goldCell, rawRows, reasonFor, sameFieldRows, searchRows, showcase, silverRows,
   type GoldView, type ListRow, type Showcase, type ShowcaseProduct,
@@ -51,14 +52,15 @@ function Flow({ product }: { product: ShowcaseProduct }) {
 function Switcher({ products, value, onChange }: { products: ShowcaseProduct[]; value: string; onChange: (next: string) => void }) {
   const ordered = KEYS.map((key) => products.find((p) => p.key === key)).filter((p): p is ShowcaseProduct => Boolean(p));
   return (
-    <section className="switcher" aria-labelledby="switcher-title">
+    <section className="switcher" aria-labelledby="switcher-title" data-focus="section:switcher">
       <h2 id="switcher-title">Follow a real product</h2>
       <Segmented label="Product to follow" value={value} onChange={onChange} options={ordered.map((p) => ({ id: p.key, label: p.name.length > 28 ? `${p.name.slice(0, 26)}…` : p.name }))} />
       {ordered
         .filter((p) => p.key === value)
         .map((p) => (
           <p key={p.key} className="switcher__about">
-            <strong>{p.name}</strong> (barcode {p.code}, brand {p.brand}). {reasonFor(p)}
+            <strong>{p.name}</strong> (barcode {p.code}, brand {p.brand}). {reasonFor(p)}{' '}
+            <JumpLink to={`/look-up?barcode=${p.code}`}>Look up this product's card</JumpLink>
           </p>
         ))}
     </section>
@@ -181,6 +183,12 @@ function GoldTableCard({ view, product }: { view: GoldView; product: ShowcasePro
         {view.title} <small className="code">{view.table}</small>
       </h3>
       <p className="chart-section__note">{view.note}</p>
+      {view.table === 'fct_product_change_daily' && (
+        <p className="jump-line"><JumpLink to="/explore/changes?focus=section:edit-volume">See this table for the whole catalogue in Daily changes</JumpLink></p>
+      )}
+      {view.table === 'fct_catalogue_quality_daily' && (
+        <p className="jump-line"><JumpLink to="/explore/quality?focus=section:over-time">See this table for the whole catalogue in Data quality over time</JumpLink></p>
+      )}
       {card && typeof card.light === 'string' && (
         <p className="gold-card__signal">
           <strong>{signalFor(card.light).label}.</strong> {signalFor(card.light).line}

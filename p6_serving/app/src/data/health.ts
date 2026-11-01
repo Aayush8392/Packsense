@@ -2,6 +2,8 @@ import { JOBS, type Job } from './derive';
 import { dayRange, type DayPoint } from './series';
 import type { HealthRow } from './siteData';
 
+/** India is 5 hours 30 minutes ahead of UTC. */
+const IST_MINUTES = 5 * 60 + 30;
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const DAY_NAMES: Record<string, string> = { MON: 'Mondays', TUE: 'Tuesdays', WED: 'Wednesdays', THU: 'Thursdays', FRI: 'Fridays', SAT: 'Saturdays', SUN: 'Sundays' };
 
@@ -11,12 +13,15 @@ function ordinal(n: number): string {
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 }
 
-/** A Quartz cron (seconds, minutes, hours, day of month, month, day of week) in plain words: "Every day, 06:45 UTC", "Mondays, 12:00 UTC", "The 3rd of each month, 10:30 UTC". */
+/** A Quartz cron (seconds, minutes, hours, day of month, month, day of week, all in UTC) in plain words on the clock in India: "Every day, 12:15 IST", "Mondays, 17:30 IST", "The 3rd of each month, 16:00 IST". */
 export function describeCron(cron: string): string {
   const [, minute, hour, dayOfMonth, , dayOfWeek] = cron.trim().split(/\s+/);
-  const time = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')} UTC`;
-  if (DAYS.includes(dayOfWeek)) return `${DAY_NAMES[dayOfWeek]}, ${time}`;
-  if (/^\d+$/.test(dayOfMonth)) return `The ${ordinal(Number(dayOfMonth))} of each month, ${time}`;
+  const shifted = Number(hour) * 60 + Number(minute) + IST_MINUTES;
+  const nextDay = shifted >= 24 * 60;                  // a run late in the UTC day falls on the next calendar day in India
+  const clock = shifted % (24 * 60);
+  const time = `${String(Math.floor(clock / 60)).padStart(2, '0')}:${String(clock % 60).padStart(2, '0')} IST`;
+  if (DAYS.includes(dayOfWeek)) return `${DAY_NAMES[DAYS[(DAYS.indexOf(dayOfWeek) + (nextDay ? 1 : 0)) % 7]]}, ${time}`;
+  if (/^\d+$/.test(dayOfMonth)) return `The ${ordinal(Number(dayOfMonth) + (nextDay ? 1 : 0))} of each month, ${time}`;
   return `Every day, ${time}`;
 }
 

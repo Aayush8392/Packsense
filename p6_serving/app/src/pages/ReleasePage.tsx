@@ -1,9 +1,11 @@
 import { useId, useState } from 'react';
 import { Clip, PadRows, Pager, padCount, pageWindow } from '../charts/Pager';
+import { ExternalLink } from '../components/ExternalLink';
 import { LoadState, PageTitle, Panels, TextPanel, pageSections } from '../components/pageParts';
 import { COLUMN_GUIDE, SAMPLE_COLUMNS } from '../data/columnGuide';
 import { RELEASE_FILE_URL, RELEASE_REPO, release, releaseSchedule, versionRows, type Release } from '../data/release';
 import { useResource } from '../data/resource';
+import { JumpLink } from '../nav/JumpLink';
 import { formatCount, formatDay } from '../format';
 
 const dayOf = (iso: string) => formatDay(iso.slice(0, 10));
@@ -51,7 +53,7 @@ function DownloadButton({ version }: { version: string }) {
         {state === 'done' && 'The file was saved to your downloads.'}
         {state === 'failed' && (
           <>
-            The download could not start here. <a href={RELEASE_FILE_URL}>Open the file in the browser</a> and save it from there.
+            The download could not start here. <ExternalLink href={RELEASE_FILE_URL}>Open the file in the browser</ExternalLink> and save it from there.
           </>
         )}
       </span>
@@ -70,7 +72,7 @@ function DownloadCard({ data }: { data: Release }) {
       </dl>
       <p className="release-card__actions">
         <DownloadButton version={data.version} />
-        <a className="button button--quiet" href={RELEASE_REPO}>Data card and all releases on Hugging Face</a>
+        <ExternalLink className="button button--quiet" href={RELEASE_REPO}>Data card and all releases on Hugging Face</ExternalLink>
       </p>
       <p className="chart-section__note">The file is a plain CSV. It opens in any spreadsheet or data tool; the note below says how to keep barcodes exact.</p>
     </section>
@@ -182,11 +184,12 @@ function OpeningSteps() {
 function Versions({ data }: { data: Release }) {
   const rows = versionRows(data);
   return (
-    <section className="chart-section" aria-labelledby="release-versions">
+    <section className="chart-section" aria-labelledby="release-versions" data-focus="section:release-versions">
       <h2 id="release-versions">Versions and the monthly schedule</h2>
       <p className="chart-section__note">
         A new release is built once a month{releaseSchedule() ? ` (${releaseSchedule()})` : ''}. Each one is a new file, and the change list says what was added, removed or changed since the last.
       </p>
+      <p className="jump-line"><JumpLink to="/how-it-works/health?focus=job:packsense-release">See this monthly job on Pipeline health</JumpLink></p>
       <div className="table-card table-card--figures">
         <table>
           <caption className="visually-hidden">Releases of the India file</caption>
@@ -215,7 +218,7 @@ function NotPublished() {
     <section className="chart-section release-state" aria-labelledby="release-none">
       <h2 id="release-none">The first release has not been published yet</h2>
       <p>The file appears here as soon as it is built. It will also be on the Hugging Face page below.</p>
-      <p><a className="button button--quiet" href={RELEASE_REPO}>Data card and all releases on Hugging Face</a></p>
+      <p><ExternalLink className="button button--quiet" href={RELEASE_REPO}>Data card and all releases on Hugging Face</ExternalLink></p>
     </section>
   );
 }
@@ -227,7 +230,7 @@ function Unreadable() {
       <p>The file itself is still available from the Hugging Face page.</p>
       <p className="release-card__actions">
         <button type="button" className="button button--primary" onClick={() => { release.reset(); release.start(); }}>Try again</button>
-        <a className="button button--quiet" href={RELEASE_REPO}>Data card and all releases on Hugging Face</a>
+        <ExternalLink className="button button--quiet" href={RELEASE_REPO}>Data card and all releases on Hugging Face</ExternalLink>
       </p>
     </section>
   );

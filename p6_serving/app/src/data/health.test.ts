@@ -9,13 +9,17 @@ const rows = parsePipelineHealth(readFileSync(join(import.meta.dirname, 'fixture
 
 describe('describeCron', () => {
   it('says a schedule in plain words', () => {
-    expect(describeCron('0 45 6 * * ?')).toBe('Every day, 06:45 UTC');
-    expect(describeCron('0 0 12 ? * MON')).toBe('Mondays, 12:00 UTC');
-    expect(describeCron('0 0 7 ? * THU')).toBe('Thursdays, 07:00 UTC');
-    expect(describeCron('0 0 5 1 * ?')).toBe('The 1st of each month, 05:00 UTC');
-    expect(describeCron('0 30 10 3 * ?')).toBe('The 3rd of each month, 10:30 UTC');
-    expect(describeCron('0 0 5 22 * ?')).toBe('The 22nd of each month, 05:00 UTC');
-    expect(describeCron('0 0 5 11 * ?')).toBe('The 11th of each month, 05:00 UTC');
+    expect(describeCron('0 45 6 * * ?')).toBe('Every day, 12:15 IST');
+    expect(describeCron('0 0 12 ? * MON')).toBe('Mondays, 17:30 IST');
+    expect(describeCron('0 0 7 ? * THU')).toBe('Thursdays, 12:30 IST');
+    expect(describeCron('0 0 5 1 * ?')).toBe('The 1st of each month, 10:30 IST');
+    expect(describeCron('0 30 10 3 * ?')).toBe('The 3rd of each month, 16:00 IST');
+    expect(describeCron('0 0 5 22 * ?')).toBe('The 22nd of each month, 10:30 IST');
+    expect(describeCron('0 0 5 11 * ?')).toBe('The 11th of each month, 10:30 IST');
+    // a run late in the UTC day falls on the next calendar day in India
+    expect(describeCron('0 0 20 ? * MON')).toBe('Tuesdays, 01:30 IST');
+    expect(describeCron('0 0 20 ? * SAT')).toBe('Sundays, 01:30 IST');
+    expect(describeCron('0 0 20 3 * ?')).toBe('The 4th of each month, 01:30 IST');
   });
 });
 
@@ -71,7 +75,7 @@ describe('the real board of 30 Oct 2026', () => {
   });
 
   it('counts runs, runs that did not succeed and the longest run over the last 14 days (all twelve days of the file)', () => {
-    expect(byName('packsense-bronze-load')).toMatchObject({ runs: 11, notSucceeded: 1, longestSeconds: 1246, when: 'Every day, 06:45 UTC' });
+    expect(byName('packsense-bronze-load')).toMatchObject({ runs: 11, notSucceeded: 1, longestSeconds: 1246, when: 'Every day, 12:15 IST' });
     expect(byName('packsense-gold-build')).toMatchObject({ runs: 20, notSucceeded: 2, longestSeconds: 382 });
     expect(byName('packsense-snapshots')).toMatchObject({ runs: 21, notSucceeded: 14, longestSeconds: 10376 });
     expect(byName('packsense-policy').notSucceeded).toBe(0);

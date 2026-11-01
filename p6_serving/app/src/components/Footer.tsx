@@ -1,10 +1,11 @@
 import { Link } from 'react-router';
+import { ExternalLink } from './ExternalLink';
 
 function formatBuildTime(iso: string): string {
   const date = new Date(iso);
-  const day = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-  const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-  return `${day}, ${time} UTC`;
+  const day = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+  const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+  return `${day}, ${time} IST`;
 }
 
 export function Footer() {
@@ -14,8 +15,8 @@ export function Footer() {
         <div className="site-footer__credit">
           <p className="brand brand--small">PackSense</p>
           <p>
-            Contains data from <a href="https://world.openfoodfacts.org/">Open Food Facts</a>, available under the{' '}
-            <a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License</a>.
+            Contains data from <ExternalLink href="https://world.openfoodfacts.org/">Open Food Facts</ExternalLink>, available under the{' '}
+            <ExternalLink href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License</ExternalLink>.
           </p>
           <p>
             Site built <time dateTime={__BUILD_TIME__}>{formatBuildTime(__BUILD_TIME__)}</time>.
@@ -24,8 +25,8 @@ export function Footer() {
         <nav aria-label="Footer">
           <ul>
             <li><Link to="/about">About</Link></li>
-            <li><a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License</a></li>
-            <li><a href="https://world.openfoodfacts.org/">Open Food Facts</a></li>
+            <li><ExternalLink href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License</ExternalLink></li>
+            <li><ExternalLink href="https://world.openfoodfacts.org/">Open Food Facts</ExternalLink></li>
           </ul>
         </nav>
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useId, useState, type MouseEvent } from 'react';
 import { Clip, PadRows, Pager, padCount, pageWindow } from '../charts/Pager';
 import { Headline, LoadState, MarketSwitch, PageTitle, Panels, TextPanel, pageSections, useMarket } from '../components/pageParts';
 import {
@@ -8,6 +8,7 @@ import { useResource } from '../data/resource';
 import type { Scope } from '../data/series';
 import { brandScorecard, type BrandRow } from '../data/siteData';
 import { formatCount, formatDay } from '../format';
+import { usePageState } from '../nav/pageState';
 
 const percent = (share: number) => `${Math.round(share * 100)}%`;
 
@@ -76,18 +77,13 @@ function Histogram({ counts, total, typical, band, onBand }: {
 }
 
 /** How complete one brand's products are: how many fill all seven things, six, and so on down to none. */
-function BrandDetails({ row, onClose }: { row: BrandRow; onClose: () => void }) {
+function BrandSpread({ row, titleId }: { row: BrandRow; titleId: string }) {
   const lines = spreadLines(row);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => headingRef.current?.focus(), [row.name]);
   if (!lines) return null;
   const tallest = Math.max(...lines.map((line) => line.products), 1);
   return (
-    <section id="brand-details" className="brand-details" aria-labelledby="brand-details-title">
-      <div className="brand-details__head">
-        <h3 id="brand-details-title" ref={headingRef} tabIndex={-1}>How complete the products of {row.name} are</h3>
-        <button type="button" className="button button--quiet" onClick={onClose}>Close</button>
-      </div>
+    <>
+      <h3 id={titleId} className="brand-expand__title">How complete the products of {row.name} are</h3>
       <p className="chart-section__note">{spreadSentence(row)} The score above is the average of these.</p>
       <ul className="brand-details__lines" aria-label={`Products of ${row.name} by how many of the 7 things they fill`}>
         {lines.map((line) => (
@@ -100,17 +96,23 @@ function BrandDetails({ row, onClose }: { row: BrandRow; onClose: () => void }) 
           </li>
         ))}
       </ul>
-    </section>
+    </>
   );
 }
 
 function BrandTable({ entries, total, openName, onOpen, sort }: { entries: Ranked[]; total: number; openName: string | null; onOpen: ((name: string) => void) | null; sort: SortId }) {
   const atLeast = sort === 'full-share' ? 7 : sort === 'most-share' ? 5 : null;
   const shareLabel = atLeast === 7 ? 'Fill all 7' : 'Fill 5 or more';
+  const prefix = useId();
+  const columns = 4 + ITEMS.length + (atLeast !== null ? 1 : 0) + (onOpen ? 1 : 0);
+  // A press anywhere on a row opens it, except on the button itself (which does the same) or on a link.
+  const rowClick = (name: string) => (event: MouseEvent) => {
+    if (!(event.target as HTMLElement).closest('button, a')) onOpen?.(name);
+  };
   return (
     <div className="table-card table-card--figures table-card--brands table-card--paged">
       <table>
-        <caption className="visually-hidden">Brands, with the share of their products that fill each of the seven things</caption>
+        <caption className="visually-hidden">Brands, with the share of their products that fill each of the seven things. Each row opens to show how complete that brand's products are.</caption>
         <thead>
           <tr>
             <th scope="col">Brand</th>
@@ -123,33 +125,53 @@ function BrandTable({ entries, total, openName, onOpen, sort }: { entries: Ranke
           </tr>
         </thead>
         <tbody>
-          {entries.map(({ row, rank, score }) => (
-            <tr key={row.name}>
-              <th scope="row"><Clip>{row.name}</Clip></th>
-              <td data-label="Place">{rank}</td>
-              <td data-label="Products held">{formatCount(row.products)}</td>
-              <td data-label="Score (of 7)">{score.toFixed(1)}</td>
-              {ITEMS.map((item) => (
-                <td key={item.key} data-label={item.label}>{percent(row.filled[item.key] / row.products)}</td>
-              ))}
-              {atLeast !== null && <td data-label={shareLabel}>{percent(shareFilling(row, atLeast) ?? 0)}</td>}
-              {onOpen && (
-                <td data-label="Its products">
-                  <button
-                    type="button"
-                    className="button button--quiet"
-                    aria-expanded={openName === row.name}
-                    aria-controls="brand-details"
-                    aria-label={`Details for ${row.name}`}
-                    onClick={() => onOpen(row.name)}
-                  >
-                    Details
-                  </button>
-                </td>
-              )}
-            </tr>
-          ))}
-          <PadRows count={padCount(total, entries.length)} columns={4 + ITEMS.length + (atLeast !== null ? 1 : 0) + (onOpen ? 1 : 0)} />
+          {entries.map(({ row, rank, score }, i) => {
+            const open = openName === row.name;
+            const panelId = `${prefix}-panel-${i}`;
+            return (
+              <Fragment key={row.name}>
+                <tr className={onOpen ? 'brand-row brand-row--openable' : 'brand-row'} data-open={open} onClick={onOpen ? rowClick(row.name) : undefined}>
+                  <th scope="row"><Clip>{row.name}</Clip></th>
+                  <td data-label="Place">{rank}</td>
+                  <td data-label="Products held">{formatCount(row.products)}</td>
+                  <td data-label="Score (of 7)">{score.toFixed(1)}</td>
+                  {ITEMS.map((item) => (
+                    <td key={item.key} data-label={item.label}>{percent(row.filled[item.key] / row.products)}</td>
+                  ))}
+                  {atLeast !== null && <td data-label={shareLabel}>{percent(shareFilling(row, atLeast) ?? 0)}</td>}
+                  {onOpen && (
+                    <td data-label="Its products">
+                      <button
+                        type="button"
+                        className="button button--quiet brand-toggle"
+                        aria-expanded={open}
+                        aria-controls={panelId}
+                        aria-label={`Details for ${row.name}`}
+                        onClick={() => onOpen(row.name)}
+                      >
+                        Details
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                      </button>
+                    </td>
+                  )}
+                </tr>
+                {onOpen && (
+                  <tr className="brand-expand" data-open={open}>
+                    <td colSpan={columns} id={panelId} role="region" aria-labelledby={`${panelId}-title`}>
+                      <div className="brand-expand__panel">
+                        <div className="brand-expand__inner" inert={!open}>
+                          <div className="brand-expand__content">
+                            <BrandSpread row={row} titleId={`${panelId}-title`} />
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+          <PadRows count={padCount(total, entries.length)} columns={columns} />
         </tbody>
       </table>
     </div>
@@ -158,11 +180,12 @@ function BrandTable({ entries, total, openName, onOpen, sort }: { entries: Ranke
 
 function Brands({ rows, market }: { rows: BrandRow[]; market: Scope }) {
   const ranked = rankBrands(rows, market);
-  const [band, setBand] = useState<number | null>(null);
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<SortId>('score-high');
-  const [page, setPage] = useState(0);
-  const [openName, setOpenName] = useState<string | null>(null);
+  // The page's choices are kept for this tab: a refresh, or coming Back after a jump, finds them as they were.
+  const [band, setBand] = usePageState<number | null>(`band-${market}`, null);
+  const [query, setQuery] = usePageState(`query-${market}`, '');
+  const [sort, setSort] = usePageState<SortId>(`sort-${market}`, 'score-high');
+  const [page, setPage] = usePageState(`page-${market}`, 0);
+  const [openName, setOpenName] = usePageState<string | null>(`open-${market}`, null);
   const searchId = useId();
   const sortId = useId();
 
@@ -174,10 +197,11 @@ function Brands({ rows, market }: { rows: BrandRow[]; market: Scope }) {
   const typical = median(ranked.map((entry) => entry.score));
   const asOf = ranked[0].row.asOf;
   const hasDetails = ranked[0].row.spread !== null;
-  const openRow = ranked.find((entry) => entry.row.name === openName)?.row ?? null;
+  // Changing what is listed goes back to the first page and closes the open row.
   const change = <T,>(set: (value: T) => void) => (value: T) => {
     set(value);
     setPage(0);
+    setOpenName(null);
   };
 
   return (
@@ -221,15 +245,14 @@ function Brands({ rows, market }: { rows: BrandRow[]; market: Scope }) {
           <p className="data-problem" role="status">No brand matches. Try another spelling, or show all scores.</p>
         ) : (
           <>
-            {openRow && <BrandDetails row={openRow} onClose={() => setOpenName(null)} />}
             <BrandTable
               entries={shown.slice(start, end)}
               total={shown.length}
               openName={openName}
               sort={sort}
-              onOpen={hasDetails ? (name) => setOpenName((current) => (current === name ? null : name)) : null}
+              onOpen={hasDetails ? (name) => setOpenName(openName === name ? null : name) : null}
             />
-            <Pager total={shown.length} page={page} onPage={setPage} noun="brands" />
+            <Pager total={shown.length} page={page} onPage={(next) => { setPage(next); setOpenName(null); }} noun="brands" />
           </>
         )}
       </section>

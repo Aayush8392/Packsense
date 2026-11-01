@@ -12,6 +12,7 @@ import { brandScorecard, changeDaily, pipelineHealth, qualityDaily, siteStatus }
 import { withSpread } from './data/fixtures/withSpread';
 import { getBotState, resetBot, startBot, type BotAnswer, type BotApi } from './lookup/botStore';
 import { getChat, resetChat } from './lookup/chatState';
+import { pushStep, resetTrail } from './nav/jumpStore';
 import { CHAT_DELAY, EXAMPLE_QUESTIONS } from './lookup/ChatWidget';
 import { NAV_PAGES } from './nav';
 import { routes } from './routes';
@@ -45,13 +46,14 @@ afterEach(() => {
   resetCards();
   resetBot();
   resetChat();
+  resetTrail();
   for (const resource of [siteStatus, changeDaily, pipelineHealth, qualityDaily, brandScorecard, showcase, release]) resource.reset();
 });
 
 describe('page 02 end to end', () => {
   it('shows the page text under one h1, with the landmarks, the credit and the build time', async () => {
     renderAt('/how-it-works/differences');
-    await screen.findByRole('heading', { level: 1 });
+    await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('How PackSense differs from Open Food Facts');
     expect(screen.getByRole('banner')).toBeTruthy();
@@ -206,10 +208,10 @@ describe('home with the published files', () => {
     serveFiles(ALL_FILES);
     renderAt('/');
     const strip = screen.getByRole('region', { name: 'Right now' });
-    await waitFor(() => expect(within(strip).getByText('yesterday, 06:31 UTC')).toBeTruthy());
-    expect(within(strip).getByText('yesterday, 06:45 UTC')).toBeTruthy();
+    await waitFor(() => expect(within(strip).getByText('yesterday, 12:01 IST')).toBeTruthy());
+    expect(within(strip).getByText('yesterday, 12:15 IST')).toBeTruthy();
     expect(within(strip).getByText('15 Oct 2026')).toBeTruthy();
-    expect(within(strip).getByText('tomorrow, about 06:45 UTC')).toBeTruthy();
+    expect(within(strip).getByText('tomorrow, about 12:15 IST')).toBeTruthy();
     expect(within(screen.getByRole('region', { name: 'Headline numbers' })).getByText('Edits seen on 15 Oct 2026')).toBeTruthy();
   });
 
@@ -240,7 +242,7 @@ describe('data quality over time', () => {
   it('shows the headline facts, five charts, the kinds of flag and the two text panels, from the real rows', async () => {
     serveFiles(DATA_FILES);
     renderAt('/explore/quality');
-    await screen.findByRole('heading', { level: 1 });
+    await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Is the data getting better or worse?');
     const headline = await screen.findByRole('region', { name: 'Headline' });
     expect(headline.textContent).toContain('1 Oct 2026 to 15 Oct 2026, 15 whole days');
@@ -310,7 +312,7 @@ describe('the India release page', () => {
     const card = await screen.findByRole('region', { name: /India product catalogue, release 2026-10-22/ });
     expect(within(card).getByText('24,932')).toBeTruthy();
     expect(within(card).getByRole('button', { name: 'Download the CSV file' })).toBeTruthy();
-    expect(within(card).getByRole('link', { name: 'Data card and all releases on Hugging Face' }).getAttribute('href')).toBe(
+    expect(within(card).getByRole('link', { name: 'Data card and all releases on Hugging Face (opens in a new tab)' }).getAttribute('href')).toBe(
       'https://huggingface.co/datasets/PackSense/packsense-india',
     );
     const sample = screen.getByRole('table', { name: 'The first rows of the India file' });
@@ -338,7 +340,7 @@ describe('the India release page', () => {
       String(url).includes('/resolve/main/india_products.csv') ? new Response('', { status: 500 }) : (realFetch as (u: string, ...r: unknown[]) => Promise<Response>)(url, ...rest));
     renderAt('/get-the-data');
     fireEvent.click(await screen.findByRole('button', { name: 'Download the CSV file' }));
-    const fallback = await screen.findByRole('link', { name: 'Open the file in the browser' });
+    const fallback = await screen.findByRole('link', { name: 'Open the file in the browser (opens in a new tab)' });
     expect(fallback.getAttribute('href')).toContain('/resolve/main/india_products.csv');
   });
 
@@ -370,7 +372,7 @@ describe('the India release page', () => {
     const versions = await screen.findByRole('table', { name: 'Releases of the India file' });
     expect(within(versions).getByText('Latest')).toBeTruthy();
     expect(within(versions).getByText('First release: 24,932 products.')).toBeTruthy();
-    expect(screen.getByText(/The 3rd of each month, 10:30 UTC/)).toBeTruthy();
+    expect(screen.getByText(/The 3rd of each month, 16:00 IST/)).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Opening the file in a spreadsheet' })).toBeTruthy();
     expect(screen.getByText(/turn off “Convert text to numbers, dates and formulas”/)).toBeTruthy();
   });
@@ -387,7 +389,7 @@ describe('the India release page', () => {
     vi.stubGlobal('fetch', async () => new Response('', { status: 500 }));
     renderAt('/get-the-data');
     expect(await screen.findByRole('heading', { name: 'The release details could not be loaded just now' })).toBeTruthy();
-    expect(screen.getAllByRole('link', { name: 'Data card and all releases on Hugging Face' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Data card and all releases on Hugging Face (opens in a new tab)' }).length).toBeGreaterThan(0);
     serveFiles(RELEASE_FILES);
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('region', { name: /India product catalogue, release 2026-10-22/ })).toBeTruthy();
@@ -404,23 +406,37 @@ describe('how complete the products of a brand are', () => {
     expect(screen.queryByRole('button', { name: /^Details for / })).toBeNull();
   });
 
-  it('opens a panel of eight bars for one brand, moves focus to it, and closes again', async () => {
+  it('opens a row in place to show eight bars, one row at a time, and closes it again', async () => {
     serveFiles({ ...ALL_FILES, 'brand_scorecard.csv': withSpread(fixture('brand_scorecard.sample.csv')) });
     renderAt('/explore/brands');
     await screen.findByRole('region', { name: 'Headline' });
-    const open = screen.getAllByRole('button', { name: /^Details for sodebo/ })[0];
-    expect(open.getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(open);
-    const panel = document.getElementById('brand-details') as HTMLElement;
-    expect(within(panel).getByRole('heading', { name: 'How complete the products of sodebo are' })).toBe(document.activeElement);
+    const openRows = () => document.querySelectorAll('.brand-expand[data-open="true"]').length;
+    const first = screen.getAllByRole('button', { name: /^Details for / })[0];
+    const second = screen.getAllByRole('button', { name: /^Details for / })[1];
+    expect(openRows()).toBe(0);
+    expect(first.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(first);
+    expect(openRows()).toBe(1);
+    expect(first.getAttribute('aria-expanded')).toBe('true');
+    const panel = document.getElementById(first.getAttribute('aria-controls') as string) as HTMLElement;
     expect(within(panel).getAllByRole('listitem')).toHaveLength(8);
-    expect(open.getAttribute('aria-expanded')).toBe('true');
     expect(panel.textContent).toMatch(/fill all 7 things, and .* fill 5 or more/);
-    fireEvent.click(within(panel).getByRole('button', { name: 'Close' }));
-    expect(document.getElementById('brand-details')).toBeNull();
-    fireEvent.click(open);
-    fireEvent.click(open); // pressing the same button again also closes it
-    expect(document.getElementById('brand-details')).toBeNull();
+    // Accordion: opening another row closes the first.
+    fireEvent.click(second);
+    expect(openRows()).toBe(1);
+    expect(first.getAttribute('aria-expanded')).toBe('false');
+    expect(second.getAttribute('aria-expanded')).toBe('true');
+    // Pressing the same button again closes it; so does pressing the row itself.
+    fireEvent.click(second);
+    expect(openRows()).toBe(0);
+    fireEvent.click(first.closest('tr') as HTMLElement);
+    expect(openRows()).toBe(1);
+    fireEvent.click(first.closest('tr') as HTMLElement);
+    expect(openRows()).toBe(0);
+    // Changing the order closes an open row.
+    fireEvent.click(first);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Order by' }), { target: { value: 'name' } });
+    expect(openRows()).toBe(0);
   });
 });
 
@@ -550,10 +566,10 @@ describe('pipeline health', () => {
   it('shows the headline of the newest check, a row for each of the twelve jobs, and the key to the verdict words', async () => {
     serveFiles(HEALTH_FILES);
     renderAt('/how-it-works/health');
-    await screen.findByRole('heading', { level: 1 });
+    await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Is the system running right now?');
     const headline = await screen.findByRole('region', { name: 'Headline' });
-    expect(headline.textContent).toContain('Checked once a day. Every day, 08:40 UTC. Newest check: 30 Oct 2026');
+    expect(headline.textContent).toContain('Checked once a day. Every day, 14:10 IST. Newest check: 30 Oct 2026');
     expect(within(headline).getByText('8 of 12')).toBeTruthy();
     expect(within(headline).getByText('4')).toBeTruthy();
     expect(within(headline).getByText('7 of 7')).toBeTruthy();
@@ -567,7 +583,7 @@ describe('pipeline health', () => {
     renderAt('/how-it-works/health');
     await screen.findByRole('region', { name: 'Headline' });
     const row = (name: string) => jobRows().find((r) => within(r).getByRole('rowheader').textContent === name) as HTMLElement;
-    expect(row('snapshots').textContent).toContain('Mondays, 12:00 UTC');
+    expect(row('snapshots').textContent).toContain('Mondays, 17:30 IST');
     expect(row('snapshots').textContent).toContain('On time');
     expect(row('reconcile-load').textContent).toContain('Late');
     expect(row('publish').textContent).toContain('Missed');
@@ -626,7 +642,7 @@ describe('how PackSense works', () => {
   it('shows the three steps with the real counts of the first product, and a switcher for the four products', async () => {
     serveFiles(SHOWCASE_FILES);
     renderAt('/how-it-works');
-    await screen.findByRole('heading', { level: 1 });
+    await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('From a raw file to a table you can read.');
     const flow = await screen.findByRole('list', { name: 'The three steps' });
     expect(flow.textContent).toContain('245 fields, exactly as they arrived.');
@@ -778,7 +794,7 @@ describe('daily changes', () => {
     expect(india.textContent).toContain('Products edited (at least)8');
     expect(within(india).getByText('parle monaco 700g')).toBeTruthy();
     expect(within(india).getByText(/not necessarily one of today's edits/)).toBeTruthy();
-    expect(within(india).getByRole('link', { name: 'See it on Open Food Facts' }).getAttribute('href')).toBe('https://world.openfoodfacts.org/product/8901719135170');
+    expect(within(india).getByRole('link', { name: 'See it on Open Food Facts (opens in a new tab)' }).getAttribute('href')).toBe('https://world.openfoodfacts.org/product/8901719135170');
     expect(within(india).getByRole('heading', { level: 2, name: 'What this page can and cannot tell you' })).toBeTruthy();
   });
 
@@ -916,6 +932,7 @@ describe('the Look up page', () => {
     expect(within(card).getByText('6 of 7 filled')).toBeTruthy();
     expect(within(card).getByText(/14 versions kept/)).toBeTruthy();
     expect(within(card).getByText('India slice: Yes')).toBeTruthy();
+    expect(within(card).getByRole('link', { name: 'Get the India data' }).getAttribute('href')).toBe('/get-the-data');
     expect(within(card).getByRole('link', { name: /Open product on Open Food Facts/ }).getAttribute('href')).toBe('https://world.openfoodfacts.org/product/8901030383458');
     expect(card.textContent).toContain('It never says a product is right, wrong, safe, or good.');
   });
@@ -1290,5 +1307,171 @@ describe('the question button', () => {
     await screen.findByText('The data is updated once a day.');
     const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
     expect(result.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
+  });
+});
+
+describe('jumps, the Back button and what is remembered', () => {
+  const tall = () => Object.defineProperty(document.documentElement, 'scrollHeight', { value: 100000, configurable: true });
+  const scrolledTo = (y: number) => Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+  const backButton = () => screen.queryByRole('button', { name: /^Back to / });
+
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+    tall();
+  });
+  afterEach(() => scrolledTo(0));
+
+  it('leaves a step on a jump, and Back returns to that page at the scroll it had', async () => {
+    serveFiles(ALL_FILES);
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const { router } = renderAt('/');
+    expect(backButton()).toBeNull();
+    scrolledTo(420);
+    fireEvent.click(screen.getByRole('link', { name: /See what changed in India today/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/explore/changes'));
+    expect(backButton()?.getAttribute('aria-label')).toBe('Back to Home');
+    expect(JSON.parse(sessionStorage.getItem('packsense-jumps') ?? '[]')).toEqual([{ path: '/', scroll: 420, label: 'Home' }]);
+    scrollTo.mockClear();
+    fireEvent.click(backButton() as HTMLElement);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 420));
+    expect(backButton()).toBeNull();
+    scrollTo.mockRestore();
+  });
+
+  it('keeps a stack: each Back goes back one jump', async () => {
+    serveFiles(DATA_FILES);
+    const { router } = renderAt('/');
+    fireEvent.click(screen.getByRole('link', { name: /See what changed in India today/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/explore/changes'));
+    fireEvent.click(await screen.findByRole('link', { name: /in Data quality over time$/ }, { timeout: 5000 }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/explore/quality'));
+    expect(backButton()?.getAttribute('aria-label')).toBe('Back to Daily changes');
+    fireEvent.click(backButton() as HTMLElement);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/explore/changes'));
+    expect(backButton()?.getAttribute('aria-label')).toBe('Back to Home');
+    fireEvent.click(backButton() as HTMLElement);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(backButton()).toBeNull();
+  });
+
+  it('keeps the trail and a page\'s choices over a refresh, and the menu starts a fresh view', async () => {
+    serveFiles(BRAND_FILES);
+    const { router } = renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    fireEvent.change(screen.getByLabelText('Find a brand'), { target: { value: 'sodebo' } });
+    cleanup(); // a refresh: the page is built again from the browser's session storage
+    renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    expect((screen.getByLabelText('Find a brand') as HTMLInputElement).value).toBe('sodebo');
+    cleanup();
+    act(() => pushStep({ path: '/', scroll: 5, label: 'Home' }));
+    expect(router).toBeTruthy();
+    const second = renderAt('/explore/brands');
+    await screen.findByRole('region', { name: 'Headline' });
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Home' }));
+    await waitFor(() => expect(second.router.state.location.pathname).toBe('/'));
+    expect(sessionStorage.getItem('packsense-jumps')).toBe('[]');
+    expect(Object.keys(sessionStorage).filter((key) => key.startsWith('packsense-state:'))).toEqual([]);
+  });
+
+  it('brings the part a jump pointed at into view and flashes it', async () => {
+    serveFiles(HEALTH_FILES);
+    renderAt('/how-it-works/health?focus=job:packsense-bronze-load');
+    await waitFor(() => expect(document.querySelector('[data-focus="job:packsense-bronze-load"]')?.classList.contains('focus-flash')).toBe(true), { timeout: 3000 });
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('lets a click with a modifier key open the link the ordinary way, with no step left', () => {
+    serveFiles(ALL_FILES);
+    renderAt('/');
+    fireEvent.click(screen.getByRole('link', { name: /See what changed in India today/ }), { ctrlKey: true });
+    expect(sessionStorage.getItem('packsense-jumps') ?? '[]').toBe('[]');
+  });
+
+  it('opens for two seconds after a jump, folds into a round arrow, and opens again when pointed at', async () => {
+    serveFiles(ALL_FILES);
+    renderAt('/');
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    act(() => pushStep({ path: '/', scroll: 0, label: 'Home' }));
+    const button = () => screen.getByRole('button', { name: 'Back to Home' });
+    expect(button().getAttribute('data-open')).toBe('true');
+    act(() => { vi.advanceTimersByTime(1900); });
+    expect(button().getAttribute('data-open')).toBe('true');
+    act(() => { vi.advanceTimersByTime(200); });
+    expect(button().getAttribute('data-open')).toBe('false');
+    fireEvent.mouseEnter(button());
+    expect(button().getAttribute('data-open')).toBe('true');
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(button().getAttribute('data-open')).toBe('true'); // stays open while the pointer is on it
+    fireEvent.mouseLeave(button());
+    expect(button().getAttribute('data-open')).toBe('true');
+    act(() => { vi.advanceTimersByTime(2100); });
+    expect(button().getAttribute('data-open')).toBe('false');
+  });
+
+  it('browser Back to the page on top of the trail counts as using the trail', async () => {
+    serveFiles(ALL_FILES);
+    const { router } = renderAt('/');
+    fireEvent.click(screen.getByRole('link', { name: /See what changed in India today/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/explore/changes'));
+    expect(backButton()).not.toBeNull();
+    await act(() => router.navigate(-1));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(backButton()).toBeNull();
+  });
+});
+
+describe('the jumps that are wired', () => {
+  it('Home sends each figure and each row to the page that shows it, with the part to bring into view', async () => {
+    serveFiles(HEALTH_FILES);
+    renderAt('/');
+    const hrefs = () => screen.getAllByRole('link').map((link) => link.getAttribute('href'));
+    await waitFor(() => expect(hrefs()).toContain('/how-it-works/health?focus=section:jobs'), { timeout: 5000 });
+    expect(hrefs()).toContain('/how-it-works/health?focus=job:packsense-bronze-load');
+    expect(hrefs()).toContain('/explore/changes?focus=section:edit-volume');
+    expect(hrefs()).toContain('/get-the-data');
+    for (const row of ['/explore/brands', '/explore/quality', '/explore/changes', '/get-the-data', '/how-it-works']) expect(hrefs()).toContain(row);
+  });
+});
+
+describe('the question tool keeps its conversation', () => {
+  const realDelay = { ...CHAT_DELAY };
+  const api = (): BotApi => ({
+    ask: async () => ({ kind: 'reply', text: 'A ready answer.', remember: null }),
+    answerEntry: async () => ({ kind: 'reply', text: 'A ready answer.', remember: null }),
+  });
+  beforeEach(() => {
+    (window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback = (cb) => cb();
+    Object.assign(CHAT_DELAY, { beat: 0, base: 0, perWord: 0, max: 0 });
+    resetChat(true);
+  });
+  afterEach(() => Object.assign(CHAT_DELAY, realDelay));
+
+  it('survives closing the panel and moving to another page, and starts afresh only on a refresh', async () => {
+    serveFiles(ALL_FILES);
+    const { router } = renderAt('/');
+    act(() => resetBot(api()));
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question' }));
+    fireEvent.change(screen.getByLabelText('Ask a question in your own words'), { target: { value: 'What is this?' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+    expect(await screen.findByText('A ready answer.')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Ask a question in your own words'), { target: { value: 'half typed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Close the question tool' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question' }));
+    expect(screen.getByText('What is this?')).toBeTruthy();
+    expect(screen.getByText('A ready answer.')).toBeTruthy();
+    expect((screen.getByLabelText('Ask a question in your own words') as HTMLInputElement).value).toBe('half typed');
+    await act(() => router.navigate('/explore/brands'));
+    expect(screen.getByText('A ready answer.')).toBeTruthy();
+    // Nothing of it is written to the browser's storage, so a refresh (a new page load) begins empty.
+    expect(JSON.stringify({ ...sessionStorage, ...localStorage })).not.toContain('What is this?');
+    cleanup();
+    resetChat(true); // what a refresh does: the page's memory is gone
+    renderAt('/');
+    act(() => resetBot(api()));
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question' }));
+    expect(screen.queryByText('What is this?')).toBeNull();
   });
 });

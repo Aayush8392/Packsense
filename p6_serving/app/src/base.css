@@ -621,7 +621,14 @@ main:focus {
 }
 .right-now dd {
   margin: var(--space-xs) 0 0;
+  min-width: 0;
   font-size: var(--text-body-lg);
+}
+/* The verdict is a pill on the health page (one line); in this narrow column it wraps inside its box instead of running into the next column. */
+.right-now .verdict {
+  max-width: 100%;
+  padding-block: var(--space-xs);
+  white-space: normal;
 }
 
 .home__lower {
@@ -649,12 +656,13 @@ main:focus {
 .do-list li + li {
   border-top: 1px solid var(--border);
 }
+/* Three strict columns in every row: the sentence, where it leads (one fixed width, right-aligned) and the arrow. On a narrow screen the place goes under the sentence. */
 .do-list a,
 .do-list__button {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 11rem 1.25rem;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
+  column-gap: var(--space-md);
   min-height: var(--tap);
   padding: var(--space-md) var(--space-lg);
   color: var(--fg);
@@ -683,14 +691,30 @@ main:focus {
 }
 .do-list__where {
   display: block;
-  margin-top: var(--space-xs);
   font-size: var(--text-small);
   font-weight: 600;
   color: var(--primary);
+  text-align: end;
 }
-.do-list a > :first-child,
-.do-list__button > :first-child {
-  flex: 1;
+.do-list a::after,
+.do-list__button::after {
+  text-align: end;
+}
+@media (max-width: 40rem) {
+  .do-list a,
+  .do-list__button {
+    grid-template-columns: minmax(0, 1fr) 1.25rem;
+  }
+  .do-list__where {
+    grid-column: 1;
+    margin-top: var(--space-xs);
+    text-align: start;
+  }
+  .do-list a::after,
+  .do-list__button::after {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
 }
 .not-do {
   padding: var(--space-lg);

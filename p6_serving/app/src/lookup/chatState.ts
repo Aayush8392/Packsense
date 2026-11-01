@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { resetConversation } from './chatStore';
 
 /**
  * Whether the question button is on the page, and whether its panel is open. The visitor decides: it starts hidden, the "Ask" button in the header (or the line on the home
@@ -69,5 +70,6 @@ export function setChatOpen(open: boolean): void {
 
 /** For tests: back to the starting state (hidden), or visible, without touching the browser's storage. */
 export function resetChat(visible = false): void {
+  resetConversation();
   set({ visible, open: false });
 }

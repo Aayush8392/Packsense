@@ -160,9 +160,9 @@ describe('derived figures', () => {
   });
 
   it('says when the next update is due, in plain words', () => {
-    expect(nextUpdateDue(new Date('2026-10-28T05:00:00Z'))).toBe('today, about 06:45 UTC');
-    expect(nextUpdateDue(new Date('2026-10-28T06:45:00Z'))).toBe('tomorrow, about 06:45 UTC');
-    expect(nextUpdateDue(new Date('2026-10-28T17:00:00Z'))).toBe('tomorrow, about 06:45 UTC');
+    expect(nextUpdateDue(new Date('2026-10-28T05:00:00Z'))).toBe('today, about 12:15 IST');
+    expect(nextUpdateDue(new Date('2026-10-28T06:45:00Z'))).toBe('tomorrow, about 12:15 IST');
+    expect(nextUpdateDue(new Date('2026-10-28T17:00:00Z'))).toBe('tomorrow, about 12:15 IST');
   });
 });
 
@@ -171,9 +171,9 @@ describe('formats', () => {
     expect(formatCount(155134)).toBe('155,134');
     expect(formatDay('2026-10-27')).toBe('27 Oct 2026');
     const now = new Date('2026-10-28T12:00:00Z');
-    expect(describeMoment(new Date('2026-10-28T06:31:15Z'), now)).toBe('today, 06:31 UTC');
-    expect(describeMoment(new Date('2026-10-27T06:31:15Z'), now)).toBe('yesterday, 06:31 UTC');
-    expect(describeMoment(new Date('2026-10-23T06:31:15Z'), now)).toBe('23 Oct, 06:31 UTC');
+    expect(describeMoment(new Date('2026-10-28T06:31:15Z'), now)).toBe('today, 12:01 IST');
+    expect(describeMoment(new Date('2026-10-27T06:31:15Z'), now)).toBe('yesterday, 12:01 IST');
+    expect(describeMoment(new Date('2026-10-23T06:31:15Z'), now)).toBe('23 Oct, 12:01 IST');
   });
 
   it('keeps small flags-per-product values apart on an axis (0.05 is not 0.1)', () => {

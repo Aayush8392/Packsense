@@ -1,6 +1,10 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { startBot, useBot, type BotAnswer, type BotApi } from './botStore';
+import { useEffect, useId, useRef, type FormEvent } from 'react';
+import { startBot, useBot, type BotApi } from './botStore';
 import { hideChat, setChatOpen, useChat } from './chatState';
+import { CHAT_DELAY, ask, pick, setDraft, startAgain, submitDraft, useConversation, type Message } from './chatStore';
+
+// The tests set the pause through this name.
+export { CHAT_DELAY };
 
 /** Questions to try, each checked to give a real answer (or, for the second, the fixed reply about food advice). */
 export const EXAMPLE_QUESTIONS = ['Which brands fill in their products best?', 'Is this food safe to eat?', 'How often is the data updated?'];
@@ -8,23 +12,6 @@ export const EXAMPLE_QUESTIONS = ['Which brands fill in their products best?', '
 export const WELCOME = 'Ask about the data or how this site works. The answers were written and checked in advance, and nothing is invented while you wait.';
 
 const MAX_CHARACTERS = 300;
-
-/**
- * The rhythm of a reply: the question fades in at once; after `beat` milliseconds the "looking" lines fade in; the answer follows after at least `base` more, a little
- * longer for a longer answer (`perWord` each, up to `max`). A real lookup that takes longer than that is not delayed further. Exported so the tests can set it to zero.
- */
-export const CHAT_DELAY = { beat: 600, base: 900, perWord: 9, max: 1700 };
-
-function delayFor(answer: BotAnswer): number {
-  const text = answer.kind === 'answer' ? answer.parts.map((part) => part.answer).join(' ') : answer.kind === 'reply' ? answer.text : '';
-  const words = text.split(/\s+/).filter(Boolean).length;
-  return Math.min(CHAT_DELAY.max, CHAT_DELAY.base + words * CHAT_DELAY.perWord);
-}
-
-type Message =
-  | { id: number; from: 'you'; text: string }
-  | { id: number; from: 'bot'; paragraphs: string[] }
-  | { id: number; from: 'bot'; suggestions: { id: string; question: string }[]; close: boolean };
 
 /** The small "P" that marks the assistant's messages. */
 function Avatar() {
@@ -72,30 +59,8 @@ function Bubble({ message, onPick }: { message: Message; onPick: (id: string, qu
   );
 }
 
-/** Waits for the answer, then until the beat and `delayFor(answer)` have passed since the question was sent. */
-async function withPause(lookup: Promise<BotAnswer>): Promise<BotAnswer> {
-  const started = Date.now();
-  const answer = await lookup;
-  const wait = CHAT_DELAY.beat + delayFor(answer) - (Date.now() - started);
-  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-  return answer;
-}
-
-function toMessage(id: number, answer: BotAnswer): Message {
-  if (answer.kind === 'answer') return { id, from: 'bot', paragraphs: answer.parts.map((part) => part.answer) };
-  if (answer.kind === 'suggestions') return { id, from: 'bot', suggestions: answer.items, close: answer.close };
-  return { id, from: 'bot', paragraphs: [answer.text] };
-}
-
 function Conversation({ api, open }: { api: BotApi; open: boolean }) {
-  const [text, setText] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [looking, setLooking] = useState(false);
-  const turn = useRef(0);
-  const next = useRef(1);
-  // The entry the conversation last settled on, handed back with the next question so a short follow-up can lean on it.
-  const memory = useRef<string | null>(null);
+  const { messages, draft, busy, looking } = useConversation();
   const input = useRef<HTMLInputElement>(null);
   const log = useRef<HTMLDivElement>(null);
   const inputId = useId();
@@ -105,43 +70,11 @@ function Conversation({ api, open }: { api: BotApi; open: boolean }) {
   }, [open]);
   useEffect(() => {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
-  }, [messages, looking]);
-
-  async function run(shownAsYou: string, get: (prevId: string | null) => Promise<BotAnswer>) {
-    const mine = turn.current;
-    const you: Message = { id: next.current++, from: 'you', text: shownAsYou };
-    setMessages((all) => [...all, you]);
-    setBusy(true);
-    const lookTimer = setTimeout(() => {
-      if (mine === turn.current) setLooking(true);
-    }, CHAT_DELAY.beat);
-    const answer = await withPause(get(memory.current).catch((): BotAnswer => ({ kind: 'reply', text: 'Something went wrong while looking for an answer. Please try again.', remember: memory.current })));
-    clearTimeout(lookTimer);
-    if (mine !== turn.current) return;
-    memory.current = answer.remember ?? memory.current;
-    setLooking(false);
-    setMessages((all) => [...all, toMessage(next.current++, answer)]);
-    setBusy(false);
-  }
-
-  function startAgain() {
-    turn.current += 1;
-    memory.current = null;
-    setMessages([]);
-    setBusy(false);
-    setLooking(false);
-  }
-
-  function ask(question: string) {
-    void run(question, (prevId) => api.ask(question, prevId));
-  }
+  }, [messages, looking, open]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    const question = text.trim();
-    if (question === '' || busy) return;
-    setText('');
-    ask(question);
+    submitDraft(api);
   }
 
   return (
@@ -158,7 +91,7 @@ function Conversation({ api, open }: { api: BotApi; open: boolean }) {
                 <ul className="chat-topics">
                   {EXAMPLE_QUESTIONS.map((q) => (
                     <li key={q}>
-                      <button type="button" className="chat-chip" onClick={() => ask(q)} disabled={busy}>{q}</button>
+                      <button type="button" className="chat-chip" onClick={() => void ask(api, q)} disabled={busy}>{q}</button>
                     </li>
                   ))}
                 </ul>
@@ -166,7 +99,7 @@ function Conversation({ api, open }: { api: BotApi; open: boolean }) {
             </div>
           </li>
           {messages.map((message) => (
-            <Bubble key={message.id} message={message} onPick={(id, question) => void run(question, () => api.answerEntry(id))} />
+            <Bubble key={message.id} message={message} onPick={(id, question) => void pick(api, id, question)} />
           ))}
           {looking && (
             <li className="chat-msg chat-msg--bot">
@@ -192,10 +125,10 @@ function Conversation({ api, open }: { api: BotApi; open: boolean }) {
             maxLength={MAX_CHARACTERS}
             autoComplete="off"
             placeholder="Type your question"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
           />
-          <button type="submit" className="chat-send" aria-label="Ask" disabled={busy || text.trim() === ''}>
+          <button type="submit" className="chat-send" aria-label="Ask" disabled={busy || draft.trim() === ''}>
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>

@@ -3,6 +3,7 @@ import type { LineSeries } from '../charts/LineChart';
 import { Headline, LoadState, MarketSwitch, PageTitle, Panels, TextPanel, pageSections, useMarket } from '../components/pageParts';
 import { flagName } from '../data/flagNames';
 import { useResource } from '../data/resource';
+import { JumpLink } from '../nav/JumpLink';
 import { SEVERITIES, flagsPerProduct, productsHeld, qualityDays, topFamilies, type Scope } from '../data/series';
 import { qualityDaily, type QualityRow } from '../data/siteData';
 import { formatCount, formatDay, formatPerProduct as perProduct } from '../format';
@@ -43,8 +44,11 @@ function Charts({ rows, market }: { rows: QualityRow[]; market: Scope }) {
   return (
     <>
       <Headline range={`${formatDay(first)} to ${formatDay(last)}, ${days.length} whole days`} facts={facts} />
+      <p className="jump-line">
+        <JumpLink to={`/explore/changes?${market === 'india' ? 'market=india&' : ''}focus=section:edit-volume`}>See what changed on {formatDay(last)} in Daily changes</JumpLink>
+      </p>
 
-      <section className="chart-section" aria-labelledby="over-time">
+      <section className="chart-section" aria-labelledby="over-time" data-focus="section:over-time">
         <h2 id="over-time">Flags and products, day by day</h2>
         <div className="chart-grid chart-grid--two">
           <ChartCard

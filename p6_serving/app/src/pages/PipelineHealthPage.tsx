@@ -6,6 +6,7 @@ import {
   VERDICTS, checkDay, describeCron, formatAge, formatDuration, jobStatuses, runtimeSeries, serviceStatuses, verdictCounts, type JobStatus, type ServiceStatus,
 } from '../data/health';
 import { useResource } from '../data/resource';
+import { JumpLink } from '../nav/JumpLink';
 import { productsHeld } from '../data/series';
 import { pipelineHealth, qualityDaily, type HealthRow } from '../data/siteData';
 import { formatCount, formatDay } from '../format';
@@ -41,9 +42,12 @@ function JobsTable({ statuses, day }: { statuses: JobStatus[]; day: string }) {
           {statuses.map((status) => {
             const verdict = VERDICTS[status.verdict];
             return (
-              <tr key={status.job.name}>
+              <tr key={status.job.name} data-focus={`job:${status.job.name}`}>
                 <th scope="row">{status.job.name.replace('packsense-', '')}</th>
-                <td data-label="What it is for">{status.job.purpose}</td>
+                <td data-label="What it is for">
+                  {status.job.purpose}
+                  {status.job.name === 'packsense-release' && <> <JumpLink to="/get-the-data?focus=section:release-versions">See the release page</JumpLink></>}
+                </td>
                 <td data-label="When it runs">{status.when}</td>
                 <td data-label="Status">
                   <span className={`verdict verdict--${status.verdict}`}>
@@ -124,7 +128,7 @@ function Board({ rows }: { rows: HealthRow[] }) {
         ]}
       />
 
-      <section className="chart-section" aria-labelledby="jobs-title">
+      <section className="chart-section" aria-labelledby="jobs-title" data-focus="section:jobs">
         <h2 id="jobs-title">The scheduled jobs</h2>
         <p className="chart-section__note">
           Each job is judged against its own schedule. A daily job is on time for 30 hours after its last success, a weekly job for 8 days and a monthly job for 33 days. The age is measured at the daily check, not when you read this page.

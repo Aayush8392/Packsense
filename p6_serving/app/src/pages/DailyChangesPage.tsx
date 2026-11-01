@@ -1,9 +1,11 @@
 import { ChartCard } from '../charts/ChartCard';
 import type { LineSeries } from '../charts/LineChart';
+import { ExternalLink } from '../components/ExternalLink';
 import { Headline, LoadState, MarketSwitch, PageTitle, Panels, Segmented, TextPanel, pageSections, useChoice, useMarket } from '../components/pageParts';
 import { pageBySlug } from '../content';
 import example from '../data/indiaExample.json';
 import { useResource } from '../data/resource';
+import { JumpLink } from '../nav/JumpLink';
 import { KINDS, changeDays, changeSeries, kindsOnDay, type DayPoint, type Scope } from '../data/series';
 import { changeDaily, type ChangeRow } from '../data/siteData';
 import { formatCount, formatDay } from '../format';
@@ -60,10 +62,13 @@ function Main({ rows, market }: { rows: ChangeRow[]; market: Scope }) {
   return (
     <>
       <Headline range={`${formatDay(first)} to ${formatDay(last)}, ${days.length} whole days`} facts={facts} />
+      <p className="jump-line">
+        <JumpLink to={`/explore/quality?${market === 'india' ? 'market=india&' : ''}focus=section:over-time`}>See the open flags on {formatDay(last)} in Data quality over time</JumpLink>
+      </p>
 
       <section className="chart-section" aria-labelledby="edit-volume">
         <div className="chart-section__head">
-          <h2 id="edit-volume">Edits seen each day</h2>
+          <h2 id="edit-volume" data-focus="section:edit-volume">Edits seen each day</h2>
           <Segmented
             label="Chart view"
             value={view}
@@ -145,6 +150,7 @@ function IndiaToday({ rows }: { rows: ChangeRow[] }) {
     <section className="india-today" aria-labelledby="india-heading">
       <h2 id="india-heading">Today in India</h2>
       <p className="india-today__day">Newest complete day: {formatDay(last)}</p>
+      <p className="jump-line"><JumpLink to="/get-the-data">Download the India data</JumpLink></p>
       <h3>{page.heading}</h3>
       <div className="prose" dangerouslySetInnerHTML={{ __html: intro }} />
 
@@ -193,7 +199,10 @@ function IndiaToday({ rows }: { rows: ChangeRow[] }) {
             <p className="example__label">A real Indian product, shown as an example. It is not necessarily one of today's edits.</p>
             <p className="example__name">{example.name}</p>
             <p className="example__brand">{example.brand}</p>
-            <a href={example.offUrl}>See it on Open Food Facts</a>
+            <p className="example__links">
+              <JumpLink to={`/look-up?barcode=${example.barcode}`}>Look it up on PackSense</JumpLink>
+              <ExternalLink href={example.offUrl}>See it on Open Food Facts</ExternalLink>
+            </p>
           </aside>
         </div>
       </div>

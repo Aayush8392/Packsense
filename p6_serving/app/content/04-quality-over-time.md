@@ -19,7 +19,7 @@ Open Food Facts' software marks a product with a flag when something looks wrong
 - Flags are counted, not products. A product can carry many flags, and on average a product here carries about nine.
 - That number is steady. When the total goes up, it is mostly because more products are held, not because the data got worse.
 - Two kinds of flag make up most of the total (about four in five), so each kind is drawn on its own line. Otherwise they would hide everything else.
-- Only whole days are shown. OFF publishes its daily file from about 06:30 UTC to 06:30 UTC, so the newest day on the calendar is always incomplete and is left out.
+- Only whole days are shown. OFF publishes its daily file from about 12:00 IST to 12:00 IST, so the newest day on the calendar is always incomplete and is left out.
 
 ## What this page can and cannot tell you
 

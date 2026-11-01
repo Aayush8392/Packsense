@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router';
 import { pageBySlug } from '../content';
 import { showChat } from '../lookup/chatState';
+import { JumpLink, useJump } from '../nav/JumpLink';
 import { splitBlocks } from '../content/parse';
 import { dailyJobsVerdict, editsOnDay, nextUpdateDue, rightNow } from '../data/derive';
 import { useResource, type Loaded } from '../data/resource';
@@ -25,7 +25,7 @@ function splitLabel(block: string, label: string): { heading: string; body: stri
 }
 
 function BarcodeBox() {
-  const navigate = useNavigate();
+  const jump = useJump();
   const [value, setValue] = useState('');
   const [problem, setProblem] = useState('');
 
@@ -37,7 +37,7 @@ function BarcodeBox() {
       return;
     }
     setProblem('');
-    navigate(`/look-up?barcode=${digits}`);
+    jump(`/look-up?barcode=${digits}`);
   }
 
   return (
@@ -122,22 +122,25 @@ export function Home({ now: given }: { now?: Date }) {
   const verdict = health.phase === 'ready' ? dailyJobsVerdict(health.data) : null;
   const anyFailed = [status, changes, health].some((l) => l.phase === 'error');
 
-  const numbers: { label: string; state: Settled; value: ReactNode }[] = [
+  // `to` makes the figure a jump to the page that shows it in full.
+  const numbers: { label: string; state: Settled; value: ReactNode; to?: string }[] = [
     { label: 'Products we hold', state: settle(status), value: statusData ? formatCount(statusData.productsAll) : '' },
-    { label: editsLabel, state: settle(status, changes), value: edits === null ? 'fewer than 5' : formatCount(edits) },
-    { label: 'Products in the India slice', state: settle(status), value: statusData ? formatCount(statusData.productsIndia) : '' },
+    { label: editsLabel, state: settle(status, changes), value: edits === null ? 'fewer than 5' : formatCount(edits), to: '/explore/changes?focus=section:edit-volume' },
+    { label: 'Products in the India slice', state: settle(status), value: statusData ? formatCount(statusData.productsIndia) : '', to: '/get-the-data' },
   ];
 
-  const facts: { label: string; state: Settled; value: ReactNode }[] = [
+  const facts: { label: string; state: Settled; value: ReactNode; to?: string }[] = [
     {
       label: "Open Food Facts' newest file arrived",
       state: settle(health),
       value: moments?.offFilePublished ? describeMoment(moments.offFilePublished, now) : 'not known yet',
+      to: '/how-it-works/health?focus=job:packsense-bronze-load',
     },
     {
       label: 'Our copy received it',
       state: settle(health),
       value: moments?.ourCopyReceived ? describeMoment(moments.ourCopyReceived, now) : 'not known yet',
+      to: '/how-it-works/health?focus=job:packsense-bronze-load',
     },
     {
       label: 'Daily jobs',
@@ -154,13 +157,15 @@ export function Home({ now: given }: { now?: Date }) {
       ) : (
         'not enough history to say'
       ),
+      to: '/how-it-works/health?focus=section:jobs',
     },
     {
       label: 'Newest complete day in the charts',
       state: settle(status),
       value: statusData ? formatDay(statusData.lastCompleteDay) : '',
+      to: '/explore/changes?focus=section:edit-volume',
     },
-    { label: 'Next update due', state: 'ready', value: nextUpdateDue(now) },
+    { label: 'Next update due', state: 'ready', value: nextUpdateDue(now), to: '/how-it-works/health?focus=job:packsense-bronze-load' },
   ];
 
   return (
@@ -177,7 +182,7 @@ export function Home({ now: given }: { now?: Date }) {
           <div className="stat-card" key={number.label}>
             <p className="stat-card__label">{number.label}</p>
             <p className="stat-card__value">
-              <Figure state={number.state}>{number.value}</Figure>
+              <Figure state={number.state}>{number.to ? <JumpLink to={number.to}>{number.value}</JumpLink> : number.value}</Figure>
             </p>
           </div>
         ))}
@@ -202,7 +207,7 @@ export function Home({ now: given }: { now?: Date }) {
             <div key={fact.label}>
               <dt>{fact.label}</dt>
               <dd>
-                <Figure state={fact.state}>{fact.value}</Figure>
+                <Figure state={fact.state}>{fact.to ? <JumpLink to={fact.to}>{fact.value}</JumpLink> : fact.value}</Figure>
               </dd>
             </div>
           ))}
@@ -217,16 +222,14 @@ export function Home({ now: given }: { now?: Date }) {
               <li key={DO_LINKS[i].to}>
                 {DO_LINKS[i].to === '#chat' ? (
                   <button type="button" className="do-list__button" onClick={() => showChat(true)}>
-                    <span>
-                      <span className="do-list__text" dangerouslySetInnerHTML={{ __html: item }} />
-                      <span className="do-list__where">{DO_LINKS[i].where}</span>
-                    </span>
-                  </button>
-                ) : (
-                  <Link to={DO_LINKS[i].to}>
                     <span className="do-list__text" dangerouslySetInnerHTML={{ __html: item }} />
                     <span className="do-list__where">{DO_LINKS[i].where}</span>
-                  </Link>
+                  </button>
+                ) : (
+                  <JumpLink to={DO_LINKS[i].to}>
+                    <span className="do-list__text" dangerouslySetInnerHTML={{ __html: item }} />
+                    <span className="do-list__where">{DO_LINKS[i].where}</span>
+                  </JumpLink>
                 )}
               </li>
             ))}

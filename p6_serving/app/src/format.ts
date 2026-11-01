@@ -21,8 +21,22 @@ export function utcDay(moment: Date): string {
   return moment.toISOString().slice(0, 10);
 }
 
-function utcTime(moment: Date): string {
-  return `${moment.toISOString().slice(11, 16)} UTC`;
+/** India Standard Time is UTC+05:30 all year (no daylight saving). */
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+/** Moves a moment so that its UTC fields read as the clock on the wall in India. */
+function toIst(moment: Date): Date {
+  return new Date(moment.getTime() + IST_OFFSET_MS);
+}
+
+/** The calendar day in India of a moment, as "2026-10-27". */
+export function istDay(moment: Date): string {
+  return toIst(moment).toISOString().slice(0, 10);
+}
+
+/** The clock time in India of a moment, as "12:15 IST". */
+export function istTime(moment: Date): string {
+  return `${toIst(moment).toISOString().slice(11, 16)} IST`;
 }
 
 function addDays(iso: string, days: number): string {
@@ -31,14 +45,14 @@ function addDays(iso: string, days: number): string {
   return utcDay(moment);
 }
 
-/** A moment in plain words relative to now: "today, 06:31 UTC", "yesterday, 06:31 UTC" or "23 Oct, 06:31 UTC". */
+/** A moment in plain words relative to now, on the clock and calendar in India: "today, 12:01 IST", "yesterday, 12:01 IST" or "23 Oct, 12:01 IST". */
 export function describeMoment(moment: Date, now: Date): string {
-  const day = utcDay(moment);
-  const today = utcDay(now);
-  if (day === today) return `today, ${utcTime(moment)}`;
-  if (day === addDays(today, -1)) return `yesterday, ${utcTime(moment)}`;
+  const day = istDay(moment);
+  const today = istDay(now);
+  if (day === today) return `today, ${istTime(moment)}`;
+  if (day === addDays(today, -1)) return `yesterday, ${istTime(moment)}`;
   const [, month, dayOfMonth] = day.split('-').map(Number);
-  return `${dayOfMonth} ${MONTHS[month - 1]}, ${utcTime(moment)}`;
+  return `${dayOfMonth} ${MONTHS[month - 1]}, ${istTime(moment)}`;
 }
 
 export { addDays };

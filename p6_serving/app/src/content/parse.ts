@@ -105,6 +105,11 @@ export function splitBlocks(html: string): string[] {
   return html.match(/<(p|ul|ol|h2|h3)>[\s\S]*?<\/\1>|<div class="table-card">[\s\S]*?<\/table><\/div>/g) ?? [];
 }
 
+/** A link in a page text that leaves this site (starts with http) opens in a new tab. */
+export function openExternalInNewTab(html: string): string {
+  return html.replace(/<a href="(https?:\/\/[^"]*)"/g, '<a href="$1" target="_blank" rel="noopener noreferrer"');
+}
+
 export function parsePage(fileName: string, source: string): Page {
   const match = FRONT_MATTER.exec(source);
   if (!match) throw new Error(`${fileName}: front matter missing`);
@@ -116,7 +121,7 @@ export function parsePage(fileName: string, source: string): Page {
   const headingMatch = HEADING.exec(text);
   if (!headingMatch) throw new Error(`${fileName}: the text has no heading line`);
   const body = text.slice(headingMatch[0].length);
-  const rendered = frameTables(marked.parse(body, { async: false, gfm: true }) as string);
+  const rendered = frameTables(openExternalInNewTab(marked.parse(body, { async: false, gfm: true }) as string));
   // Home lays out its own bold lead-ins (in its own boxes), so only the other pages get callouts.
   const html = meta.slug === 'home' ? rendered : frameCallouts(rendered);
   return { fileName, meta, text, heading: headingMatch[1], html };

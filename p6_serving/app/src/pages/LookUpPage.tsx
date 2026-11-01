@@ -1,5 +1,8 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
+import { ExternalLink } from '../components/ExternalLink';
+import { showcaseKeyFor } from '../data/showcaseCodes';
+import { JumpLink } from '../nav/JumpLink';
 import { PageTitle, TextPanel, pageSections } from '../components/pageParts';
 import {
   CARD_DISCLAIMER, OFF_FLAGS_NOTE, SEED_NOTE, datesText, keyFieldsText, offFlagsText, offLink, rulesText, signalWords, statusNotice, versionsText,
@@ -8,15 +11,6 @@ import { lookupCard, resetCards, type Card, type Lookup } from '../data/cards';
 import { checkDigitOk, cleanTyped, hasBarcodeLength, variants } from '../lookup/barcode';
 
 type Outcome = { key: string; result: Lookup } | { key: string; failed: true };
-
-function ExternalLink({ href, children }: { href: string; children: string }) {
-  return (
-    <a className="button button--quiet" href={href} target="_blank" rel="noopener noreferrer">
-      {children}
-      <span className="visually-hidden"> (opens in a new tab)</span>
-    </a>
-  );
-}
 
 function CardView({ card, typed }: { card: Card; typed: string }) {
   const notice = statusNotice(card.existence);
@@ -60,7 +54,13 @@ function CardView({ card, typed }: { card: Card; typed: string }) {
           <dd>{versionsText(card)}<small>{datesText(card)}</small>{card.firstPeriodFromSeed && <small>{SEED_NOTE}</small>}</dd>
         </div>
       </dl>
-      <p className="lookup-card__action"><ExternalLink href={offLink(card.code)}>Open product on Open Food Facts</ExternalLink></p>
+      <p className="lookup-card__action">
+        <ExternalLink className="button button--quiet" href={offLink(card.code)}>Open product on Open Food Facts</ExternalLink>
+        {card.inIndia && <JumpLink className="button button--quiet" to="/get-the-data">Get the India data</JumpLink>}
+        {showcaseKeyFor(card.code) && (
+          <JumpLink className="button button--quiet" to={`/how-it-works?product=${showcaseKeyFor(card.code)}&focus=section:switcher`}>See how this product moves through PackSense</JumpLink>
+        )}
+      </p>
       <p className="lookup-card__disclaimer">{CARD_DISCLAIMER}</p>
     </article>
   );
@@ -78,7 +78,7 @@ function NotFound({ digits }: { digits: string }) {
       <p>
         <strong>Not in this copy.</strong> That does not mean the product is not on Open Food Facts.
       </p>
-      <p><ExternalLink href={offLink(digits)}>Check directly on Open Food Facts</ExternalLink></p>
+      <p><ExternalLink className="button button--quiet" href={offLink(digits)}>Check directly on Open Food Facts</ExternalLink></p>
     </div>
   );
 }
