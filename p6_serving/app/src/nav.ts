@@ -40,7 +40,7 @@ export const NAV_PAGES: NavPage[] = [
 
 /**
  * Pages whose text is not routed on its own: 'India today' (06) becomes a block inside Daily changes and 'Ask a question' (11) a panel
- * inside Look up. Their files stay in content/ until those pages are built (slices 3 and 6).
+ * inside Look up. Their text is shown inside those pages (slices 3 and 6).
  */
 export const FOLDED_SLUGS = ['india-today', 'ask-a-question'];
 

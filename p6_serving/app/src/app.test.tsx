@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import axe from 'axe-core';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -10,6 +10,9 @@ import { release } from './data/release';
 import { showcase } from './data/showcase';
 import { brandScorecard, changeDaily, pipelineHealth, qualityDaily, siteStatus } from './data/siteData';
 import { withSpread } from './data/fixtures/withSpread';
+import { getBotState, resetBot, startBot, type BotAnswer, type BotApi } from './lookup/botStore';
+import { getChat, resetChat } from './lookup/chatState';
+import { CHAT_DELAY, EXAMPLE_QUESTIONS } from './lookup/ChatWidget';
 import { NAV_PAGES } from './nav';
 import { routes } from './routes';
 
@@ -40,6 +43,8 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   resetCards();
+  resetBot();
+  resetChat();
   for (const resource of [siteStatus, changeDaily, pipelineHealth, qualityDaily, brandScorecard, showcase, release]) resource.reset();
 });
 
@@ -125,7 +130,7 @@ describe('article template', () => {
 });
 
 describe('home', () => {
-  it('has the hero, three headline numbers, the Right now strip, five things to do and the aside', () => {
+  it('has the hero, three headline numbers, the Right now strip, six things to do and the aside', () => {
     renderAt('/');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Packaged food data, checked every day.');
     const numbers = screen.getByRole('region', { name: 'Headline numbers' });
@@ -141,6 +146,7 @@ describe('home', () => {
       '/get-the-data',
       '/how-it-works',
     ]);
+    expect(within(list).getByRole('button', { name: /Ask a question about the data in plain words/ }).textContent).toContain('The Ask button in the page header');
     expect(screen.getByRole('heading', { level: 2, name: 'What PackSense does not do' })).toBeTruthy();
   });
 
@@ -884,13 +890,12 @@ describe('the Look up page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Look up' }));
   };
 
-  it('shows the privacy note, both tools and no result before anything is typed', () => {
+  it('shows the privacy note, the barcode tool and no result before anything is typed', () => {
     serveFiles(CARD_FILES);
     renderAt('/look-up');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('complementary', { name: 'Your privacy' }).textContent).toContain('first digits of the barcode');
     expect(screen.getByRole('heading', { name: 'Look up a barcode' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Ask a question' })).toBeTruthy();
     expect(screen.queryByLabelText(/Card for barcode/)).toBeNull();
     expect(document.title).toBe('Look up a barcode — PackSense');
   });
@@ -983,21 +988,302 @@ describe('the Look up page', () => {
     expect(await screen.findByRole('article', { name: 'Card for barcode 8901030383458' })).toBeTruthy();
   });
 
-  it('switches between the two tools on a phone and keeps the choice in the address', () => {
-    serveFiles(CARD_FILES);
-    const { router } = renderAt('/look-up');
-    const switcher = screen.getByRole('radiogroup', { name: 'Which tool' });
-    expect(document.getElementById('tool-barcode')?.getAttribute('data-active')).toBe('true');
-    fireEvent.click(within(switcher).getByRole('radio', { name: 'Ask a question' }));
-    expect(router.state.location.search).toBe('?tool=question');
-    expect(document.getElementById('tool-question')?.getAttribute('data-active')).toBe('true');
-    expect(document.getElementById('tool-barcode')?.getAttribute('data-active')).toBe('false');
-  });
-
   it('has no accessibility violations that jsdom can detect, with a card on screen', async () => {
     serveFiles(CARD_FILES);
     const { container } = renderAt('/look-up?barcode=8901030383458');
     await screen.findByRole('article', { name: 'Card for barcode 8901030383458' });
+    const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
+    expect(result.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
+  });
+});
+
+describe('the question button', () => {
+  const ANSWER: BotAnswer = { kind: 'answer', combined: false, remember: '5.1', parts: [{ question: 'How often is the data updated?', answer: 'The data is updated once a day.' }] };
+  const fakeApi = (answers: Record<string, BotAnswer>): BotApi & { asked: string[]; before: (string | null | undefined)[]; picked: string[] } => {
+    const asked: string[] = [];
+    const before: (string | null | undefined)[] = [];
+    const picked: string[] = [];
+    return {
+      asked,
+      before,
+      picked,
+      ask: async (text, prevId) => {
+        asked.push(text);
+        before.push(prevId);
+        return answers[text] ?? { kind: 'reply', text: 'No ready answer fits that question.', remember: null };
+      },
+      answerEntry: async (id) => {
+        picked.push(id);
+        return ANSWER;
+      },
+    };
+  };
+  const ready = (api: BotApi) => act(() => resetBot(api));
+  const launcher = () => screen.getByRole('button', { name: 'Ask a question' });
+  const open = () => fireEvent.click(launcher());
+  const box = () => screen.getByLabelText('Ask a question in your own words') as HTMLInputElement;
+  const ask = (text: string) => {
+    fireEvent.change(box(), { target: { value: text } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+  };
+
+  const realDelay = { ...CHAT_DELAY };
+  beforeEach(() => {
+    (window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback = (cb) => cb();
+    Object.assign(CHAT_DELAY, { beat: 0, base: 0, perWord: 0, max: 0 });
+    resetChat(true);
+  });
+  afterEach(() => {
+    Object.assign(CHAT_DELAY, realDelay);
+  });
+
+  it('is on every page, closed until it is pressed', () => {
+    for (const path of ['/', '/explore/brands', '/look-up']) {
+      renderAt(path);
+      expect(launcher().getAttribute('aria-expanded')).toBe('false');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('opens a panel that says it is getting ready, with the progress, until the bot is there', async () => {
+    renderAt('/');
+    open();
+    expect(screen.getByRole('dialog', { name: 'Ask a question' })).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toContain('Getting the question tool ready');
+    expect(screen.queryByLabelText('Ask a question in your own words')).toBeNull();
+    let report: (done: number, total: number) => void = () => {};
+    act(() => startBot({ load: (_base, onProgress) => { report = onProgress ?? report; return new Promise(() => {}); } }));
+    await vi.waitFor(() => expect(getBotState().phase).toBe('loading'));
+    act(() => report(5, 10));
+    expect(await screen.findByText(/ready… 50%/)).toBeTruthy();
+  });
+
+  it('offers a download instead of starting one on Data Saver, and a retry when loading failed', async () => {
+    vi.stubGlobal('navigator', { ...navigator, connection: { saveData: true } });
+    renderAt('/');
+    act(() => startBot());
+    open();
+    expect(await screen.findByRole('button', { name: 'Download it now' })).toBeTruthy();
+    expect(screen.getByText(/about 14 MB/)).toBeTruthy();
+    cleanup();
+    resetBot();
+    resetChat(true);
+    vi.unstubAllGlobals();
+    renderAt('/');
+    act(() => startBot({ load: async () => { throw new Error('offline'); } }));
+    open();
+    expect(await screen.findByText(/The question tool could not be loaded just now/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+  });
+
+  it('shows only the answer text, in a conversation, and starts again', async () => {
+    const api = fakeApi({ 'How often is the data updated?': ANSWER });
+    renderAt('/');
+    ready(api);
+    open();
+    expect(screen.getByText(/nothing is invented while you wait/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
+    ask('  How often is the data updated?  ');
+    const log = screen.getByRole('log', { name: 'Conversation' });
+    expect(await within(log).findByText('The data is updated once a day.')).toBeTruthy();
+    expect(within(log).getByText('How often is the data updated?')).toBeTruthy();
+    expect(screen.queryByText('Matched question')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'How often is the data updated?' })).toBeNull();
+    expect(api.asked).toEqual(['How often is the data updated?']);
+    expect(box().value).toBe('');
+    expect(within(log).queryByRole('button', { name: 'Is this food safe to eat?' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Start again' }));
+    expect(screen.queryByText('The data is updated once a day.')).toBeNull();
+    expect(within(log).getByRole('button', { name: 'Is this food safe to eat?' })).toBeTruthy();
+  });
+
+  it('asks the example questions with one press, and the box stops at 300 characters', async () => {
+    const api = fakeApi({});
+    renderAt('/');
+    ready(api);
+    open();
+    expect(box().getAttribute('maxlength')).toBe('300');
+    expect(EXAMPLE_QUESTIONS).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Is this food safe to eat?' }));
+    expect(await screen.findByText('No ready answer fits that question.')).toBeTruthy();
+    expect(api.asked).toEqual(['Is this food safe to eat?']);
+  });
+
+  it('shows two close answers one after the other, with no note and no question titles', async () => {
+    const both: BotAnswer = { kind: 'answer', combined: true, remember: 'q1', parts: [{ question: 'Q one?', answer: 'Answer one.' }, { question: 'Q two?', answer: 'Answer two.' }] };
+    renderAt('/');
+    ready(fakeApi({ 'both?': both }));
+    open();
+    ask('both?');
+    expect(await screen.findByText('Answer two.')).toBeTruthy();
+    expect(screen.getByText('Answer one.')).toBeTruthy();
+    expect(screen.queryByText(/Q one\?|Q two\?|fit this question about equally well/)).toBeNull();
+  });
+
+  const SUGGESTIONS = (close: boolean): BotAnswer => ({
+    kind: 'suggestions', close, remember: '6.1',
+    items: [{ id: '6.1', question: 'What is a flag?' }, { id: '8.4', question: 'How many products changed yesterday?' }, { id: '5.1', question: 'How often is the data updated?' }, { id: '2.3', question: 'Who adds information to Open Food Facts?' }],
+  });
+
+  it('offers up to four nearest questions, and a picked question is answered exactly', async () => {
+    const api = fakeApi({ 'something vague': SUGGESTIONS(true) });
+    renderAt('/');
+    ready(api);
+    open();
+    ask('something vague');
+    expect(await screen.findByText('These look closest to your question. Pick the one you mean:')).toBeTruthy();
+    const log = screen.getByRole('log', { name: 'Conversation' });
+    expect(within(log).getAllByRole('button', { name: /\?$/ })).toHaveLength(4);
+    fireEvent.click(within(log).getByRole('button', { name: 'How often is the data updated?' }));
+    expect(await within(log).findByText('The data is updated once a day.')).toBeTruthy();
+    expect(api.picked).toEqual(['5.1']);
+    expect(within(log).getAllByText('How often is the data updated?').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('says so plainly when none of the nearest questions is close', async () => {
+    renderAt('/');
+    ready(fakeApi({ 'far away': SUGGESTIONS(false) }));
+    open();
+    ask('far away');
+    expect(await screen.findByText(/Nothing here matches closely/)).toBeTruthy();
+    expect(screen.queryByText(/These look closest/)).toBeNull();
+  });
+
+  it('hands the last answer back with the next question, so a follow-up can lean on it, and forgets it on "Start again"', async () => {
+    const api = fakeApi({ 'How often is the data updated?': ANSWER });
+    renderAt('/');
+    ready(api);
+    open();
+    ask('How often is the data updated?');
+    await screen.findByText('The data is updated once a day.');
+    ask('and in India?');
+    await screen.findByText('No ready answer fits that question.');
+    ask('and then?');
+    await vi.waitFor(() => expect(api.asked).toHaveLength(3));
+    expect(api.before).toEqual([null, '5.1', '5.1']);
+    fireEvent.click(screen.getByRole('button', { name: 'Start again' }));
+    ask('a new question');
+    await vi.waitFor(() => expect(api.asked).toHaveLength(4));
+    expect(api.before[3]).toBeNull();
+  });
+
+  it('remembers the picked question too', async () => {
+    const api = fakeApi({ 'something vague': SUGGESTIONS(true), 'and the next one?': ANSWER });
+    renderAt('/');
+    ready(api);
+    open();
+    ask('something vague');
+    fireEvent.click(await screen.findByRole('button', { name: 'What is a flag?' }));
+    await screen.findByText('The data is updated once a day.');
+    ask('and the next one?');
+    await vi.waitFor(() => expect(api.asked).toHaveLength(2));
+    expect(api.before[1]).toBe('5.1');
+  });
+
+  it('shows the question at once, the looking lines after a beat, and the answer after a deliberate pause', async () => {
+    Object.assign(CHAT_DELAY, { beat: 300, base: 300, perWord: 0, max: 300 });
+    renderAt('/');
+    ready(fakeApi({ 'How often is the data updated?': ANSWER }));
+    open();
+    const sent = Date.now();
+    ask('How often is the data updated?');
+    const log = screen.getByRole('log', { name: 'Conversation' });
+    expect(within(log).getByText('How often is the data updated?')).toBeTruthy();
+    expect(within(log).queryByText('Looking for the closest answer…')).toBeNull();
+    expect(await within(log).findByText('Looking for the closest answer…')).toBeTruthy();
+    expect(within(log).queryByText('The data is updated once a day.')).toBeNull();
+    expect(await within(log).findByText('The data is updated once a day.')).toBeTruthy();
+    expect(Date.now() - sent).toBeGreaterThanOrEqual(580);
+    expect(within(log).queryByText('Looking for the closest answer…')).toBeNull();
+  });
+
+  it('drops an answer that arrives after "Start again"', async () => {
+    Object.assign(CHAT_DELAY, { beat: 0, base: 200, perWord: 0, max: 200 });
+    renderAt('/');
+    ready(fakeApi({ 'How often is the data updated?': ANSWER }));
+    open();
+    ask('How often is the data updated?');
+    fireEvent.click(screen.getByRole('button', { name: 'Start again' }));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(screen.queryByText('The data is updated once a day.')).toBeNull();
+    expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(box().value).toBe('');
+  });
+
+  it('starts hidden, and the Ask button in the header shows it and hides it again, remembering the choice', () => {
+    resetChat(false);
+    localStorage.removeItem('packsense-chat');
+    renderAt('/explore/brands');
+    expect(screen.queryByRole('button', { name: 'Ask a question' })).toBeNull();
+    const toggle = screen.getByRole('button', { name: 'Show the question button' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(launcher()).toBeTruthy();
+    expect(localStorage.getItem('packsense-chat')).toBe('on');
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('button', { name: 'Ask a question' })).toBeNull();
+    expect(localStorage.getItem('packsense-chat')).toBe('off');
+  });
+
+  it('is shown and opened by the line on the home page', () => {
+    resetChat(false);
+    renderAt('/');
+    expect(screen.queryByRole('button', { name: 'Ask a question' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Ask a question about the data in plain words/ }));
+    expect(screen.getByRole('dialog', { name: 'Ask a question' })).toBeTruthy();
+    expect(getChat()).toEqual({ visible: true, open: true });
+  });
+
+  it('can be hidden from inside the panel, and the header button then shows it again', () => {
+    renderAt('/');
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide the question button', description: undefined }) );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ask a question' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show the question button' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('gives the page the height of the header, so the panel can end below it', () => {
+    renderAt('/');
+    const header = document.querySelector('.site-header') as HTMLElement;
+    header.getBoundingClientRect = () => ({ height: 70 }) as DOMRect;
+    ready(fakeApi({}));
+    open();
+    expect(document.documentElement.style.getPropertyValue('--site-header-h')).toBe('70px');
+  });
+
+  it('closes with the button and with Escape, and focus goes back to the launcher', () => {
+    renderAt('/');
+    ready(fakeApi({}));
+    open();
+    expect(document.activeElement).toBe(box());
+    fireEvent.click(screen.getByRole('button', { name: 'Close the question tool' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(launcher());
+    open();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(launcher());
+  });
+
+  it('keeps the conversation while the visitor moves to another page', async () => {
+    const { router } = renderAt('/');
+    ready(fakeApi({ 'How often is the data updated?': ANSWER }));
+    open();
+    ask('How often is the data updated?');
+    await screen.findByText('The data is updated once a day.');
+    await act(() => router.navigate('/explore/brands'));
+    expect(screen.getByText('The data is updated once a day.')).toBeTruthy();
+  });
+
+  it('has no accessibility violations that jsdom can detect, with an answer on screen', async () => {
+    const { container } = renderAt('/look-up');
+    ready(fakeApi({ 'How often is the data updated?': ANSWER }));
+    open();
+    ask('How often is the data updated?');
+    await screen.findByText('The data is updated once a day.');
     const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
     expect(result.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
   });

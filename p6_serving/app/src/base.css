@@ -649,7 +649,8 @@ main:focus {
 .do-list li + li {
   border-top: 1px solid var(--border);
 }
-.do-list a {
+.do-list a,
+.do-list__button {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -659,10 +660,20 @@ main:focus {
   color: var(--fg);
   text-decoration: none;
 }
-.do-list a:hover {
+.do-list a:hover,
+.do-list__button:hover {
   background: var(--soft);
 }
-.do-list a::after {
+.do-list__button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.do-list a::after,
+.do-list__button::after {
   content: '→' / '';
   color: var(--primary);
 }
@@ -677,7 +688,8 @@ main:focus {
   font-weight: 600;
   color: var(--primary);
 }
-.do-list a > :first-child {
+.do-list a > :first-child,
+.do-list__button > :first-child {
   flex: 1;
 }
 .not-do {

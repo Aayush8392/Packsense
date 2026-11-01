@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { TABS, pageForPath, pagesInTab, tabById, type TabId } from '../nav';
+import { ChatWidget } from '../lookup/ChatWidget';
+import { AskToggle } from './AskToggle';
 import { Footer } from './Footer';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -80,6 +82,7 @@ export function Shell() {
         <div className="container site-header__inner">
           <Link className="brand" to="/">PackSense</Link>
           <div className="site-header__actions">
+            <AskToggle />
             <ThemeToggle />
             <Link className="button button--primary lookup-cta" to="/look-up">Look up barcode</Link>
             <button
@@ -112,6 +115,7 @@ export function Shell() {
         </div>
       </main>
       <Footer />
+      <ChatWidget />
     </div>
   );
 }

@@ -24,6 +24,7 @@ const TEXT_PAIRS: [string, string][] = [
   ['problem', 'card'],
   ['on-primary', 'primary'],
   ['on-primary', 'primary-hover'],
+  ['on-primary', 'primary-mid'],
   ['advisory-fg', 'advisory-bg'],
 ];
 

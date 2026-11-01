@@ -51,5 +51,7 @@ export default defineConfig(({ command }) => ({
   base: command === 'build' ? (process.env.APP_BASE ?? '/Packsense/') : '/',
   plugins: [react(), contentPlugin(), spaFallbackPlugin()],
   define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
+  // The bot's modules are plain JavaScript in p6_serving/bot/port (they also run in Node); the app imports them from there.
+  server: { fs: { allow: ['..'] } },
   test: { environment: 'jsdom', include: ['src/**/*.test.{ts,tsx}'] },
 }));

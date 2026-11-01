@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
-import { PageTitle, Segmented, TextPanel, pageSections, useChoice } from '../components/pageParts';
+import { PageTitle, TextPanel, pageSections } from '../components/pageParts';
 import {
   CARD_DISCLAIMER, OFF_FLAGS_NOTE, SEED_NOTE, datesText, keyFieldsText, offFlagsText, offLink, rulesText, signalWords, statusNotice, versionsText,
 } from '../data/cardWords';
@@ -83,7 +83,7 @@ function NotFound({ digits }: { digits: string }) {
   );
 }
 
-function BarcodeTool({ active }: { active: boolean }) {
+function BarcodeTool() {
   const [params, setParams] = useSearchParams();
   const fromAddress = params.get('barcode') ?? '';
   const [typed, setTyped] = useState(fromAddress);
@@ -142,7 +142,7 @@ function BarcodeTool({ active }: { active: boolean }) {
   }
 
   return (
-    <section className="lookup-tool" id="tool-barcode" aria-labelledby="barcode-heading" data-active={active}>
+    <section className="lookup-tool" id="tool-barcode" aria-labelledby="barcode-heading">
       <h2 id="barcode-heading">Look up a barcode</h2>
       <form onSubmit={submit} noValidate>
         <label htmlFor={inputId}>Type the number under a barcode (8 to 14 digits)</label>
@@ -177,20 +177,8 @@ function BarcodeTool({ active }: { active: boolean }) {
   );
 }
 
-function QuestionTool({ active }: { active: boolean }) {
-  return (
-    <section className="lookup-tool" id="tool-question" aria-labelledby="question-heading" data-active={active}>
-      <h2 id="question-heading">Ask a question</h2>
-      <p className="lookup-tool__hint">This tool is not available yet.</p>
-    </section>
-  );
-}
-
-const TOOLS = ['barcode', 'question'] as const;
-
-/** Look up, laid out like the Stitch design: the privacy note, then the barcode tool and the question tool side by side (one at a time on a phone). */
+/** Look up: the privacy note, then the barcode tool and what its card shows. (The question tool is the chat button on every page.) */
 export function LookUpPage() {
-  const [tool, setTool] = useChoice('tool', TOOLS);
   const { intro, sections } = pageSections('barcode-lookup');
   const privacy = sections.find((s) => s.title === 'Your privacy');
   return (
@@ -202,21 +190,7 @@ export function LookUpPage() {
           <div className="prose" dangerouslySetInnerHTML={{ __html: privacy.html }} />
         </aside>
       )}
-      <div className="lookup-switch">
-        <Segmented
-          label="Which tool"
-          value={tool}
-          onChange={setTool}
-          options={[
-            { id: 'barcode', label: 'Look up a barcode' },
-            { id: 'question', label: 'Ask a question' },
-          ]}
-        />
-      </div>
-      <div className="lookup-tools">
-        <BarcodeTool active={tool === 'barcode'} />
-        <QuestionTool active={tool === 'question'} />
-      </div>
+      <BarcodeTool />
       <TextPanel title="What the card shows" html={intro} id="lookup-card-shows" />
     </div>
   );

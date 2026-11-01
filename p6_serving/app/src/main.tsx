@@ -10,6 +10,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
+import { startBot } from './lookup/botStore';
 import { routes } from './routes';
 
 const router = createBrowserRouter(routes, { basename: import.meta.env.BASE_URL.replace(/\/$/, '') || '/' });
@@ -19,3 +20,6 @@ createRoot(document.getElementById('root') as HTMLElement).render(
     <RouterProvider router={router} />
   </StrictMode>,
 );
+
+// The question tool downloads in the background from the first page on (chunks, at an idle moment, skipped on Data Saver or a slow connection).
+startBot();

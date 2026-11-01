@@ -24,6 +24,7 @@ PackSense takes a copy of that database every morning and keeps every version of
 - See what changed in India today.
 - Download the India data for free.
 - See how raw data becomes the tables on this site, step by step, using real products.
+- Ask a question about the data in plain words. The Ask button in the page header shows or hides the question button.
 
 **What PackSense does not do.** It never says a product is right or wrong, because nobody holds the true figures. It says whether an entry agrees with itself and with Open Food Facts's own rules. The words used are "flagged" and "consistent".
 

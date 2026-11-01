@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { pageBySlug } from '../content';
+import { showChat } from '../lookup/chatState';
 import { splitBlocks } from '../content/parse';
 import { dailyJobsVerdict, editsOnDay, nextUpdateDue, rightNow } from '../data/derive';
 import { useResource, type Loaded } from '../data/resource';
@@ -14,6 +15,7 @@ const DO_LINKS: { to: string; where: string }[] = [
   { to: '/explore/changes', where: 'Daily changes' },
   { to: '/get-the-data', where: 'Get the data' },
   { to: '/how-it-works', where: 'How PackSense works' },
+  { to: '#chat', where: 'Show the question button' },
 ];
 
 function splitLabel(block: string, label: string): { heading: string; body: string } {
@@ -213,10 +215,19 @@ export function Home({ now: given }: { now?: Date }) {
           <ul>
             {items.map((item, i) => (
               <li key={DO_LINKS[i].to}>
-                <Link to={DO_LINKS[i].to}>
-                  <span className="do-list__text" dangerouslySetInnerHTML={{ __html: item }} />
-                  <span className="do-list__where">{DO_LINKS[i].where}</span>
-                </Link>
+                {DO_LINKS[i].to === '#chat' ? (
+                  <button type="button" className="do-list__button" onClick={() => showChat(true)}>
+                    <span>
+                      <span className="do-list__text" dangerouslySetInnerHTML={{ __html: item }} />
+                      <span className="do-list__where">{DO_LINKS[i].where}</span>
+                    </span>
+                  </button>
+                ) : (
+                  <Link to={DO_LINKS[i].to}>
+                    <span className="do-list__text" dangerouslySetInnerHTML={{ __html: item }} />
+                    <span className="do-list__where">{DO_LINKS[i].where}</span>
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
