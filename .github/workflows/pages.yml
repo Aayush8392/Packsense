@@ -1,6 +1,6 @@
 name: Build and publish the site (GitHub Pages)
 
-# The public site (p6_serving/site, Evidence) is built from the checked files that the Databricks job `packsense-publish` uploads to a private Hugging Face
+# The public site (the app in p6_serving/app) is built from the checked files that the Databricks job `packsense-publish` uploads to a private Hugging Face
 # dataset. This workflow holds only a READ token for that one dataset (secret HF_SITE_READ_TOKEN): no Databricks credential lives in GitHub, and no GitHub
 # token lives in Databricks. The files are verified against their manifest and the licence gate runs on them again before anything is built.
 # Not run for pull requests (it holds a secret). The schedule is a nominal 10:00 UTC; GitHub starts scheduled workflows hours late, which is accepted:
@@ -12,8 +12,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "p6_serving/site/**"
+      - "p6_serving/app/**"
+      - "p6_serving/bot/port/**"
       - "p6_serving/fetch_site_data.py"
+      - "p6_serving/assemble_app_data.py"
       - ".github/workflows/pages.yml"
 
 permissions:
@@ -49,25 +51,24 @@ jobs:
       - name: Licence gate on the showcase file (stand-ins only, images and hashed columns marked), when it is committed
         run: |
           if [ -f p6_serving/showcase/showcase.json ]; then python p5_governance/bootstrap/check_showcase.py p6_serving/showcase/showcase.json; else echo "no showcase file committed yet"; fi
-      - name: Put the data files where Evidence reads them
-        run: cp site_release/*.csv p6_serving/site/sources/site/
+      - name: Assemble the app's data folder (the checked site data, the bot bundle and the public India release; stops when a required file is missing)
+        run: python p6_serving/assemble_app_data.py site_release p6_serving/app/public/data
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: p6_serving/site/package-lock.json
-      - name: Install the pinned packages and build
-        working-directory: p6_serving/site
+          cache-dependency-path: p6_serving/app/package-lock.json
+      - name: Install the pinned packages, check and build the app
+        working-directory: p6_serving/app
         run: |
           npm ci --no-audit --no-fund
-          npm run sources:strict
-          npm run build:strict
-      - name: Put the product-card files next to the site (the barcode lookup reads them under /cards/)
-        run: cp -r site_release/cards p6_serving/site/build/cards
+          npm run lint
+          npm test
+          npm run build
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: p6_serving/site/build
+          path: p6_serving/app/dist
 
   deploy:
     needs: build

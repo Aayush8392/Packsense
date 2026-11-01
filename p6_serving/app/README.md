@@ -3,13 +3,13 @@
 The public front end is a fully custom static app (Vite, React and TypeScript, context amendment A85). It is built in eight slices; the owner moved it ahead of Phase E on 2026-10-28.
 **Slice 1 (this folder):** the design spec (`DESIGN_SPEC.md`), the scaffold, the colour and type tokens (`src/tokens.css`, light and dark), the shell (six tabs, a second-level row, a breadcrumb, a mobile
 menu, a footer with the Open Food Facts credit and the real build time), the router (every view has its own address; `404.html` is a copy of `index.html` so a deep link works on GitHub Pages) and the
-content loader, which turns each file in `content/` into a page at build time. Every routed page currently shows its text only; the data parts arrive in slices 2 to 7. Evidence stays live until slice 8.
+content loader, which turns each file in `content/` into a page at build time. Every routed page currently shows its text only; the data parts arrive in slices 2 to 7. The Pages workflow builds this app (slice 8); the Evidence site in `../site/` is no longer built and is retired in a later commit.
 
 Run it from this folder (Node 24): `npm ci --ignore-scripts`, then `npm run dev` (development), `npm test` (types are checked by `npm run typecheck`), `npm run lint` and `npm run build`.
 Packages are pinned exactly and were chosen at least two weeks after their release (`npm install --before=<date>`); `undici` is overridden to a patched release because `jsdom` (tests only) pulled in a vulnerable one.
 **Data (slice 2 on).** The app reads the published CSV files from its own `data/` folder (`site_status.csv`, `change_daily.csv`, `quality_daily.csv`, `pipeline_health.csv`; more in later slices) and never shows a number it did not read. For local
 development put the real files in `p6_serving/app/public/data/` (git ignores that folder): run `HF_SITE_READ_TOKEN=... python p6_serving/fetch_site_data.py Anonymous8392/packsense-site-data <folder>` and copy the CSVs there. The
-Pages workflow copies the same files next to the built app at cutover (slice 8). `src/data/fixtures/` holds real rows of the same files for the tests; `src/data/jobs.json` lists the pipeline jobs and their cadence (a test in
+Pages workflow builds the same folder with `p6_serving/assemble_app_data.py` (see the README of `p6_serving`, section "How the app is built and published"). Each page is its own file, loaded when its address is opened (`React.lazy` in `src/routes.tsx`); the question tool's code and its 15 MB bundle load only when the chat is used. `src/data/fixtures/` holds real rows of the same files for the tests; `src/data/jobs.json` lists the pipeline jobs and their cadence (a test in
 `p6_serving/tests/test_app_jobs.py` keeps it in step with the collector).
 
 **Slice 3:** the chart toolkit (`src/charts/`: our own SVG lines on d3-scale and d3-shape, drawn at the real width so text never shrinks; series differ by marker and dash as well as colour; each chart can be read with the arrow keys and

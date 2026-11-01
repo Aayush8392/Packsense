@@ -49,8 +49,9 @@ afterEach(() => {
 });
 
 describe('page 02 end to end', () => {
-  it('shows the page text under one h1, with the landmarks, the credit and the build time', () => {
+  it('shows the page text under one h1, with the landmarks, the credit and the build time', async () => {
     renderAt('/how-it-works/differences');
+    await screen.findByRole('heading', { level: 1 });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('How PackSense differs from Open Food Facts');
     expect(screen.getByRole('banner')).toBeTruthy();
@@ -239,6 +240,7 @@ describe('data quality over time', () => {
   it('shows the headline facts, five charts, the kinds of flag and the two text panels, from the real rows', async () => {
     serveFiles(DATA_FILES);
     renderAt('/explore/quality');
+    await screen.findByRole('heading', { level: 1 });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Is the data getting better or worse?');
     const headline = await screen.findByRole('region', { name: 'Headline' });
     expect(headline.textContent).toContain('1 Oct 2026 to 15 Oct 2026, 15 whole days');
@@ -548,6 +550,7 @@ describe('pipeline health', () => {
   it('shows the headline of the newest check, a row for each of the twelve jobs, and the key to the verdict words', async () => {
     serveFiles(HEALTH_FILES);
     renderAt('/how-it-works/health');
+    await screen.findByRole('heading', { level: 1 });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Is the system running right now?');
     const headline = await screen.findByRole('region', { name: 'Headline' });
     expect(headline.textContent).toContain('Checked once a day. Every day, 08:40 UTC. Newest check: 30 Oct 2026');
@@ -623,6 +626,7 @@ describe('how PackSense works', () => {
   it('shows the three steps with the real counts of the first product, and a switcher for the four products', async () => {
     serveFiles(SHOWCASE_FILES);
     renderAt('/how-it-works');
+    await screen.findByRole('heading', { level: 1 });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('From a raw file to a table you can read.');
     const flow = await screen.findByRole('list', { name: 'The three steps' });
     expect(flow.textContent).toContain('245 fields, exactly as they arrived.');

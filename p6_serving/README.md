@@ -64,6 +64,17 @@ the nightly policy job proves it (`packsense-policy-publish`). The bundle (`data
 5. From `p6_serving`: `databricks bundle deploy`, then run the job once with `dry_run=true`, then once for real; unpause by setting `publish_pause` to `UNPAUSED`.
 6. GitHub: secret `HF_SITE_READ_TOKEN`, variable `HF_SITE_REPO`, Pages source set to GitHub Actions. Redeploy the policy bundle (`p5_governance`) so the new principal is tested nightly.
 
+## How the app is built and published (slice 8, 2026-11-02)
+
+`.github/workflows/pages.yml` builds `app/` (not the Evidence site). Steps: `fetch_site_data.py` (the CSVs and `cards/` under `site/` of the private site-data dataset, and the question-bot bundle under `bot/`, each file checked against its manifest) -> the licence gate on what was fetched -> `assemble_app_data.py` (copies it into `app/public/data/`, adds the India release files from the PUBLIC dataset `PackSense/packsense-india`: manifest, data card and changelog checked against the release manifest, and `release/india_sample.csv` cut from the first 10 rows of `india_products.csv`; then checks ONE list of required files and stops when one is missing, including every chunk the bot manifest lists) -> `npm ci`, `npm run lint`, `npm test`, `npm run build` -> upload `app/dist`.
+
+The bot bundle cannot be made in the Pages build (it needs the model and torch). It is made on the laptop and uploaded by the owner whenever it changes:
+
+1. `node make_bot_bundle.mjs <folder>` from `p6_serving/bot/port` (needs the generated model files; see `bot/port/`).
+2. `HF_SITE_WRITE_TOKEN=... python p6_serving/bootstrap/upload_bot_bundle.py <folder>` (`--dry-run` first: it checks the folder like the build does; one commit replaces the whole `bot/` folder; `huggingface_hub` is needed on the laptop only).
+
+A data file the app starts to read must be added to `REQUIRED` in `assemble_app_data.py` (a test fails when the app names a file that is not listed); the bot file names in `fetch_site_data.BOT_REQUIRED` are kept equal to `make_bot_bundle.mjs` by a test.
+
 ## The site (`site/`)
 
 Evidence (open source, pinned: `@evidence-dev/evidence` 40.1.8, lock file committed; `npm ci` in CI). Pages: overview with build timestamp, brand scorecard, quality over time,

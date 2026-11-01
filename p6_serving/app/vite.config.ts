@@ -47,8 +47,9 @@ function spaFallbackPlugin(): Plugin {
   };
 }
 
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? (process.env.APP_BASE ?? '/Packsense/') : '/',
+export default defineConfig(({ command, isPreview }) => ({
+  // `vite preview` serves the built files, so it uses the built base too (the dev server stays at '/').
+  base: command === 'build' || isPreview ? (process.env.APP_BASE ?? '/Packsense/') : '/',
   plugins: [react(), contentPlugin(), spaFallbackPlugin()],
   define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
   // The bot's modules are plain JavaScript in p6_serving/bot/port (they also run in Node); the app imports them from there.
