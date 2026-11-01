@@ -12,6 +12,8 @@ export interface PageMeta {
   headline?: string;
   checked_claims?: string[];
   design_notes?: string[];
+  /** The four words and lines for a product card's signal (page 10). */
+  signal_labels?: Record<string, { label: string; line: string }>;
 }
 
 export interface Page {

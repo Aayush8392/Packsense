@@ -3,7 +3,6 @@ slug: barcode-lookup
 title: Look up a barcode
 section: Look up
 order: 10
-status: later
 question: What does PackSense know about this product?
 built_from: The product cards (cards/<prefix>.csv on this site; mart_product_card)
 lookup_rule: "Take the first 3 digits of the barcode; while that prefix is in cards/splits.json, take one more digit; fetch cards/<prefix>.csv; a missing file means 'not in our copy'. Barcode shapes (EAN-13, 12-digit UPC, EAN-8, GTIN-14, a missing leading zero) are checked with the check digit and variants are tried."
@@ -40,3 +39,7 @@ Type the number printed under a barcode. If the product is in this copy, you see
 The card shows no photos and no ingredient text. If the number is not found, it says "not in this copy". That does not mean the product is not on OFF.
 
 *The signal is a summary of the facts under it. It never says a product is right or wrong.*
+
+## Your privacy
+
+The barcode you type stays in your browser. To find the product, the page downloads one small file named after the first digits of the barcode, so this site's host can see those first digits and nothing more. Nothing is stored and no account is needed.

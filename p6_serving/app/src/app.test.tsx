@@ -5,6 +5,7 @@ import axe from 'axe-core';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetCards } from './data/cards';
 import { release } from './data/release';
 import { showcase } from './data/showcase';
 import { brandScorecard, changeDaily, pipelineHealth, qualityDaily, siteStatus } from './data/siteData';
@@ -38,6 +39,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  resetCards();
   for (const resource of [siteStatus, changeDaily, pipelineHealth, qualityDaily, brandScorecard, showcase, release]) resource.reset();
 });
 
@@ -872,5 +874,131 @@ describe('routes', () => {
   it('shows a plain not-found page for an unknown address', () => {
     renderAt('/nowhere');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('This page does not exist');
+  });
+});
+
+describe('the Look up page', () => {
+  const CARD_FILES = { 'splits.json': fixture('cards_splits.fixture.json'), '8901.csv': fixture('cards_8901.fixture.csv'), '004.csv': fixture('cards_004.fixture.csv') };
+  const lookUp = (code: string) => {
+    fireEvent.change(screen.getByLabelText(/Type the number under a barcode/), { target: { value: code } });
+    fireEvent.click(screen.getByRole('button', { name: 'Look up' }));
+  };
+
+  it('shows the privacy note, both tools and no result before anything is typed', () => {
+    serveFiles(CARD_FILES);
+    renderAt('/look-up');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('complementary', { name: 'Your privacy' }).textContent).toContain('first digits of the barcode');
+    expect(screen.getByRole('heading', { name: 'Look up a barcode' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Ask a question' })).toBeTruthy();
+    expect(screen.queryByLabelText(/Card for barcode/)).toBeNull();
+    expect(document.title).toBe('Look up a barcode — PackSense');
+  });
+
+  it('shows the card for a typed barcode, keeps the barcode in the address and links to Open Food Facts', async () => {
+    serveFiles(CARD_FILES);
+    const { router } = renderAt('/look-up');
+    lookUp(' 8901 0303-83458 ');
+    const card = await screen.findByRole('article', { name: 'Card for barcode 8901030383458' });
+    expect(router.state.location.search).toBe('?barcode=8901030383458');
+    expect(within(card).getByText('One thing flagged')).toBeTruthy();
+    expect(within(card).getByText(/0 errors · 3 warnings · 5 information/)).toBeTruthy();
+    expect(within(card).getByText('1 of 9 failed (2 checks could not be run)')).toBeTruthy();
+    expect(within(card).getByText('6 of 7 filled')).toBeTruthy();
+    expect(within(card).getByText(/14 versions kept/)).toBeTruthy();
+    expect(within(card).getByText('India slice: Yes')).toBeTruthy();
+    expect(within(card).getByRole('link', { name: /Open product on Open Food Facts/ }).getAttribute('href')).toBe('https://world.openfoodfacts.org/product/8901030383458');
+    expect(card.textContent).toContain('It never says a product is right, wrong, safe, or good.');
+  });
+
+  it('lands on a result from an address, as the Home box does', async () => {
+    serveFiles(CARD_FILES);
+    renderAt('/look-up?barcode=8901030383007');
+    const card = await screen.findByRole('article', { name: 'Card for barcode 8901030383007' });
+    expect(within(card).getByText('Several things flagged')).toBeTruthy();
+    expect(within(card).getByText(/came with the starting copy/)).toBeTruthy();
+    expect((screen.getByLabelText(/Type the number under a barcode/) as HTMLInputElement).value).toBe('8901030383007');
+  });
+
+  it('says so instead of showing a signal when the product was moved or removed, and for a code with nothing to check', async () => {
+    serveFiles(CARD_FILES);
+    renderAt('/look-up?barcode=8901030383113');
+    const gone = await screen.findByRole('article', { name: 'Card for barcode 8901030383113' });
+    expect(within(gone).getByText('Moved or removed on Open Food Facts')).toBeTruthy();
+    expect(within(gone).queryByText('Nothing flagged')).toBeNull();
+    cleanup();
+    renderAt('/look-up?barcode=8901030383229');
+    const empty = await screen.findByRole('article', { name: 'Card for barcode 8901030383229' });
+    expect(within(empty).getByText('Not enough data to check')).toBeTruthy();
+    expect(within(empty).getByText('None could be run: there is no nutrition table to check')).toBeTruthy();
+  });
+
+  it('finds a UPC typed without its leading zero', async () => {
+    serveFiles(CARD_FILES);
+    renderAt('/look-up?barcode=44000015923');
+    const card = await screen.findByRole('article', { name: 'Card for barcode 0044000015923' });
+    expect(card.textContent).toContain('Found under the stored form of the number you typed (44000015923)');
+  });
+
+  it('says "not in this copy" for a valid barcode that has no card, and adds the check-digit warning for one that does not add up', async () => {
+    serveFiles(CARD_FILES);
+    renderAt('/look-up?barcode=4006381333931');
+    expect(await screen.findByText(/Not in this copy\./)).toBeTruthy();
+    expect(screen.queryByText(/check digit does not add up/i)).toBeNull();
+    expect(screen.getByRole('link', { name: /Check directly on Open Food Facts/ }).getAttribute('href')).toBe('https://world.openfoodfacts.org/product/4006381333931');
+    cleanup();
+    renderAt('/look-up?barcode=4006381333932');
+    expect(await screen.findByText(/check digit does not add up/i)).toBeTruthy();
+    expect(screen.getByText(/Not in this copy\./)).toBeTruthy();
+  });
+
+  it('still shows the card of a product whose barcode fails the check, with its own notice', async () => {
+    serveFiles(CARD_FILES);
+    renderAt('/look-up?barcode=8901030383400');
+    const card = await screen.findByRole('article', { name: 'Card for barcode 8901030383400' });
+    expect(within(card).getByText('Not a valid barcode')).toBeTruthy();
+    expect(within(card).getByText(/Nothing flagged\./)).toBeTruthy();
+  });
+
+  it('asks again for letters and for the wrong length, and fetches nothing', () => {
+    const asked: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      asked.push(String(url));
+      return new Response('', { status: 404 });
+    });
+    renderAt('/look-up');
+    lookUp('89010x');
+    expect(screen.getByRole('alert').textContent).toContain('Enter digits only');
+    lookUp('1234567');
+    expect(screen.getByRole('alert').textContent).toBe('Enter 8 to 14 digits.');
+    expect(asked).toEqual([]);
+  });
+
+  it('says the files could not be loaded, and the retry works once they can', async () => {
+    serveFiles({});
+    renderAt('/look-up?barcode=8901030383458');
+    expect(await screen.findByText(/The card files could not be loaded just now/)).toBeTruthy();
+    serveFiles(CARD_FILES);
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('article', { name: 'Card for barcode 8901030383458' })).toBeTruthy();
+  });
+
+  it('switches between the two tools on a phone and keeps the choice in the address', () => {
+    serveFiles(CARD_FILES);
+    const { router } = renderAt('/look-up');
+    const switcher = screen.getByRole('radiogroup', { name: 'Which tool' });
+    expect(document.getElementById('tool-barcode')?.getAttribute('data-active')).toBe('true');
+    fireEvent.click(within(switcher).getByRole('radio', { name: 'Ask a question' }));
+    expect(router.state.location.search).toBe('?tool=question');
+    expect(document.getElementById('tool-question')?.getAttribute('data-active')).toBe('true');
+    expect(document.getElementById('tool-barcode')?.getAttribute('data-active')).toBe('false');
+  });
+
+  it('has no accessibility violations that jsdom can detect, with a card on screen', async () => {
+    serveFiles(CARD_FILES);
+    const { container } = renderAt('/look-up?barcode=8901030383458');
+    await screen.findByRole('article', { name: 'Card for barcode 8901030383458' });
+    const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false }, region: { enabled: false } } });
+    expect(result.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
   });
 });

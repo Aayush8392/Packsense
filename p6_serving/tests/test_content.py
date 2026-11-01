@@ -35,9 +35,9 @@ def test_there_are_twelve_pages_numbered_in_order_with_unique_slugs():
         assert m["section"] in SECTIONS and m["title"] and m["question"] and m["built_from"]
 
 
-def test_the_lookup_pages_are_marked_later_and_nothing_else_is():
+def test_the_question_page_is_marked_later_and_nothing_else_is():
     later = {m["slug"] for m, _ in PAGES.values() if m.get("status") == "later"}
-    assert later == {"barcode-lookup", "ask-a-question"}
+    assert later == {"ask-a-question"}
 
 
 def test_every_table_page_has_the_can_and_cannot_note():

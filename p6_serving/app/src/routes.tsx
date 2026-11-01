@@ -6,6 +6,7 @@ import { BrandsPage } from './pages/BrandsPage';
 import { DailyChangesPage } from './pages/DailyChangesPage';
 import { HowItWorksPage } from './pages/HowItWorksPage';
 import { Home } from './pages/Home';
+import { LookUpPage } from './pages/LookUpPage';
 import { NotFound } from './pages/NotFound';
 import { PipelineHealthPage } from './pages/PipelineHealthPage';
 import { QualityPage } from './pages/QualityPage';
@@ -20,6 +21,7 @@ function elementFor(slug: string) {
   if (slug === 'quality-over-time') return <QualityPage />;
   if (slug === 'daily-changes') return <DailyChangesPage />;
   if (slug === 'india-release') return <ReleasePage />;
+  if (slug === 'barcode-lookup') return <LookUpPage />;
   return <Article slug={slug} />;
 }
 
