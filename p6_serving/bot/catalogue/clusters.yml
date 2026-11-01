@@ -1,0 +1,40 @@
+# Answer clusters. Entries that answer the same reading of a question closely enough that either would satisfy the visitor.
+# When the two closest entries for a question share a cluster, that is not a real tie: the matcher answers with the closer one instead of asking "did you mean".
+# Rules for membership (written 2026-11-01 from the seven older labelled question sets only, never from the 2026-11 calibration or test questions):
+#   1. the labellers accepted the two entries TOGETHER for at least three questions, and for at least a third of the questions that accepted the rarer one;
+#   2. the answers were read: they overlap and a visitor would be satisfied by either, not merely share a topic. Complementary answers (for example the
+#      counts of changed products and of new products, which give different numbers) were left out;
+#   3. a family (families.yml) keeps priority: two entries of one family still give the hub, so only links ACROSS families matter here;
+#   4. an entry may sit in more than one cluster (round 2 widened the first 23 clusters this way); no deferred (unwritten) AI answers.
+- {name: licence_and_use, entries: ["2.10", "9.11", "2.11"]}
+- {name: free, entries: ["1.14", "2.9"]}
+- {name: free_and_licence, entries: ["2.9", "2.10"]}
+- {name: open_source, entries: ["1.15", "1.16"]}
+- {name: countries, entries: ["1.11", "1.12", "1.13", "9.19", "11.10"]}
+- {name: editor_names, entries: ["10.2", "10.3", "10.4"]}
+- {name: corrections, entries: ["11.16", "15.5", "4.5", "4.6", "4.7", "18.8"]}
+- {name: not_found, entries: ["7.26", "7.6", "7.7"]}
+- {name: freshness, entries: ["5.1", "5.4", "5.6", "5.7", "5.8"]}
+- {name: daily_run, entries: ["3.2", "5.1"]}
+- {name: run_time, entries: ["3.2", "5.9"]}
+- {name: failed_runs, entries: ["12.8", "5.12", "12.2"]}
+- {name: checks_and_flags, entries: ["6.2", "6.3", "6.3b", "6.4", "14.20", "18.5"]}
+- {name: flag_meaning, entries: ["6.1", "6.10", "6.18", "6.19"]}
+- {name: flag_who, entries: ["6.1", "6.2"]}
+- {name: several_flagged, entries: ["6.10", "6.15"]}
+- {name: product_history, entries: ["18.4", "3.7", "3.8", "11.14", "7.12"]}
+- {name: limits_and_advice, entries: ["1.7", "11.3", "15.13", "15.14"]}
+- {name: not_a_shop_app, entries: ["1.7", "1.8"]}
+- {name: card_limits, entries: ["11.5", "7.4"]}
+- {name: empty_fields, entries: ["11.9", "9.16"]}
+- {name: salt_sodium, entries: ["13.6", "13.17"]}
+- {name: india_file_contents, entries: ["9.2", "9.3", "9.8", "18.6", "18.7"]}
+- {name: crowd_editing, entries: ["2.3", "2.4"]}
+- {name: india_update_rhythm, entries: ["5.14", "9.20", "9.1"]}
+- {name: versus_off, entries: ["4.1", "4.2", "4.4", "4.9"]}
+- {name: card_fields, entries: ["7.15", "7.16", "18.1"]}
+- {name: no_photos_or_text, entries: ["2.13", "2.14", "7.4", "7.5"]}
+- {name: lookup, entries: ["7.1", "7.8", "18.3"]}
+- {name: trust, entries: ["11.1", "11.11", "6.9"]}
+- {name: how_it_works, entries: ["3.1", "3.3"]}
+- {name: about_the_ai, entries: ["16.14", "16.3"]}

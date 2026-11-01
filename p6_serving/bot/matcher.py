@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import difflib
 import math
+import os
 import re
 from collections import Counter
 from dataclasses import dataclass, field
@@ -39,6 +40,12 @@ EXTRA_SYNONYMS = {
 }
 if not __import__("os").environ.get("PACKSENSE_NO_SYN2"):
     SYNONYMS.update({k: v for k, v in EXTRA_SYNONYMS.items() if k not in SYNONYMS})
+# The owner-reviewed list of 2026-11-02 (catalogue/synonyms.yml), a switch like the one above: a word that is already mapped keeps its mapping. Off unless PACKSENSE_NEW_SYNONYMS is set.
+NEW_SYNONYMS = bool(os.environ.get("PACKSENSE_NEW_SYNONYMS"))
+if NEW_SYNONYMS:
+    _doc = cat.load_synonyms()
+    SYNONYMS.update({w: concept for concept, words in _doc["concepts"].items() for w in words if w not in SYNONYMS})
+    STOP.update(_doc["stop_words"])
 WEIGHT_WORD, WEIGHT_CHAR, WEIGHT_ANSWER = 0.55, 0.45, 0.12
 SUBJECTS = {"openfoodfacts", "packsense", "india", "brand", "card", "barcode", "flag", "check", "artificial", "contributor", "licens", "release", "chart"}
 SUBJECT_MISS = 0.07         # per subject word the query names that a wording lacks (and half of it the other way round)
@@ -96,8 +103,15 @@ def looks_not_english(q: str) -> bool:
     return accented / len(letters) > 0.08 or bool(ROMAN_HINDI.search(q) or OTHER_LANGUAGE_WORDS.search(q) or q.startswith(("¿", "¡")))
 
 
+STEMMER = os.environ.get("PACKSENSE_STEMMER", "")             # "" = the simple rule below (shipped); "porter" = the Porter stemmer (porter.py), under measurement
+
+
 def stem(w: str) -> str:
     w = SYNONYMS.get(w, w)
+    if STEMMER == "porter":
+        import porter
+        p = porter.stem(w)
+        return SYNONYMS.get(p, p)
     for suf in ("ing", "ed", "es", "s"):
         if len(w) > 4 and w.endswith(suf):
             w = w[: -len(suf)]
@@ -116,8 +130,13 @@ def opener(text: str) -> str:
     return ""
 
 
+CORRECT_VERB = re.compile(r"\b((?:let|lets|allow|allows|can|could|to|should|may)\s+(?:(?:i|we|you|they|people|users|visitors|anyone|someone|volunteers|contributors)\s+)?)correct\b")
+
+
 def tokens(text: str) -> list[str]:
     text = re.sub(r"\{[^}]*\}", " ", text.lower())
+    if NEW_SYNONYMS:
+        text = CORRECT_VERB.sub(r"\1fix", text)               # the verb goes to "fix"; the adjective stays "correct" (a rule, not a synonym)
     text = text.replace("'s", "").replace("open food facts", "openfoodfacts").replace("packsense", "packsense")
     words = [stem(w) for w in re.findall(r"[a-z0-9]+", text)]
     return [w for w in words if w not in STOP]
@@ -187,6 +206,18 @@ class Matcher:
                 self.family_of[eid] = k
         self.kind = {e["id"]: e.get("kind") for e in self.entries}
         self.use_families = True                              # False: the earlier behaviour (a tie shows the three closest)
+        self.cluster_of: dict[str, set[int]] = {}             # entry id -> the answer clusters it belongs to (clusters.yml; an entry may sit in several)
+        for k, c in enumerate(cat.load_clusters(all_entries)):
+            for eid in c["entries"]:
+                self.cluster_of.setdefault(eid, set()).add(k)
+        self.use_clusters = bool(os.environ.get("PACKSENSE_CLUSTERS"))       # OFF until adopted (decision pending the sealed test); set the variable to switch it on for A/B tests
+
+    def tied_by_design(self, a: str, b: str) -> bool:
+        """Two entries of one answer cluster, and not of one family, are not a real tie: either answers the question. (Entries of one family still give the hub.)"""
+        if not self.use_clusters or not (self.cluster_of.get(a, set()) & self.cluster_of.get(b, set())):
+            return False
+        fa = self.family_of.get(a)
+        return not (fa is not None and fa == self.family_of.get(b))
 
     def is_clear(self, top_id: str, top: float, rival: float, query: str) -> bool:
         margin = MARGIN + (SHORT_EXTRA if len(tokens(query)) <= 2 else 0.0)
@@ -197,7 +228,7 @@ class Matcher:
     def tie_result(self, ranked: list[tuple[str, float]], top: float, query: str = "") -> Result:
         """The top entry is a confident match but too close to a rival with a different answer. Same family: answer with the hub; otherwise ask which of the two."""
         top_id = ranked[0][0]
-        rival_id = next((i for i, _ in ranked[1:] if self.answers[i] != self.answers[top_id]), None)
+        rival_id = next((i for i, _ in ranked[1:] if self.answers[i] != self.answers[top_id] and not self.tied_by_design(top_id, i)), None)
         if not self.use_families or rival_id is None or any(rx.search(query) for rx in (REQUEST_CUE, ADVICE, HEALTH_MORE, MEDICAL, TRICK, NOT_OFFERED_CUE)):
             return Result("generic", None, top, ranked[:3])
         lex = getattr(self, "lex_last", None)                 # a hub or a pair needs real word overlap with one of the two entries, not only a close meaning
@@ -260,7 +291,7 @@ class Matcher:
             return Result("english_only")
         ranked = self.scores(q, skip_wording)
         top_id, top = ranked[0]
-        rival = next((s for i, s in ranked[1:] if self.answers[i] != self.answers[top_id]), 0.0)
+        rival = next((s for i, s in ranked[1:] if self.answers[i] != self.answers[top_id] and not self.tied_by_design(top_id, i)), 0.0)
         clear = self.is_clear(top_id, top, rival, q)
         if top < NEAR_EXACT:
             if TRICK.search(q):
@@ -329,7 +360,7 @@ def match_in_context(self: "Matcher", query: str, prev_id: str | None, follow_up
     ranked = [(eid, s + (0.0 if eid == prev_id else LAMBDA * dot(prev, cent.get(eid, {}))) + (BETA if eid in buttons else 0.0)) for eid, s in self.scores(query, skip_wording)]
     ranked.sort(key=lambda x: -x[1])
     top_id, top = ranked[0]
-    rival = next((s for i, s in ranked[1:] if self.answers[i] != self.answers[top_id]), 0.0)
+    rival = next((s for i, s in ranked[1:] if self.answers[i] != self.answers[top_id] and not self.tied_by_design(top_id, i)), 0.0)
     if top >= CONFIDENT and self.is_clear(top_id, top, rival, query):
         return Result("answer", top_id, top, ranked[:3])
     if top >= CONFIDENT:

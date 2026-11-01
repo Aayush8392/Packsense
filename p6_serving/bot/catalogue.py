@@ -82,6 +82,25 @@ def load_families(entries: list[dict] | None = None) -> list[dict]:
     return [{"name": f["name"], "hub": alias.get(f["hub"], f["hub"]), "details": {alias.get(k, k): v for k, v in f["details"].items()}} for f in raw]
 
 
+def load_clusters(entries: list[dict] | None = None) -> list[dict]:
+    """Answer clusters: [{name, entries: [ids]}], with aliases resolved to their targets. Entries of one cluster are interchangeable for the matcher's tie test."""
+    entries = entries or load_entries()
+    alias = {e["id"]: e["same_as"] for e in entries if e.get("same_as")}
+    raw = yaml.safe_load((CATALOGUE / "clusters.yml").read_text(encoding="utf-8")) or []
+    return [{"name": c["name"], "entries": [alias.get(i, i) for i in c["entries"]]} for c in raw]
+
+
+def load_synonyms() -> dict:
+    """catalogue/synonyms.yml: {"concepts": {concept: [words]} (the topics flattened, a concept shared between topics merged), "stop_words": [...]}."""
+    raw = yaml.safe_load((CATALOGUE / "synonyms.yml").read_text(encoding="utf-8"))
+    concepts: dict[str, list[str]] = {}
+    for rows in raw["topics"].values():
+        for concept, words in rows.items():
+            merged = concepts.setdefault(concept, [])
+            merged.extend(w for w in words if w not in merged)
+    return {"concepts": concepts, "stop_words": list(raw.get("stop_words", []))}
+
+
 # questions that share one answer with another entry (rewordings and cross-topic twins): question id -> entry id
 COVERS = {
     "1.1b": "1.1", "1.1c": "1.1", "1.2b": "1.2", "1.4b": "1.4", "1.11b": "1.11", "1.15b": "1.15", "2.1b": "2.1", "2.10b": "2.10", "3.1b": "3.1",

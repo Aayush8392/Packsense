@@ -168,6 +168,8 @@ export class Bot {
     });
     this.lexLast = null;
     this.centroids = null;
+    // (entry id, entry id) => true when two entries are not a real tie (Python tied_by_design); the shrunk bot sets it from the learned pairs
+    this.tiedByDesign = () => false;
   }
 
   // --- text -----------------------------------------------------------------------------------------------------------------------------------
@@ -313,8 +315,10 @@ export class Bot {
     if (this.k.VARIANT === "none" || !this.isLong(query)) return whole;
     const qs = this.questionPieces(query);
     if (!qs.length) return whole;
-    const best = new Map();
-    const lexBest = new Map();
+    // qmax: the best score per entry over the question pieces; allmax: the same, starting from the whole message (Python SegmentMatcher variants of the same names)
+    const allmax = this.k.VARIANT === "allmax";
+    const best = allmax ? new Map(whole) : new Map();
+    const lexBest = allmax ? new Map(this.lexLast) : new Map();
     for (const p of qs) {
       for (const [id, s] of this.hybridScores(p)) if (s > (best.has(id) ? best.get(id) : -9.0)) best.set(id, s);
       for (const [id, v] of this.lexLast) if (v > (lexBest.has(id) ? lexBest.get(id) : -9.0)) lexBest.set(id, v);
@@ -332,13 +336,13 @@ export class Bot {
 
   rivalOf(ranked) {
     const topAns = this.answers[ranked[0][0]];
-    for (let i = 1; i < ranked.length; i++) if (this.answers[ranked[i][0]] !== topAns) return ranked[i][1];
+    for (let i = 1; i < ranked.length; i++) if (this.answers[ranked[i][0]] !== topAns && !this.tiedByDesign(ranked[0][0], ranked[i][0])) return ranked[i][1];
     return 0.0;
   }
 
   tieResult(ranked, top, query = "") {
     const topId = ranked[0][0];
-    const rivalId = (ranked.slice(1).find(([id]) => this.answers[id] !== this.answers[topId]) || [null])[0];
+    const rivalId = (ranked.slice(1).find(([id]) => this.answers[id] !== this.answers[topId] && !this.tiedByDesign(topId, id)) || [null])[0];
     const r = this.rx;
     if (rivalId === null || [r.REQUEST_CUE, r.ADVICE, r.HEALTH_MORE, r.MEDICAL, r.TRICK, r.NOT_OFFERED_CUE].some((x) => x.test(query))) {
       return { action: "generic", entryId: null, score: top, ranked: ranked.slice(0, 3), options: [] };
@@ -412,17 +416,24 @@ export class Bot {
     return this.centroids;
   }
 
-  matchInContextSync(query, prevId) {
-    const base = this.matchSync(query);
+  /** The ranking with the memory of the last answer applied (Python match_in_context): only for a question that may lean on it (short, a pronoun, an opener). */
+  rankedWithContext(query, prevId) {
     prevId = this.canon(prevId);
-    if (!prevId || ["barcode", "english_only", "medical"].includes(base.action) || !this.isFollowUpCandidate(query)) return base;
+    if (!prevId || !this.isFollowUpCandidate(query)) return this.scores(query);
     const cent = this.getCentroids();
     const prev = cent.get(prevId) || new Map();
     const buttons = new Set(this.d.followups[prevId] || []);
     const empty = new Map();
-    const ranked = this.scores(query)
+    return this.scores(query)
       .map(([id, s]) => [id, s + (id === prevId ? 0.0 : this.k.LAMBDA * dot(prev, cent.get(id) || empty)) + (buttons.has(id) ? this.k.BETA : 0.0)])
       .sort((a, b) => b[1] - a[1]);
+  }
+
+  matchInContextSync(query, prevId) {
+    const base = this.matchSync(query);
+    prevId = this.canon(prevId);
+    if (!prevId || ["barcode", "english_only", "medical"].includes(base.action) || !this.isFollowUpCandidate(query)) return base;
+    const ranked = this.rankedWithContext(query, prevId);
     const [topId, top] = ranked[0];
     const rival = this.rivalOf(ranked);
     if (top >= this.k.CONFIDENT && this.isClear(topId, top, rival, query)) return { action: "answer", entryId: topId, score: top, ranked: ranked.slice(0, 3), options: [] };
