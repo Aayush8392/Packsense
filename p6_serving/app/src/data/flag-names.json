@@ -1,1 +1,24 @@
-{}
+{
+  "en:environmental-score-origins-of-ingredients-origins-are-100-percent-unknown": "Where the ingredients come from is not known at all, so that part of the environmental score cannot be worked out.",
+  "en:environmental-score-packaging-packaging-data-missing": "No packaging details were entered, so the environmental score leaves the packaging out.",
+  "en:environmental-score-packaging-unspecified-shape": "The shape of the packaging was not given, so it cannot be rated.",
+  "en:environmental-score-packaging-unscored-shape": "The packaging has a shape the environmental score has no rating for.",
+  "en:environmental-score-production-system-no-label": "No farming label (such as organic) is listed, so the product gets no credit for how it was farmed.",
+  "en:food-groups-1-known": "The broad food group is known (for example \"cereals\" or \"milk\").",
+  "en:food-groups-2-known": "The more specific food group is known too.",
+  "en:food-groups-3-unknown": "The most specific food group is not known.",
+  "en:packaging-data-incomplete": "Some packaging details are there, but some are missing (for example the material).",
+  "en:no-packaging-data": "No packaging details were entered at all.",
+  "en:nutrition-energy-value-in-kcal-does-not-match-value-in-kj": "The energy written in kcal and the energy written in kJ do not agree with each other.",
+  "en:nutrition-packaging-as-sold-100g-energy-value-in-kcal-does-not-match-value-in-kj": "Same problem, on the figures for the product as sold: the kcal and kJ energy do not agree.",
+  "en:nutrition-energy-value-in-kcal-does-not-match-value-computed-from-other-nutrients": "The energy figure does not match what the fat, carbohydrates and protein add up to.",
+  "en:nutrition-energy-value-in-kcal-may-not-match-value-computed-from-other-nutrients": "The energy figure may be off from what the fat, carbohydrates and protein add up to (a weaker warning).",
+  "en:nutrition-packaging-as-sold-100g-energy-value-in-kcal-does-not-match-value-computed-from-other-nutrients": "Same as above, on the figures for the product as sold.",
+  "en:nutrition-packaging-as-sold-100g-energy-value-in-kcal-may-not-match-value-computed-from-other-nutrients": "Same weaker warning, on the figures for the product as sold.",
+  "en:nutrition-sugars-plus-starch-plus-fiber-greater-than-carbohydrates-total": "Sugars, starch and fibre add up to more than the total carbohydrates, which cannot be right.",
+  "en:nutrition-value-very-high-for-category-energy": "The energy is unusually high for this kind of food.",
+  "en:nutrition-value-very-high-for-category-salt": "The salt is unusually high for this kind of food.",
+  "en:nutrition-value-very-high-for-category-proteins": "The protein is unusually high for this kind of food.",
+  "en:nutrition-value-under-0-001-g-salt": "The salt is written as under 0.001 g, which is probably a typing slip.",
+  "en:nutri-score-grade-from-label-does-not-match-calculated-grade": "The Nutri-Score letter on the pack differs from the one worked out from the nutrition figures."
+}

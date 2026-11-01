@@ -716,6 +716,15 @@
 .table-card--paged th:has(.clip) {
   white-space: normal;
 }
+.table-card--flags th,
+.table-card--flags td {
+  height: calc(4.8em + 2 * var(--pad));
+}
+.code--one {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .pad-row > td {
   border-top: 1px solid var(--border);
 }
@@ -801,7 +810,7 @@
   }
 }
 
-/* The India release: the download card, the credit line, the opening steps and the states. */
+/* The India release: the download card, the credit line, the opening note and the states. */
 .release-card__facts {
   display: flex;
   flex-wrap: wrap;
@@ -850,21 +859,6 @@
 .release-credit__status {
   font-size: var(--text-small);
   color: var(--fg-muted);
-}
-.steps {
-  display: grid;
-  gap: var(--space-lg);
-}
-.steps h3 {
-  margin: 0 0 var(--space-xs);
-  font-size: var(--text-title);
-}
-.steps ol {
-  margin: 0;
-  padding-inline-start: var(--space-lg);
-}
-.steps li + li {
-  margin-top: var(--space-xs);
 }
 .release-state p {
   margin: var(--space-sm) 0;

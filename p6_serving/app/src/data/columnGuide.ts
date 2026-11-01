@@ -1,5 +1,5 @@
 /**
- * What each column of the India file holds, in plain words. A draft for the owner to read and change: the file's data card lists the columns
+ * What each column of the India file holds, in plain words, as approved by the owner: the file's data card lists the columns
  * with how many rows are filled but does not say what they mean. A column that is in the file but not here is shown with a dash, so a new
  * column can never be shown with a wrong meaning.
  */

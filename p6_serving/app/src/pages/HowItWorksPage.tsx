@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { Clip, PAGE_SIZE, PadRows, Pager, padCount, pageWindow } from '../charts/Pager';
 import { LoadState, PageTitle, Panels, Segmented, TextPanel, pageSections, useChoice } from '../components/pageParts';
+import { flagLines } from '../data/flagNames';
 import { useResource } from '../data/resource';
 import {
   GOLD_VIEWS, doneRows, goldCell, rawRows, reasonFor, sameFieldRows, searchRows, showcase, silverRows,
@@ -8,6 +9,17 @@ import {
 } from '../data/showcase';
 import { signalFor } from '../data/signals';
 import { formatCount } from '../format';
+
+/** A flag's plain sentence with the Open Food Facts tag (or a notice that it is not yet explained) small underneath. */
+function FlagCell({ tag }: { tag: string }) {
+  const lines = flagLines(tag);
+  return (
+    <>
+      <Clip>{lines.name}</Clip>
+      {lines.small && <small className="code code--one">{lines.small}</small>}
+    </>
+  );
+}
 
 const KEYS = ['ordinary_food', 'several_flags', 'long_history', 'india'] as const;
 
@@ -174,7 +186,7 @@ function GoldTableCard({ view, product }: { view: GoldView; product: ShowcasePro
           <strong>{signalFor(card.light).label}.</strong> {signalFor(card.light).line}
         </p>
       )}
-      <div className="table-card table-card--figures table-card--gold table-card--paged">
+      <div className={`table-card table-card--figures table-card--gold table-card--paged${view.columns.some((c) => c.key === 'flag') ? ' table-card--flags' : ''}`}>
         <table>
           <caption className="visually-hidden">{view.title} for {product.name}</caption>
           <thead>
@@ -184,7 +196,11 @@ function GoldTableCard({ view, product }: { view: GoldView; product: ShowcasePro
             {rows.slice(start, end).map((row, i) => (
               <tr key={i}>
                 {view.columns.map((c, j) => (
-                  <td key={c.key} data-label={c.label}>{j === 0 ? <strong><Clip>{goldCell(row[c.key], c.as)}</Clip></strong> : <Clip>{goldCell(row[c.key], c.as)}</Clip>}</td>
+                  <td key={c.key} data-label={c.label}>
+                    {c.key === 'flag' && typeof row[c.key] === 'string' ? (
+                      <FlagCell tag={row[c.key] as string} />
+                    ) : j === 0 ? <strong><Clip>{goldCell(row[c.key], c.as)}</Clip></strong> : <Clip>{goldCell(row[c.key], c.as)}</Clip>}
+                  </td>
                 ))}
               </tr>
             ))}

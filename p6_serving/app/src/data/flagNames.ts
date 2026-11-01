@@ -20,3 +20,15 @@ export function flagName(tag: string): FlagName {
   const written = (plainNames as Record<string, string>)[tag];
   return written ? { name: written, plain: true } : { name: readableTag(tag), plain: false };
 }
+
+export interface FlagLines {
+  name: string;
+  /** The small line under the name: the Open Food Facts tag when the name is written, a plain notice when it is not, nothing for 'unmapped'. */
+  small: string | null;
+}
+
+export function flagLines(tag: string): FlagLines {
+  if (tag === 'unmapped') return { name: flagName(tag).name, small: null };
+  const found = flagName(tag);
+  return { name: found.name, small: found.plain ? tag : 'Open Food Facts label, not yet explained' };
+}

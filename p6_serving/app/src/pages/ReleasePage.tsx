@@ -72,7 +72,7 @@ function DownloadCard({ data }: { data: Release }) {
         <DownloadButton version={data.version} />
         <a className="button button--quiet" href={RELEASE_REPO}>Data card and all releases on Hugging Face</a>
       </p>
-      <p className="chart-section__note">The file is a plain CSV. It opens in any spreadsheet or data tool; read the steps below first so barcodes stay intact.</p>
+      <p className="chart-section__note">The file is a plain CSV. It opens in any spreadsheet or data tool; the note below says how to keep barcodes exact.</p>
     </section>
   );
 }
@@ -171,34 +171,10 @@ function CreditLine({ data }: { data: Release }) {
 function OpeningSteps() {
   return (
     <section className="chart-section" aria-labelledby="release-open">
-      <h2 id="release-open">How to open the file without breaking barcodes</h2>
+      <h2 id="release-open">Opening the file in a spreadsheet</h2>
       <p className="chart-section__note">
-        A spreadsheet that opens the file by double-click reads each barcode as a number. It drops leading zeros and turns long codes into a form like 8.9E+12, and that cannot be undone. Bring the file in through the import dialog instead.
+        The file is a plain CSV, and a spreadsheet that opens it by double-click may show a long barcode in a form like 8.9E+12, drop a leading zero, or turn text that looks like a date into a date. To keep every barcode exact, bring the file in with Data, then From Text/CSV in Excel, or turn off “Convert text to numbers, dates and formulas” when importing into Google Sheets, and set the “code” column to text. In code, read the “code” column as text; in Python with pandas that is <code>{"dtype={'code': str}"}</code>.
       </p>
-      <div className="steps">
-        <div>
-          <h3>In Excel</h3>
-          <ol>
-            <li>Open Excel with an empty sheet. Do not double-click the file.</li>
-            <li>Choose Data, then From Text/CSV, and pick the file.</li>
-            <li>Set File Origin to “65001: Unicode (UTF-8)”.</li>
-            <li>Press Transform Data. Select the “code” column and set its Data Type to Text.</li>
-            <li>Press Close &amp; Load.</li>
-          </ol>
-        </div>
-        <div>
-          <h3>In Google Sheets</h3>
-          <ol>
-            <li>Choose File, then Import, then Upload, and pick the file.</li>
-            <li>Set “Convert text to numbers, dates and formulas” to No.</li>
-            <li>Press Import data.</li>
-          </ol>
-        </div>
-        <div>
-          <h3>In code</h3>
-          <p>Read the “code” column as text. In Python with pandas that is <code>{"dtype={'code': str}"}</code>.</p>
-        </div>
-      </div>
     </section>
   );
 }

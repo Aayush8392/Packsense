@@ -354,23 +354,23 @@ describe('the India release page', () => {
     expect(written[0]).toContain('release 2026-10-22');
   });
 
-  it('lists the versions with the monthly schedule, and the steps to open the file without breaking barcodes', async () => {
+  it('lists the versions with the monthly schedule, and the note on opening the file in a spreadsheet', async () => {
     serveFiles(RELEASE_FILES);
     renderAt('/get-the-data');
     const versions = await screen.findByRole('table', { name: 'Releases of the India file' });
     expect(within(versions).getByText('Latest')).toBeTruthy();
     expect(within(versions).getByText('First release: 24,932 products.')).toBeTruthy();
     expect(screen.getByText(/The 3rd of each month, 10:30 UTC/)).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'How to open the file without breaking barcodes' })).toBeTruthy();
-    expect(screen.getByText(/Set “Convert text to numbers, dates and formulas” to No/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Opening the file in a spreadsheet' })).toBeTruthy();
+    expect(screen.getByText(/turn off “Convert text to numbers, dates and formulas”/)).toBeTruthy();
   });
 
-  it('says the first release is not published yet when the manifest is not there, and still shows the steps', async () => {
+  it('says the first release is not published yet when the manifest is not there, and still shows the note on opening the file', async () => {
     serveFiles({});
     renderAt('/get-the-data');
     expect(await screen.findByRole('heading', { name: 'The first release has not been published yet' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Download the CSV file' })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'How to open the file without breaking barcodes' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Opening the file in a spreadsheet' })).toBeTruthy();
   });
 
   it('says the details could not be loaded when a file fails, offers a retry, and still links the repository', async () => {
