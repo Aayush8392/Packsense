@@ -98,7 +98,11 @@ FEATURE_SCHEMA = T.StructType([
     T.StructField("completeness", T.DoubleType()), T.StructField("states_tags", T.ArrayType(T.StringType())),
     T.StructField("labels_tags", T.ArrayType(T.StringType())), T.StructField("countries_tags", T.ArrayType(T.StringType())),
     T.StructField("last_image_t", T.LongType()), T.StructField("max_imgid", T.IntegerType()), T.StructField("nutriscore_grade", T.StringType()),
-    T.StructField("nova_group", T.IntegerType()), T.StructField("rev", T.IntegerType())])
+    T.StructField("nova_group", T.IntegerType()), T.StructField("rev", T.IntegerType()),
+    T.StructField("compared_to_category", T.StringType()), T.StructField("nutriscore_score", T.IntegerType()), T.StructField("ingredients_n", T.IntegerType()),
+    T.StructField("unknown_ingredients_n", T.IntegerType()), T.StructField("known_ingredients_n", T.IntegerType()), T.StructField("additives_n", T.IntegerType()),
+    T.StructField("product_quantity", T.StringType()), T.StructField("product_quantity_unit", T.StringType()), T.StructField("obsolete", T.BooleanType()),
+    T.StructField("lang", T.StringType()), T.StructField("complete", T.IntegerType())])
 
 
 def append(table, rows, schema, batch=50000):

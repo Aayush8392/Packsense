@@ -581,7 +581,8 @@ def _off_style_parquet(tmp_path, nutriments_type=None):
         entries = [{"name": k, "value": None, "100g": v, "serving": None, "unit": "kJ" if k.startswith("energy") and k != "energy-kcal" else "g",
                     "prepared_value": None, "prepared_100g": None, "prepared_serving": None, "prepared_unit": None} for k, v in m.items()]
         extras = [lm - 1_000_000, lm, ["app"] if i % 3 else None, i, i % 5 if i % 2 else None, i % 5 if i % 2 else None, 0.8, ["en:nutrition-facts-completed"],
-                  None, ["en:india"], None if i % 4 == 0 else lm - 5, i % 6, "b", None, 3]     # plumbing values: NULL lists, a FLOAT, NULL numbers; the real check is the soak
+                  None, ["en:india"], None if i % 4 == 0 else lm - 5, i % 6, "b", None, 3,
+                      "en:snacks" if i % 2 else None, None, 4, 1, 3, i % 3, "100" if i % 2 else None, "g", i % 2 == 0, "en", 3]     # plumbing values: NULL lists, a FLOAT, NULL numbers; the real check is the soak
         con.execute("insert into src values (" + ",".join("?" * (9 + len(extras))) + ")",
                     [code, lm, entries or None, [f"xx:brand{i % 7}"], ["en:snacks", "en:biscuits"], "30 g", e, w, inf, *extras])
     path = tmp_path / "off_style.parquet"

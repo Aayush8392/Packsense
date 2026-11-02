@@ -289,7 +289,9 @@ def ddl(schema: str) -> dict[str, str]:
             nutrients MAP<STRING, DOUBLE>, n_nutrients INT, max_mass_g DOUBLE,
             created_t BIGINT, last_updated_t BIGINT, data_sources_tags ARRAY<STRING>, popularity_key BIGINT, scans_n INT, unique_scans_n INT,
             completeness DOUBLE, states_tags ARRAY<STRING>, labels_tags ARRAY<STRING>, countries_tags ARRAY<STRING>, last_image_t BIGINT,
-            max_imgid INT, nutriscore_grade STRING, nova_group INT, rev INT) USING DELTA""",
+            max_imgid INT, nutriscore_grade STRING, nova_group INT, rev INT,
+            compared_to_category STRING, nutriscore_score INT, ingredients_n INT, unknown_ingredients_n INT, known_ingredients_n INT, additives_n INT,
+            product_quantity STRING, product_quantity_unit STRING, obsolete BOOLEAN, lang STRING, complete INT) USING DELTA""",
         "snapshot_open_flags_manifest": f"""CREATE TABLE IF NOT EXISTS {schema}.snapshot_open_flags_manifest (
             snapshot_sha STRING, snapshot_date DATE, flag_rows BIGINT, products_with_flags BIGINT, products_in_snapshot BIGINT,
             rx_mb BIGINT, seconds DOUBLE, job_run_id STRING, finished_at TIMESTAMP, feature_rows BIGINT, products_with_nutrients BIGINT,
@@ -366,12 +368,19 @@ REQUIRED_TYPES = {"code": "VARCHAR", "last_modified_t": "BIGINT", "nutriments": 
 # Version 2 of the feature table (2026-10-28): 15 more columns of the same snapshot, chosen from the history look of that day (see the buildlog): only columns that are
 # filled at a stable share from 22 Mar 2026 on; no contributor column of any kind (names or lists of names), no retiring fields (`nutrition_data_per`, `no_nutrition_data`).
 # Types read from the 22 Mar and 27 Oct snapshots (identical). `completeness` is FLOAT in the file and becomes a DOUBLE through text, like the nutrient values.
-COLUMNS_VERSION = 2
+# Version 3 (2026-11-02): 11 more columns, chosen from the history look of that day and approved by the owner: the category the product is compared with, the Nutri-Score value,
+# the ingredient and additive counts, the product quantity, `obsolete`, `lang` and `complete`. Same rules: stable share, no contributor column or count, no retiring field.
+# `product_quantity` is VARCHAR in the file and stays text here. The columns of version 2 keep their positions.
+COLUMNS_VERSION = 3
 EXTRA_COLUMNS = (("created_t", "BIGINT"), ("last_updated_t", "BIGINT"), ("data_sources_tags", "VARCHAR[]"), ("popularity_key", "BIGINT"), ("scans_n", "INTEGER"),
                  ("unique_scans_n", "INTEGER"), ("completeness", "FLOAT"), ("states_tags", "VARCHAR[]"), ("labels_tags", "VARCHAR[]"), ("countries_tags", "VARCHAR[]"),
-                 ("last_image_t", "BIGINT"), ("max_imgid", "INTEGER"), ("nutriscore_grade", "VARCHAR"), ("nova_group", "INTEGER"), ("rev", "INTEGER"))
+                 ("last_image_t", "BIGINT"), ("max_imgid", "INTEGER"), ("nutriscore_grade", "VARCHAR"), ("nova_group", "INTEGER"), ("rev", "INTEGER"),
+                 ("compared_to_category", "VARCHAR"), ("nutriscore_score", "INTEGER"), ("ingredients_n", "INTEGER"), ("unknown_ingredients_n", "INTEGER"),
+                 ("known_ingredients_n", "INTEGER"), ("additives_n", "INTEGER"), ("product_quantity", "VARCHAR"), ("product_quantity_unit", "VARCHAR"),
+                 ("obsolete", "BOOLEAN"), ("lang", "VARCHAR"), ("complete", "INTEGER"))
 EXTRA_NAMES = tuple(n for n, _ in EXTRA_COLUMNS)
-EXTRA_SPARK_TYPES = ("BIGINT", "BIGINT", "ARRAY<STRING>", "BIGINT", "INT", "INT", "DOUBLE", "ARRAY<STRING>", "ARRAY<STRING>", "ARRAY<STRING>", "BIGINT", "INT", "STRING", "INT", "INT")
+EXTRA_SPARK_TYPES = ("BIGINT", "BIGINT", "ARRAY<STRING>", "BIGINT", "INT", "INT", "DOUBLE", "ARRAY<STRING>", "ARRAY<STRING>", "ARRAY<STRING>", "BIGINT", "INT", "STRING", "INT", "INT",
+                     "STRING", "INT", "INT", "INT", "INT", "INT", "STRING", "STRING", "BOOLEAN", "STRING", "INT")
 EXTRA_ARRAYS = tuple(i for i, (_, t) in enumerate(EXTRA_COLUMNS) if t.endswith("[]"))      # a NULL list is stored as an empty one
 BASE_FEATURE_FIELDS = 9                                                                     # code, lm, serving_size, brand, categories, names, values, n, max mass
 EXTRA_MIN_FILLED = ("created_t", "rev")                                                     # filled on 100% of products on every date looked at; under 99% means a broken read
@@ -381,7 +390,7 @@ REQUIRED_TYPES.update(dict(EXTRA_COLUMNS))
 
 
 def feature_extras(extra: list) -> list:
-    """The 15 extra values of one product as they are stored: a NULL list becomes an empty list, everything else stays."""
+    """The extra values of one product as they are stored: a NULL list becomes an empty list, everything else stays."""
     return [[] if (i in EXTRA_ARRAYS and v is None) else v for i, v in enumerate(extra)]
 
 
@@ -423,7 +432,7 @@ def _extra_select(name: str) -> str:
 
 
 def feature_rows(con, table: str) -> list[list]:
-    """[code, lm, serving_size, brand, categories, nutrient names, per-100 values, number of nutrients with a value, largest mass value, then the 15 EXTRA_COLUMNS] per product.
+    """[code, lm, serving_size, brand, categories, nutrient names, per-100 values, number of nutrients with a value, largest mass value, then the EXTRA_COLUMNS] per product.
     Values go FLOAT to text to DOUBLE so 68.8 stays 68.8 (a plain cast gives 68.80000305175781)."""
     core = "[" + ", ".join(f"'{k}'" for k in CORE_NUTRIENTS) + "]"
     sql = (f"select code, lm, serving_size, brand, categories_tags, list_transform(sel, x -> x.name), "

@@ -48,7 +48,7 @@ and info flags were not examined, and a numeric fix is not proof of a correct va
 
 **Open flags and product features (`notebooks/snapshot_open_flags.py`, task `open_flags` of the same job).** For the triage model (`p7_triage_ml`) each
 weekly snapshot also keeps the error flags and the nutrition-number warning families that are open on a product (`snapshot_open_flags`), and the product
-as it was that week (`snapshot_features`: nutrition per 100 g, brand, categories, serving size, and since 2026-10-28 (columns version 2) fifteen more
+as it was that week (`snapshot_features`: nutrition per 100 g, brand, categories, serving size, and since 2026-10-28 (columns version 2) fifteen more, since 2026-11-02 (columns version 3) eleven more (category comparison, Nutri-Score value, ingredient and additive counts, product quantity, `obsolete`, `lang`, `complete`)
 columns such as creation and update time, data sources, popularity, completeness, labels and Nutri-Score). A snapshot counts as done only when its manifest
 row carries the current `columns_version`, so a snapshot read before a column was added is read again. No contributor column of any kind is read: not names,
 not lists of names, not counts of them (a test checks the column names). The history starts at the 22 Mar 2026 snapshot: OFF rewrote its nutrition flag
