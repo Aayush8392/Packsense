@@ -188,7 +188,7 @@ which OFF quality flags (every error flag and the nutrition-number warning famil
 
 ### `workspace.packsense_snapshots.snapshot_features`: public
 
-what each product with an open flag looked like at one weekly snapshot of OFF's public dataset (serving size, first brand tag, category tags, the core nutrients per 100 g, and since 2026-10-28 creation and update time, data sources, popularity, completeness, states, labels, countries, image time, Nutri-Score, NOVA group and revision number; no contributor field). 26 columns: 26 public, 0 personal, 0 internal.
+what each product with an open flag looked like at one weekly snapshot of OFF's public dataset (serving size, first brand tag, category tags, the core nutrients per 100 g, and since 2026-10-28 creation and update time, data sources, popularity, completeness, states, labels, countries, image time, Nutri-Score, NOVA group and revision number, and since 2026-11-02 the category comparison, Nutri-Score value, ingredient and additive counts, product quantity, obsolete flag, language and completeness state; no contributor field). 37 columns: 37 public, 0 personal, 0 internal.
 
 ### `workspace.packsense_snapshots.snapshot_open_flags_manifest`: internal
 
