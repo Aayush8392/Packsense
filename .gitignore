@@ -98,3 +98,7 @@ p6_serving/app/designs/*.zip
 p6_serving/app/public/data/
 # The app's own source folder is called data too: keep it.
 !p6_serving/app/src/data/
+
+# one-off measuring scripts and probes (item 18, 19, 17 history look): not part of the product
+p7_triage_ml/bootstrap/measure_*.py
+p7_triage_ml/bootstrap/look_at_history.py
