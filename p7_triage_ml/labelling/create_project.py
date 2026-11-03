@@ -48,17 +48,18 @@ def main() -> None:
     ap.add_argument("--tasks", required=True)
     ap.add_argument("--env", required=True)
     ap.add_argument("--shuffle-seed", type=int)
+    ap.add_argument("--config", help="a Label Studio XML config to use instead of project_config.xml (the identity-pair labelling uses its own)")
     ap.add_argument("--discard-labels", action="store_true", help="with --replace: delete the project even if it holds labels (practice projects only)")
     ap.add_argument("--replace", action="store_true", help="delete a project with the same title first (practice projects only: its labels are lost)")
     args = ap.parse_args()
     tasks = json.loads(Path(args.tasks).read_text(encoding="utf-8"))
     if args.shuffle_seed is not None:
         random.Random(args.shuffle_seed).shuffle(tasks)
-    for t in tasks:
+    for t in tasks if not args.config else []:                      # the nutrition card lines belong to the gate's tasks only
         t["data"].update(cl.card_lines(t["data"]))
         t["data"].update(cl.glossary_lines(t["data"]))
     s, h = login(args.env)
-    config = (HERE / "project_config.xml").read_text(encoding="utf-8")
+    config = (Path(args.config) if args.config else HERE / "project_config.xml").read_text(encoding="utf-8")
     existing = [p for p in s.get(BASE + "/api/projects", headers=h, timeout=30).json().get("results", []) if p["title"] == args.title]
     if existing and args.replace:
         done = existing[0].get("total_annotations") or existing[0].get("num_tasks_with_annotations") or 0

@@ -1,0 +1,32 @@
+<View>
+  <Style>h6 { font-size: 14px !important; font-weight: 600 !important; margin: 3px 0 !important; } h5 { font-size: 16px !important; margin: 10px 0 3px !important; }</Style>
+  <Header value="$card"/>
+  <View style="display:flex; gap:24px">
+    <View style="width:50%">
+      <Header value="Product A" size="5"/>
+      <Image name="photo_a" value="$photo_a" zoom="true" zoomControl="true"/>
+      <Header value="$name_a" size="6"/>
+      <Header value="Brand: $brand_a" size="6"/>
+      <Header value="Pack size: $pack_a" size="6"/>
+      <Header value="Barcode: $barcode_a" size="6"/>
+      <Header value="On OFF: $link_a" size="6"/>
+    </View>
+    <View style="width:50%">
+      <Header value="Product B" size="5"/>
+      <Image name="photo_b" value="$photo_b" zoom="true" zoomControl="true"/>
+      <Header value="$name_b" size="6"/>
+      <Header value="Brand: $brand_b" size="6"/>
+      <Header value="Pack size: $pack_b" size="6"/>
+      <Header value="Barcode: $barcode_b" size="6"/>
+      <Header value="On OFF: $link_b" size="6"/>
+    </View>
+  </View>
+  <Header value="Are A and B the same product?" size="5"/>
+  <Choices name="label" toName="photo_a" choice="single-radio" showInline="true" required="true">
+    <Choice value="Same product, same size" hotkey="1"/>
+    <Choice value="Same product, different size" hotkey="2"/>
+    <Choice value="Different product" hotkey="3"/>
+    <Choice value="Cannot tell" hotkey="4"/>
+  </Choices>
+  <TextArea name="note" toName="photo_a" rows="2" placeholder="Note (optional)"/>
+</View>
