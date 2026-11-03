@@ -5,7 +5,7 @@
     'product_history', 'product_flag_spans', 'product_status', 'product_nutrition_sets', 'product_rule_verdicts', 'mart_product_card', 'dim_brand', 'dim_market', 'bridge_product_market', 'dim_date', 'dim_flag',
     'taxonomy_tag_latest', 'bridge_product_allergen', 'dim_allergen', 'taxonomy_name_lookup', 'mart_allergen_change_log',
     'bridge_product_category', 'dim_category', 'bridge_product_label', 'dim_label', 'fct_product_change_daily',
-    'fct_catalogue_quality_daily', 'mart_brand_scorecard', 'mart_category_fitness', 'mart_india_release'
+    'fct_catalogue_quality_daily', 'mart_brand_scorecard', 'mart_category_fitness', 'dim_brand_canonical', 'mart_india_release'
 ] %}
 {% for m in models %}
 select '{{ m }}' as model from (select count(*) as n from {{ ref(m) }}) as c where c.n = 0

@@ -33,6 +33,7 @@ MODELS = {
     "dim_category": ["category_tag"],
     "bridge_product_label": ["history_key", "label_tag"],
     "dim_label": ["label_tag"],
+    "dim_brand_canonical": ["brand_key"],
     "fct_product_change_daily": ["fact_key"],
     "fct_catalogue_quality_daily": ["fact_key"],
     "mart_brand_scorecard": ["scorecard_key"],

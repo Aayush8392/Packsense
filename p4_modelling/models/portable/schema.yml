@@ -532,6 +532,42 @@ models:
               arguments:
                 values: [0, 1]
 
+  - name: dim_brand_canonical
+    description: >
+      Canonical brand: one row per raw first brand of dim_brand and the canonical spelling of its group. Two strings are one brand only when their comparison
+      keys are equal (accents, case, punctuation, spacing, a leading 'the', legal words and one trailing 's' ignored); no similarity rule. canonical_name is the
+      most frequent spelling of the group. Nothing reads it yet: the brand scorecard still groups by the raw brand.
+    columns:
+      - name: brand_key
+        description: Hash of the raw brand string (the same key as dim_brand).
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_brand')
+                field: brand_key
+      - name: brand_name
+        data_tests: [not_null]
+      - name: canonical_brand_key
+        description: brand_key of the canonical spelling; a canonical spelling maps to itself.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_brand')
+                field: brand_key
+      - name: canonical_name
+        data_tests: [not_null]
+      - name: merge_rule
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['same', 'key', 'plural']
+      - name: n_products
+        data_tests: [not_null]
+
   - name: mart_india_release
     description: >
       India release mart: one row per India product as last observed (latest period lists the canonical India tag), without the products OFF said are gone
