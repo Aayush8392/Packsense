@@ -36,6 +36,7 @@ MODELS = {
     "fct_product_change_daily": ["fact_key"],
     "fct_catalogue_quality_daily": ["fact_key"],
     "mart_brand_scorecard": ["scorecard_key"],
+    "mart_category_fitness": ["category_fitness_key"],
     "mart_india_release": ["code"],
 }
 

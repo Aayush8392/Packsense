@@ -493,6 +493,45 @@ models:
               arguments:
                 values: [0, 1]
 
+  - name: mart_category_fitness
+    description: >
+      Category fitness: one row per scope (all or india) and top-level category (the first category tag), over the products we hold as they stood
+      at the end of the newest complete day (as_of_date). Counts of products with all five core nutrients, an ingredients fingerprint and a
+      quantity, products with a tracked change in the last 28 days, products whose last edit is over 365 days old, and an is_ranked flag
+      (200 or more products). Counts only; the reader computes the shares. For scope all, n_changed_28d is an artefact (read it for india).
+    columns:
+      - name: category_fitness_key
+        description: Hash of (scope, category); a rebuild reproduces the same keys.
+        data_tests: [unique, not_null]
+      - name: scope
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['all', 'india']
+      - name: category
+        data_tests: [not_null]
+      - name: as_of_date
+        data_tests: [not_null]
+      - name: n_products
+        data_tests: [not_null]
+      - name: n_five_nutrients
+        data_tests: [not_null]
+      - name: n_with_ingredients
+        data_tests: [not_null]
+      - name: n_with_quantity
+        data_tests: [not_null]
+      - name: n_changed_28d
+        data_tests: [not_null]
+      - name: n_stale_365d
+        data_tests: [not_null]
+      - name: is_ranked
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+
   - name: mart_india_release
     description: >
       India release mart: one row per India product as last observed (latest period lists the canonical India tag), without the products OFF said are gone
