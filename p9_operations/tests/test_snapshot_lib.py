@@ -128,12 +128,14 @@ def test_the_job_runs_weekly_without_retry_and_passes_no_secret_as_a_parameter()
     job = yaml.safe_load(res.read_text(encoding="utf-8"))["resources"]["jobs"]["snapshots"]
     assert job["name"] == "packsense-snapshots" and job["max_concurrent_runs"] == 1
     assert job["schedule"]["quartz_cron_expression"] == "0 0 12 ? * MON"
-    events, open_flags = job["tasks"]
-    assert events["task_key"] == "events" and open_flags["task_key"] == "open_flags"
+    events, open_flags, score = job["tasks"]
+    assert events["task_key"] == "events" and open_flags["task_key"] == "open_flags" and score["task_key"] == "score"
     assert open_flags["depends_on"] == [{"task_key": "events"}] and open_flags["run_if"] == "ALL_DONE"
-    for task, notebook in ((events, "snapshot_events.py"), (open_flags, "snapshot_open_flags.py")):
+    assert score["depends_on"] == [{"task_key": "open_flags"}] and "run_if" not in score          # the weekly scoring (item 20) runs only if open_flags succeeded
+    for task, notebook in ((events, "p9_operations/notebooks/snapshot_events.py"), (open_flags, "p9_operations/notebooks/snapshot_open_flags.py"),
+                           (score, "p7_triage_ml/notebooks/triage_score.py")):
         assert task["disable_auto_optimization"] is True
-        assert task["notebook_task"]["notebook_path"].endswith(f"p9_operations/notebooks/{notebook}")
+        assert task["notebook_task"]["notebook_path"].endswith(notebook)
         for name in task["notebook_task"]["base_parameters"]:
             assert not any(w in name.lower() for w in ("token", "password", "key", "hmac")), name
         assert Path(res.parent / task["notebook_task"]["notebook_path"]).resolve().is_file()
