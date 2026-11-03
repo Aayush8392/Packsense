@@ -9,6 +9,7 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+        update-types: ["minor", "patch"]     # a major version (for example TypeScript 6 to 7) comes as its own pull request, to be judged alone
   # The public app's packages (p6_serving/app). Versions are pinned exactly and chosen at least two weeks after release; each bump is reviewed on its merits.
   - package-ecosystem: "npm"
     directory: "/p6_serving/app"
@@ -20,6 +21,7 @@ updates:
     groups:
       app-packages:
         patterns: ["*"]
+        update-types: ["minor", "patch"]     # a major version (for example TypeScript 6 to 7) comes as its own pull request, to be judged alone
   # Add further ecosystems only when their manifests exist (more pip folders).
   # Python: version-update pull requests are OFF (limit 0). Dependabot edits the input files, not the hash locks, so every bump fails the lock check; the Python packages are bumped by hand
   # (move CUTOFF in tools/locks.py, `python tools/locks.py compile`). Security-advisory pull requests are a separate Dependabot feature and still open.
