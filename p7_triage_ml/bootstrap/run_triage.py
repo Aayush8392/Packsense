@@ -28,6 +28,7 @@ def main() -> int:
     ap.add_argument("--branch", default="main")
     ap.add_argument("--param", action="append", default=[], help="notebook widget, name=value")
     ap.add_argument("--timeout-min", type=int, default=90)
+    ap.add_argument("--notebook", default=NOTEBOOK, help="the notebook in the repo to run (triage_score for the weekly scoring)")
     args = ap.parse_args()
     if args.env_file:
         load_env_file(args.env_file)
@@ -38,9 +39,9 @@ def main() -> int:
     from databricks.sdk.service import jobs
     w = WorkspaceClient(host=os.environ["DATABRICKS_HOST"], token=os.environ["DATABRICKS_TOKEN"], auth_type="pat")
     waiter = w.jobs.submit(
-        run_name=f"packsense-triage-{params.get('mode', 'smoke')}", timeout_seconds=args.timeout_min * 60,
+        run_name=f"packsense-triage-{params.get('mode', args.notebook.rsplit('/', 1)[-1])}", timeout_seconds=args.timeout_min * 60,
         git_source=jobs.GitSource(git_url=REPO, git_provider=jobs.GitProvider.GIT_HUB, git_branch=args.branch),
-        tasks=[jobs.SubmitTask(task_key="triage", notebook_task=jobs.NotebookTask(notebook_path=NOTEBOOK, source=jobs.Source.GIT, base_parameters=params))])
+        tasks=[jobs.SubmitTask(task_key="triage", notebook_task=jobs.NotebookTask(notebook_path=args.notebook, source=jobs.Source.GIT, base_parameters=params))])
     print("submitted run", waiter.run_id, flush=True)
     try:
         run = waiter.result(timeout=timedelta(minutes=args.timeout_min))
