@@ -80,3 +80,63 @@ def test_the_exported_model_predicts_like_the_trained_scores_and_survives_a_roun
     assert tx.predict(bundle["model"], bundle["keep"], x) == pytest.approx(expected, abs=1e-12) and bundle["levels"] == levels
     with pytest.raises(ValueError, match="hash"):
         tx.load_bundle(tmp_path / "m.joblib", "0" * 64)
+
+
+# --- weekly scoring -----------------------------------------------------------------------------------------------------------------------------
+
+def _reg(version, stage, dates, created="2026-11-03"):
+    return {"version": version, "stage": stage, "train_snapshots": dates, "created_at": created}
+
+
+def test_the_weekly_run_scores_with_the_production_and_the_measured_version_and_refuses_a_registry_without_production():
+    rows = [_reg(1, "measured_reference", '["2026-07-26"]'), _reg(2, "production", '["2026-03-22"]'), _reg(3, "archived", '["2026-03-22"]')]
+    assert [v["version"] for v in tx.live_versions(rows)] == [2, 1] or [v["version"] for v in tx.live_versions(rows)] == [1, 2]
+    assert {v["stage"] for v in tx.live_versions(rows)} == {"production", "measured_reference"}
+    with pytest.raises(RuntimeError, match="no production"):
+        tx.live_versions([_reg(1, "measured_reference", '["2026-07-26"]')])
+    assert [v["version"] for v in tx.live_versions([_reg(2, "production", '["2026-03-22"]')])] == [2]
+
+
+def test_each_version_is_scored_with_features_built_from_its_own_first_training_snapshot():
+    assert tx.from_date_of(_reg(1, "measured_reference", '["2026-08-09", "2026-07-26", "2026-08-02"]')) == "2026-07-26"
+    assert tx.from_date_of(_reg(2, "production", ["2026-04-05", "2026-03-22"])) == "2026-03-22"
+
+
+def test_the_score_stats_row_has_the_distribution_the_counts_and_the_missing_shares_of_every_feature():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame([{c: (None if (i + j) % 3 == 0 else float(i)) for j, c in enumerate(tm.NUMERIC)} for i in range(30)])
+    shares = tx.missing_shares(df)
+    assert set(shares) == set(tm.NUMERIC) and all(0.0 <= v <= 1.0 for v in shares.values())
+    scores = [i / 100 for i in range(100)]
+    row = tx.stats_row(dt.date(2026, 11, 1), {"version": 2, "stage": "production"}, scores, [str(i % 40) for i in range(100)], shares, NOW)
+    assert row[:5] == (dt.date(2026, 11, 1), 2, "production", 100, 40) and row[5] == pytest.approx(0.495) and row[6] == 0.5 and row[7] == 0.9 and row[8] == 0.99
+    assert json_loads(row[9]).keys() == set(tm.NUMERIC)
+    empty = tx.stats_row(dt.date(2026, 11, 1), {"version": 1, "stage": "measured_reference"}, [], [], {}, NOW)
+    assert empty[3] == 0 and empty[5] is None and empty[6] is None
+
+
+def json_loads(text):
+    import json
+    return json.loads(text)
+
+
+def test_the_scores_tables_have_the_columns_the_notebook_writes():
+    ddl = lambda sql: [c.split()[0] for c in re.search(r"\((.*)\) USING", sql.format(schema="s"), re.S).group(1).replace("\n", " ").split(",") if c.strip()]   # noqa: E731
+    assert tuple(ddl(tx.SCORES_DDL)) == tx.SCORES_COLUMNS
+    text = (HERE.parent / "notebooks" / "triage_score.py").read_text(encoding="utf-8")
+    for col in tx.SCORES_COLUMNS:
+        assert col.replace("snapshot_date", "snapshot_date") in text
+    assert "delete from" in text and "tx.load_bundle(v[\"path\"], v[\"file_sha256\"])" in text and "from_date_of" in text
+
+
+def test_the_job_runs_the_scoring_after_open_flags_and_the_deployer_may_read_the_model_files():
+    import yaml
+    root = HERE.parents[1]
+    job = yaml.safe_load((root / "p3_delivery" / "resources" / "snapshots_job.yml").read_text(encoding="utf-8"))["resources"]["jobs"]["snapshots"]
+    tasks = {t["task_key"]: t for t in job["tasks"]}
+    assert tasks["score"]["depends_on"] == [{"task_key": "open_flags"}] and "run_if" not in tasks["score"]            # default: only if open_flags succeeded
+    assert tasks["score"]["notebook_task"]["notebook_path"].endswith("p7_triage_ml/notebooks/triage_score.py")
+    grants = yaml.safe_load((root / "p5_governance" / "grants.yml").read_text(encoding="utf-8"))["securables"]
+    vol = [g for g in grants if g.get("name") == "workspace.packsense_snapshots.models"][0]
+    assert vol["type"] == "volume" and vol["grants"] == {"packsense-deployer": ["READ_VOLUME"]}
+    assert "p7_triage_ml/**" in (root / ".github" / "workflows" / "deploy.yml").read_text(encoding="utf-8")

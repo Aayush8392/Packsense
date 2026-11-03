@@ -56,6 +56,9 @@ securables:
   - {type: schema, name: workspace.packsense_dev_snapshots, grants: {
       packsense-deployer-dev: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
 
+  # The model files of the flag-triage custom registry (roadmap item 20): the weekly scoring task reads them as the deployer. Created by the admin; the admin owns it.
+  - {type: volume, name: workspace.packsense_snapshots.models, grants: {packsense-deployer: [READ_VOLUME]}}
+
   # Gold: written only by its own principal.
   - {type: schema, name: workspace.packsense_gold, grants: {
       packsense-gold: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT], analyst: [USE_SCHEMA], packsense-publish: [USE_SCHEMA]}}

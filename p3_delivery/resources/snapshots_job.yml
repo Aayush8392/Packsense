@@ -35,3 +35,14 @@ resources:
             base_parameters:
               run_id: "{{job.run_id}}"
               schema: ${var.snapshots_schema}
+        - task_key: score
+          # The weekly scoring of the flag-triage model (roadmap item 20): the newest finished snapshot's open error flags, scored with the live versions of the custom
+          # registry (`model_versions`). Runs only if open_flags succeeded. No automatic retry: a rerun of the same snapshot replaces its rows, so it is safe to start by hand.
+          depends_on:
+            - task_key: open_flags
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../../p7_triage_ml/notebooks/triage_score.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              schema: ${var.snapshots_schema}

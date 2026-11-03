@@ -152,6 +152,7 @@ GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_sna
 GRANT SELECT ON SCHEMA workspace.packsense_snapshots TO `admin`;
 GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_dev_snapshots TO `packsense-deployer-dev`;
 GRANT SELECT ON SCHEMA workspace.packsense_dev_snapshots TO `admin`;
+GRANT READ VOLUME ON VOLUME workspace.packsense_snapshots.models TO `packsense-deployer`;
 GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_gold TO `packsense-gold`;
 GRANT SELECT ON SCHEMA workspace.packsense_gold TO `admin`;
 GRANT USE SCHEMA ON SCHEMA workspace.packsense_gold TO `analyst`;

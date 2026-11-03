@@ -97,3 +97,45 @@ def recipe_hash(config: tm.Config, train_dates: list[str], code_hashes: dict) ->
     """The identity of a trained version: the configuration, the snapshot dates it was trained on and the hashes of the four frozen code files."""
     body = {"config": json.loads(config.canonical()), "train_snapshots": sorted(train_dates), "code": code_hashes}
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+# --- weekly scoring (item 20) --------------------------------------------------------------------------------------------------------------------
+
+SCORES_DDL = """CREATE TABLE IF NOT EXISTS {schema}.triage_scores (
+    snapshot_date DATE, snapshot_sha STRING, code STRING, severity STRING, flag STRING, family STRING, model_version INT, stage STRING, score DOUBLE, scored_at TIMESTAMP) USING DELTA"""
+SCORES_COLUMNS = ("snapshot_date", "snapshot_sha", "code", "severity", "flag", "family", "model_version", "stage", "score", "scored_at")
+STATS_DDL = """CREATE TABLE IF NOT EXISTS {schema}.triage_score_stats (
+    snapshot_date DATE, model_version INT, stage STRING, n_flags BIGINT, n_products BIGINT, score_mean DOUBLE, score_p50 DOUBLE, score_p90 DOUBLE, score_p99 DOUBLE,
+    missing_share STRING, scored_at TIMESTAMP) USING DELTA"""
+LIVE_STAGES = ("production", "measured_reference")
+
+
+def live_versions(rows: list[dict]) -> list[dict]:
+    """The versions the weekly run scores with: whatever is in `production` and in `measured_reference` (newest of each). Refuses a registry with no production version."""
+    live = current_stage_rows(rows)
+    if "production" not in live:
+        raise RuntimeError("the registry has no production version")
+    return [live[s] for s in LIVE_STAGES if s in live]
+
+
+def from_date_of(version_row: dict) -> str:
+    """Each version is scored with features built the way ITS training weeks were: ages count from its first training snapshot, not from the oldest snapshot in the table."""
+    dates = json.loads(version_row["train_snapshots"]) if isinstance(version_row["train_snapshots"], str) else list(version_row["train_snapshots"])
+    return min(str(d) for d in dates)
+
+
+def quantile(sorted_values: list[float], q: float) -> float | None:
+    if not sorted_values:
+        return None
+    return sorted_values[min(len(sorted_values) - 1, int(q * len(sorted_values)))]
+
+
+def stats_row(snapshot_date, version_row: dict, scores: list[float], codes: list[str], missing_share: dict[str, float], scored_at) -> tuple:
+    """One `triage_score_stats` row: how many flags and products were scored, the score distribution, and the share of missing values of each feature."""
+    s = sorted(scores)
+    return (snapshot_date, int(version_row["version"]), version_row["stage"], len(scores), len(set(codes)), (sum(s) / len(s)) if s else None,
+            quantile(s, 0.5), quantile(s, 0.9), quantile(s, 0.99), json.dumps({k: round(v, 4) for k, v in sorted(missing_share.items())}), scored_at)
+
+
+def missing_shares(df, columns=tm.NUMERIC) -> dict[str, float]:
+    return {c: float(df[c].isna().mean()) for c in columns}
