@@ -4,29 +4,37 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-  # The Evidence site's packages (P6). Evidence is held to its pinned release family: a major bump needs a build and a look at the pages, so group nothing and review each.
-  - package-ecosystem: "npm"
-    directory: "/p6_serving/site"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 14          # propose a release only once it is two weeks old, as the pins are chosen
+    groups:
+      actions:
+        patterns: ["*"]
   # The public app's packages (p6_serving/app). Versions are pinned exactly and chosen at least two weeks after release; each bump is reviewed on its merits.
   - package-ecosystem: "npm"
     directory: "/p6_serving/app"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 3
+    cooldown:
+      default-days: 14
+    groups:
+      app-packages:
+        patterns: ["*"]
   # Add further ecosystems only when their manifests exist (more pip folders).
+  # Python: version-update pull requests are OFF (limit 0). Dependabot edits the input files, not the hash locks, so every bump fails the lock check; the Python packages are bumped by hand
+  # (move CUTOFF in tools/locks.py, `python tools/locks.py compile`). Security-advisory pull requests are a separate Dependabot feature and still open.
   - package-ecosystem: "pip"
     directory: "/p1_intake"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
     ignore:
       - dependency-name: "boto3"   # held at 1.35.99: later versions changed upload checksums and may break B2 (see buildlog)
   - package-ecosystem: "pip"
     directory: "/p4_modelling"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
     ignore:
       - dependency-name: "dbt-core"   # dbt-databricks 1.12.6 and 1.12.7 both require dbt-core below 1.12.6 (checked 2026-10-21 with uv): 1.12.6 cannot be installed with them
         versions: [">=1.12.6"]
@@ -34,6 +42,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
     ignore:
       - dependency-name: "boto3"   # held at 1.35.99: later versions changed upload checksums and may break B2 (see buildlog)
       # the two dbt packages are watched by the /p4_modelling entry above; this entry also saw them and opened a duplicate pull request for each (2026-10-16 and 2026-10-20)
