@@ -140,3 +140,14 @@ def test_the_job_runs_the_scoring_after_open_flags_and_the_deployer_may_read_the
     vol = [g for g in grants if g.get("name") == "workspace.packsense_snapshots.models"][0]
     assert vol["type"] == "volume" and vol["grants"] == {"packsense-deployer": ["READ_VOLUME"]}
     assert "p7_triage_ml/**" in (root / ".github" / "workflows" / "deploy.yml").read_text(encoding="utf-8")
+
+
+def test_the_pre_registered_measurement_is_in_the_notebook_and_the_public_page_holds_no_measured_figures():
+    doc = (HERE.parent / "REGISTRY.md").read_text(encoding="utf-8")
+    nb = (HERE.parent / "notebooks" / "triage_run.py").read_text(encoding="utf-8")
+    assert "last_week=30" in doc and 'dbutils.widgets.text("last_week"' in nb and 'df["week"] <= int(dbutils.widgets.get("last_week"))' in nb
+    for fixed in ("weeks 0 to 24", "Purged weeks 25 to 27", "Test weeks 28 to 30", "Measured once"):
+        assert fixed in doc
+    assert not re.search(r"\d\.\d\s?%|precision of \d|hits", doc)               # the figures are the owner's, not the repository's
+    cfg = tm.Config()
+    assert cfg.steps == 4 and cfg.n_test_weeks == 3 and cfg.k == 1000                 # the page says window 4, three test weeks, top 1,000

@@ -65,6 +65,7 @@ dbutils.widgets.text("parent_version", "")       # export only: the version this
 dbutils.widgets.text("approved_by", "")          # export only: who approved the stage
 dbutils.widgets.text("note", "")                 # export only: one sentence for the registry
 dbutils.widgets.text("model_dir", "/Volumes/workspace/packsense_snapshots/models")
+dbutils.widgets.text("last_week", "")            # freeze and final: ignore labelled weeks after this week number, so the split does not move when newer weeks get their labels
 
 MODE = dbutils.widgets.get("mode")
 SCHEMA = dbutils.widgets.get("schema")
@@ -164,6 +165,8 @@ def export_model(df, all_dates):
 
 def run():
     df, all_dates = load_rows()
+    if dbutils.widgets.get("last_week").strip():
+        df = df[df["week"] <= int(dbutils.widgets.get("last_week"))]
     weeks = sorted(df["week"].unique().tolist())
     print(f"mode {MODE}, window {CONFIG.steps}, {len(df)} labelled error flags over {len(weeks)} weeks of {len(all_dates)} snapshots")
     counts = df.groupby(["week", "outcome"]).size().unstack(fill_value=0)
