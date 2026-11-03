@@ -2,5 +2,5 @@
 # Versions are at least two weeks old when pinned: dbt-duckdb 1.11.0 (2026-08-07), duckdb 1.5.6 (2026-09-28; the 2.0 line is still dev builds).
 dbt-duckdb==1.11.0
 duckdb==1.5.6
-pytest==9.1.1          # runs tests/test_rule_verdicts_agree.py in the engines job (the same pin as requirements-dev.txt)
+pytest==9.2.0          # runs tests/test_rule_verdicts_agree.py in the engines job (the same pin as requirements-dev.txt)
 dbt-metricflow==0.15.0   # the semantic layer (models/portable/semantic.yml), run only on DuckDB: `mf validate-configs` and tests/test_metricflow.py in the engines job
