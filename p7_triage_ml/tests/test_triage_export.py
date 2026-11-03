@@ -145,9 +145,20 @@ def test_the_job_runs_the_scoring_after_open_flags_and_the_deployer_may_read_the
 def test_the_pre_registered_measurement_is_in_the_notebook_and_the_public_page_holds_no_measured_figures():
     doc = (HERE.parent / "REGISTRY.md").read_text(encoding="utf-8")
     nb = (HERE.parent / "notebooks" / "triage_run.py").read_text(encoding="utf-8")
-    assert "last_week=30" in doc and 'dbutils.widgets.text("last_week"' in nb and 'df["week"] <= int(dbutils.widgets.get("last_week"))' in nb
-    for fixed in ("weeks 0 to 24", "Purged weeks 25 to 27", "Test weeks 28 to 30", "Measured once"):
+    assert "last_week=12" in doc and "from_date=2026-07-26" in doc and 'dbutils.widgets.text("last_week"' in nb and 'df["week"] <= int(dbutils.widgets.get("last_week"))' in nb
+    for fixed in ("Training weeks 0 to 6", "Purged weeks 7 to 9", "Test weeks 10 to 12", "Measured once", "Correction of 2026-11-03"):
         assert fixed in doc
     assert not re.search(r"\d\.\d\s?%|precision of \d|hits", doc)               # the figures are the owner's, not the repository's
     cfg = tm.Config()
     assert cfg.steps == 4 and cfg.n_test_weeks == 3 and cfg.k == 1000                 # the page says window 4, three test weeks, top 1,000
+
+
+def test_a_week_without_a_positive_label_cannot_be_a_training_week():
+    counts = {0: 0, 1: 0, 2: 374, 3: 1420, 4: 1421}
+    tx.require_positives(counts, [3, 4])                                              # the weeks with labels are accepted
+    with pytest.raises(RuntimeError, match=r"weeks \[0, 1\] have no positive"):
+        tx.require_positives(counts, [0, 1, 2, 3])
+    with pytest.raises(RuntimeError, match=r"\[7\]"):
+        tx.require_positives(counts, [3, 7])                                         # a week missing from the counts has none either
+    text = (HERE.parent / "notebooks" / "triage_run.py").read_text(encoding="utf-8")
+    assert text.count("tx.require_positives(positives_by_week(df)") == 2             # export, and freeze/final/dev through the split

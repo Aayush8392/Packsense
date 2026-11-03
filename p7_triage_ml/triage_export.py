@@ -139,3 +139,12 @@ def stats_row(snapshot_date, version_row: dict, scores: list[float], codes: list
 
 def missing_shares(df, columns=tm.NUMERIC) -> dict[str, float]:
     return {c: float(df[c].isna().mean()) for c in columns}
+
+
+def require_positives(positives_by_week: dict[int, int], weeks: list[int]) -> None:
+    """Refuses to train on a week without a single positive label. Found 2026-11-03: the flag-event table (the source of the fixed/not-fixed label) starts in July, so the
+    weeks before it have only the flags that stayed open and NO positives; training on them teaches the model from survivors only. A week that really has no fixed flag is not a
+    plausible week of this data (every labelled week since July has more than a thousand)."""
+    empty = [w for w in sorted(weeks) if not positives_by_week.get(w)]
+    if empty:
+        raise RuntimeError(f"weeks {empty} have no positive labels (the label source does not cover them): they cannot be training weeks")

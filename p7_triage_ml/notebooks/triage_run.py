@@ -113,6 +113,10 @@ def to_rows(df):
     return [{"snapshot_date": str(r.snapshot_date), "code": r.code, "severity": r.severity, "flag": r.flag, "family": r.family, "outcome": r.outcome}
             for r in df.itertuples(index=False)]
 
+def positives_by_week(df):
+    return {int(w): int(n) for w, n in df.assign(p=(df["outcome"] == "positive").astype(int)).groupby("week")["p"].sum().items()}
+
+
 def export_model(df, all_dates):
     """Trains the model with family on the chosen weeks, saves it and registers it. Scores nothing."""
     import sklearn
@@ -145,6 +149,7 @@ def export_model(df, all_dates):
         weeks = sorted(df["week"].unique().tolist())
     else:
         raise ValueError("train_weeks must be all or freeze:<hash prefix>")
+    tx.require_positives(positives_by_week(df), weeks)
     train = df[df["week"].isin(weeks)]
     dates = sorted({str(d) for d in train["snapshot_date"].unique()})
     levels = tm.family_levels(to_rows(train))
@@ -181,6 +186,7 @@ def run():
         return export_model(df, all_dates)
     split = te.split_weeks(weeks, CONFIG.steps, CONFIG.n_test_weeks)
     print("split:", split)
+    tx.require_positives(positives_by_week(df), split["train"])
     if MODE == "dev":
         # The test weeks are never read in this mode. The training weeks are cut in half by time; there is NO purge between the halves (with 14 snapshots and
         # a window of 4 the training weeks are too few for one), so this is a sanity run with a fixed configuration, not a tuning loop and not an estimate.
