@@ -5,7 +5,7 @@
 # The capture's own pins (boto3, requests) come from its requirements file so the tests run on the same versions as the workflow.
 -r p1_intake/requirements.txt
 databricks-sdk==0.151.0
-pytest==9.1.1
+pytest==9.2.0
 PyYAML==6.0.3
 ruff==0.8.4
 PyNaCl==1.6.2
