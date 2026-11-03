@@ -78,6 +78,16 @@ jobs:
           dbt build --target duckdb --profiles-dir .
       - name: The SQL rule verdicts agree with rules_lib.py (real sets and one-field variants)
         run: python -m pytest p4_modelling/tests/test_rule_verdicts_agree.py -q
+      - name: The semantic layer validates on the fixture (MetricFlow, DuckDB only; not run on Databricks)
+        working-directory: p4_modelling
+        env:
+          DBT_PROFILES_DIR: mf_profiles
+          PYTHONUTF8: "1"
+        run: mf validate-configs
+      - name: Every metric equals a direct SQL answer on the fixture
+        env:
+          PACKSENSE_REQUIRE_METRICFLOW: "1"    # in CI a missing MetricFlow or fixture must fail the step, not skip the test
+        run: python -m pytest p4_modelling/tests/test_metricflow.py -q
       - name: Compare with the Databricks run (golden)
         working-directory: p4_modelling
         run: python bootstrap/compare_engines.py check --duckdb target/fixture.duckdb

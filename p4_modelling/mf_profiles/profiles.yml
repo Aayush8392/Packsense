@@ -1,0 +1,10 @@
+# The DuckDB-only profile `mf` (MetricFlow) reads: it cannot choose a dbt target, so it takes the default one of the profile it finds.
+# Used with DBT_PROFILES_DIR=mf_profiles, run from p4_modelling. No secret and no Databricks variable is needed.
+packsense_gold:
+  target: duckdb
+  outputs:
+    duckdb:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', 'target/fixture.duckdb') }}"
+      schema: main
+      threads: 1

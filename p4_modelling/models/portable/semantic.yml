@@ -1,0 +1,235 @@
+version: 2
+
+# The semantic layer (roadmap item 21): coverage, completeness and products held defined once, over the gold tables, with MetricFlow.
+# DuckDB only. It is checked on the committed fixture in CI (`mf validate-configs` and tests/test_metricflow.py); it is NOT run on Databricks, so every
+# entry below is disabled for the Databricks targets and production gold does not change.
+
+models:
+  - name: metricflow_time_spine
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day
+
+semantic_models:
+  - name: brand_scorecard
+    description: One row per scope and brand over the products we hold, as they stood on as_of_date (the newest complete day).
+    model: ref('mart_brand_scorecard')
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    defaults:
+      agg_time_dimension: as_of_date
+    entities:
+      - name: scorecard
+        type: primary
+        expr: scorecard_key
+    dimensions:
+      - name: as_of_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: scope
+        type: categorical
+      - name: brand_name
+        type: categorical
+      - name: is_ranked
+        type: categorical
+    measures:
+      - name: products
+        description: Products held.
+        agg: sum
+        expr: n_products
+      - name: coverage_points
+        description: For each product, how many of the seven fields it fills, summed (7 times the products would be full coverage).
+        agg: sum
+      - name: with_nutrition
+        agg: sum
+        expr: n_with_nutrition
+      - name: with_nutriscore
+        agg: sum
+        expr: n_with_nutriscore
+      - name: with_nova
+        agg: sum
+        expr: n_with_nova
+      - name: with_quantity
+        agg: sum
+        expr: n_with_quantity
+      - name: with_ingredients
+        agg: sum
+        expr: n_with_ingredients
+      - name: with_categories
+        agg: sum
+        expr: n_with_categories
+      - name: with_labels
+        agg: sum
+        expr: n_with_labels
+
+  - name: catalogue_quality
+    description: The open flag spans of each UTC day, by scope, severity and flag family (spans, not products).
+    model: ref('fct_catalogue_quality_daily')
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    defaults:
+      agg_time_dimension: snapshot_date
+    entities:
+      - name: quality_fact
+        type: primary
+        expr: fact_key
+    dimensions:
+      - name: snapshot_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: scope
+        type: categorical
+      - name: severity
+        type: categorical
+      - name: flag_family
+        type: categorical
+    measures:
+      - name: open_spans
+        description: Flag spans open on the day.
+        agg: sum
+
+metrics:
+  - name: products_held
+    label: Products held
+    description: Products we hold, as they stood on the newest complete day.
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: products
+  - name: coverage_points
+    label: Coverage points
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: coverage_points
+  - name: completeness
+    label: Completeness
+    description: Coverage points divided by seven times the products held (1.0 would mean every product fills all seven fields).
+    type: derived
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      expr: coverage_points / (7.0 * products_held)
+      metrics:
+        - name: coverage_points
+        - name: products_held
+  - name: products_with_nutrition
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: with_nutrition
+  - name: products_with_nutriscore
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: with_nutriscore
+  - name: products_with_nova
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: with_nova
+  - name: products_with_quantity
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: with_quantity
+  - name: products_with_ingredients
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: with_ingredients
+  - name: products_with_categories
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: with_categories
+  - name: products_with_labels
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: with_labels
+  - name: nutrition_coverage
+    label: Share of products with a nutrition table
+    type: ratio
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      numerator: products_with_nutrition
+      denominator: products_held
+  - name: nutriscore_coverage
+    label: Share of products with a Nutri-Score
+    type: ratio
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      numerator: products_with_nutriscore
+      denominator: products_held
+  - name: nova_coverage
+    label: Share of products with a NOVA group
+    type: ratio
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      numerator: products_with_nova
+      denominator: products_held
+  - name: quantity_coverage
+    label: Share of products with a quantity
+    type: ratio
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      numerator: products_with_quantity
+      denominator: products_held
+  - name: ingredients_coverage
+    label: Share of products with an ingredients fingerprint
+    type: ratio
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      numerator: products_with_ingredients
+      denominator: products_held
+  - name: categories_coverage
+    label: Share of products with a category
+    type: ratio
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      numerator: products_with_categories
+      denominator: products_held
+  - name: labels_coverage
+    label: Share of products with a label
+    type: ratio
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      numerator: products_with_labels
+      denominator: products_held
+  - name: open_flag_spans
+    label: Open flag spans
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: open_spans
+  - name: open_error_spans
+    label: Open error flag spans
+    type: simple
+    config:
+      enabled: "{{ target.type == 'duckdb' }}"
+    type_params:
+      measure: open_spans
+    filter: |
+      {{ Dimension('quality_fact__severity') }} = 'error'
