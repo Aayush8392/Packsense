@@ -572,23 +572,28 @@ def _real_nutrient_maps(n_wanted):
 
 def _off_style_parquet(tmp_path, nutriments_type=None):
     """The `n` fixture rows (real flags) as a file with OFF's own column names and types (probe of the 25 Oct snapshot, 2026-10-26). The
-    nutrient values are real ones from the gold fixture, attached to these products so the reader has something to read."""
-    con = duckdb.connect()
-    con.execute("create table src (code varchar, last_modified_t bigint, nutriments " + (nutriments_type or lib.NUTRIMENTS_TYPE) + ", brands_tags varchar[], "
-                "categories_tags varchar[], serving_size varchar, data_quality_errors_tags varchar[], data_quality_warnings_tags varchar[], "
-                "data_quality_info_tags varchar[], " + ", ".join(f"{n} {t}" for n, t in lib.EXTRA_COLUMNS) + ")")
+    nutrient values are real ones from the gold fixture, attached to these products so the reader has something to read.
+    The rows are written as JSON lines and loaded with the column types in ONE statement: one INSERT per row made DuckDB look for optional modules on every
+    nested value (about 47,000 import lookups, 21 s per file, and the file was built in five tests); the file is byte-for-byte the same rows and types."""
+    nutriments_type = nutriments_type or lib.NUTRIMENTS_TYPE
+    names = ["code", "last_modified_t", "nutriments", "brands_tags", "categories_tags", "serving_size", "data_quality_errors_tags",
+             "data_quality_warnings_tags", "data_quality_info_tags"] + [n for n, _ in lib.EXTRA_COLUMNS]
+    types = ["varchar", "bigint", nutriments_type, "varchar[]", "varchar[]", "varchar", "varchar[]", "varchar[]", "varchar[]"] + [t for _, t in lib.EXTRA_COLUMNS]
     maps = _real_nutrient_maps(60)
+    lines = []
     for i, (code, lm, e, w, inf) in enumerate(RESULT_CON.execute("select code, lm, e, w, i from n order by code").fetchall()):
         m = maps[i % len(maps)] if i % 3 else {}                                        # every third product has no nutrition at all
         entries = [{"name": k, "value": None, "100g": v, "serving": None, "unit": "kJ" if k.startswith("energy") and k != "energy-kcal" else "g",
                     "prepared_value": None, "prepared_100g": None, "prepared_serving": None, "prepared_unit": None} for k, v in m.items()]
         extras = [lm - 1_000_000, lm, ["app"] if i % 3 else None, i, i % 5 if i % 2 else None, i % 5 if i % 2 else None, 0.8, ["en:nutrition-facts-completed"],
                   None, ["en:india"], None if i % 4 == 0 else lm - 5, i % 6, "b", None, 3,
-                      "en:snacks" if i % 2 else None, None, 4, 1, 3, i % 3, "100" if i % 2 else None, "g", i % 2 == 0, "en", 3]     # plumbing values: NULL lists, a FLOAT, NULL numbers; the real check is the soak
-        con.execute("insert into src values (" + ",".join("?" * (9 + len(extras))) + ")",
-                    [code, lm, entries or None, [f"xx:brand{i % 7}"], ["en:snacks", "en:biscuits"], "30 g", e, w, inf, *extras])
+                  "en:snacks" if i % 2 else None, None, 4, 1, 3, i % 3, "100" if i % 2 else None, "g", i % 2 == 0, "en", 3]     # plumbing values: NULL lists, a FLOAT, NULL numbers; the real check is the soak
+        lines.append(json.dumps(dict(zip(names, [code, lm, entries or None, [f"xx:brand{i % 7}"], ["en:snacks", "en:biscuits"], "30 g", e, w, inf, *extras]))))
+    rows_json = tmp_path / "off_style_rows.json"
+    rows_json.write_text("\n".join(lines), encoding="utf-8")
+    columns = "{" + ", ".join("'" + n + "': '" + t.replace("'", "''") + "'" for n, t in zip(names, types)) + "}"
     path = tmp_path / "off_style.parquet"
-    con.execute(f"copy src to '{path.as_posix()}' (format parquet)")
+    duckdb.connect().execute(f"copy (select * from read_json('{rows_json.as_posix()}', format='newline_delimited', columns={columns})) to '{path.as_posix()}' (format parquet)")
     return path
 
 
