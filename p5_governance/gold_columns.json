@@ -40,6 +40,14 @@
    "brand_key",
    "brand_name"
   ],
+  "dim_brand_canonical": [
+   "brand_key",
+   "brand_name",
+   "canonical_brand_key",
+   "canonical_name",
+   "merge_rule",
+   "n_products"
+  ],
   "dim_category": [
    "category_tag",
    "category_name",
@@ -162,6 +170,19 @@
    "open_error_spans",
    "open_warning_spans",
    "n_products_with_error_flag",
+   "is_ranked"
+  ],
+  "mart_category_fitness": [
+   "category_fitness_key",
+   "scope",
+   "category",
+   "as_of_date",
+   "n_products",
+   "n_five_nutrients",
+   "n_with_ingredients",
+   "n_with_quantity",
+   "n_changed_28d",
+   "n_stale_365d",
    "is_ranked"
   ],
   "mart_india_release": [
