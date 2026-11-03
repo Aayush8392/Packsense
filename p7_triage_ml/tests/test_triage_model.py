@@ -95,7 +95,7 @@ def test_the_notebook_never_reads_the_test_weeks_outside_the_final_mode():
     final = text[text.index("# final"):]
     order = [final.index("FREEZE_HASH != record"), final.index("tm.final_allowed"), final.index("run_models(train, test"), final.rindex("saveAsTable")]
     assert order == sorted(order)                                                        # the guards come before the training, the record after
-    assert 'if MODE not in ("smoke", "dev", "freeze", "final")' in text
+    assert 'if MODE not in ("smoke", "dev", "freeze", "final", "export")' in text
 
 
 def test_the_model_fit_runs_where_scikit_learn_is_installed():

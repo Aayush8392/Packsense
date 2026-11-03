@@ -6,6 +6,9 @@
 #   freeze  writes the configuration, the weeks and the hashes of the code to `triage_runs` and prints the freeze hash; trains nothing
 #   final   trains on all training weeks and scores the test weeks ONCE; refuses unless widget freeze_hash equals the hash of the CURRENT code,
 #           configuration and weeks, and refuses a second time for the same hash
+#   export  trains the model with family ONE more time on chosen weeks, saves the file in a Unity Catalog volume and adds a row to `model_versions` (the custom registry,
+#           roadmap item 20). It scores nothing and reads no test week for a measurement. train_weeks is `freeze:<hash prefix>` (the training weeks of that freeze, read from
+#           `triage_runs`; refuses unless the four code files are the frozen ones; needs from_date set as it was when the freeze was made) or `all` (every labelled week).
 # Only counts and precision figures are printed or stored. Databricks only; no Hugging Face, B2 or LLM is used.
 
 # COMMAND ----------
@@ -44,6 +47,7 @@ def find_p7():
 P7 = find_p7()
 sys.path.insert(0, P7)
 import triage_eval as te  # noqa: E402
+import triage_export as tx  # noqa: E402
 import triage_features as tf  # noqa: E402
 import triage_model as tm  # noqa: E402
 
@@ -53,7 +57,14 @@ dbutils.widgets.text("steps", "4")
 dbutils.widgets.text("schema", "workspace.packsense_snapshots")
 dbutils.widgets.text("freeze_hash", "")
 dbutils.widgets.text("run_id", "manual")
-dbutils.widgets.text("from_date", "")            # smoke only: a start date (the three finished snapshots)
+dbutils.widgets.text("from_date", "")            # smoke only: a start date (the three finished snapshots); export freeze:<hash> needs it too
+dbutils.widgets.text("train_weeks", "all")       # export only: all, or freeze:<hash prefix>
+dbutils.widgets.text("version", "")              # export only: the registry version to create
+dbutils.widgets.text("stage", "")                # export only: measured_reference, production or archived
+dbutils.widgets.text("parent_version", "")       # export only: the version this one is a refit of, if any
+dbutils.widgets.text("approved_by", "")          # export only: who approved the stage
+dbutils.widgets.text("note", "")                 # export only: one sentence for the registry
+dbutils.widgets.text("model_dir", "/Volumes/workspace/packsense_snapshots/models")
 
 MODE = dbutils.widgets.get("mode")
 SCHEMA = dbutils.widgets.get("schema")
@@ -61,8 +72,8 @@ RUN_ID = dbutils.widgets.get("run_id")
 FREEZE_HASH = dbutils.widgets.get("freeze_hash").strip()
 FROM_DATE = dbutils.widgets.get("from_date").strip()
 CONFIG = tm.Config(steps=int(dbutils.widgets.get("steps")))
-if MODE not in ("smoke", "dev", "freeze", "final"):
-    raise ValueError("mode must be smoke, dev, freeze or final")
+if MODE not in ("smoke", "dev", "freeze", "final", "export"):
+    raise ValueError("mode must be smoke, dev, freeze, final or export")
 
 # COMMAND ----------
 spark.sql(f"""CREATE TABLE IF NOT EXISTS {SCHEMA}.triage_runs (
@@ -101,6 +112,55 @@ def to_rows(df):
     return [{"snapshot_date": str(r.snapshot_date), "code": r.code, "severity": r.severity, "flag": r.flag, "family": r.family, "outcome": r.outcome}
             for r in df.itertuples(index=False)]
 
+def export_model(df, all_dates):
+    """Trains the model with family on the chosen weeks, saves it and registers it. Scores nothing."""
+    import sklearn
+    version, stage = int(dbutils.widgets.get("version")), dbutils.widgets.get("stage").strip()
+    parent = dbutils.widgets.get("parent_version").strip()
+    selector = dbutils.widgets.get("train_weeks").strip()
+    hashes = tm.code_hashes(P7)
+    spark.sql(tx.REGISTRY_DDL.format(schema=SCHEMA))
+    if spark.sql(f"select count(*) from {SCHEMA}.model_versions where model = '{tx.MODEL_NAME}' and version = {version}").collect()[0][0]:
+        raise RuntimeError(f"version {version} is already in the registry; a version is never overwritten")
+    metrics = {"measured": None}
+    if selector.startswith("freeze:"):
+        if not FROM_DATE:
+            raise RuntimeError("export freeze:<hash> needs from_date set as it was at the freeze (the week numbers count from it)")
+        prefix = selector.split(":", 1)[1]
+        frozen = [json.loads(r[0]) for r in spark.sql(f"select payload from {SCHEMA}.triage_runs where kind = 'freeze' and freeze_hash like '{prefix}%'").collect()]
+        if len(frozen) != 1:
+            raise RuntimeError(f"expected one freeze record for {prefix!r}, found {len(frozen)}")
+        if frozen[0]["code"] != hashes:
+            raise RuntimeError("the four code files are not the ones frozen with that hash; restore them (git) before exporting")
+        weeks = frozen[0]["weeks"]["train"]
+        finals = [json.loads(r[0]) for r in spark.sql(f"select payload from {SCHEMA}.triage_runs where kind = 'final' and freeze_hash like '{prefix}%'").collect()]
+        if finals:
+            u = finals[0]["report"]["uncovered"]
+            metrics = {"measured": {"freeze_hash": frozen[0]["freeze_hash"], "k": u["k"], "uncovered_rows": u["rows"], "uncovered_positives": u["positives"],
+                                    "model_with_family": u["systems"].get("model_with_family"), "best_baseline": finals[0]["report"].get("kill_rule")}}
+        else:
+            raise RuntimeError("that freeze has no final measurement: the measured version is the one that was measured")
+    elif selector == "all":
+        weeks = sorted(df["week"].unique().tolist())
+    else:
+        raise ValueError("train_weeks must be all or freeze:<hash prefix>")
+    train = df[df["week"].isin(weeks)]
+    dates = sorted({str(d) for d in train["snapshot_date"].unique()})
+    levels = tm.family_levels(to_rows(train))
+    x, y = tm.matrix_from_frame(train, True, levels)
+    t0 = time.time()
+    model, keep = tx.fit_model(x, y, CONFIG, True)
+    path = f"{dbutils.widgets.get('model_dir')}/flag_triage_v{version}.joblib"
+    digest = tx.save_bundle(path, model, keep, levels, True, CONFIG)
+    row = tx.registry_row(version, stage, tx.recipe_hash(CONFIG, dates, hashes), int(parent) if parent else None, dates, len(train), int(y.sum()), CONFIG, hashes,
+                          sklearn.__version__, path, digest, tm.jsonable(metrics), dbutils.widgets.get("note"), dbutils.widgets.get("approved_by"),
+                          dt.datetime.now(dt.timezone.utc).replace(tzinfo=None))
+    spark.createDataFrame([row], "model string, version int, stage string, recipe_hash string, parent_version int, train_snapshots string, n_train_rows long, n_positives long, "
+                                 "config string, code_hashes string, sklearn_version string, path string, file_sha256 string, metrics string, note string, approved_by string, "
+                                 "created_at timestamp").write.mode("append").saveAsTable(f"{SCHEMA}.model_versions")
+    print(f"trained on {len(train)} rows ({int(y.sum())} positives) from {len(dates)} snapshots in {time.time() - t0:.0f} s; saved {path}", flush=True)
+    return {"mode": "export", "version": version, "stage": stage, "weeks": weeks, "snapshots": len(dates), "rows": len(train), "positives": int(y.sum()), "path": path, "sha256": digest}
+
 
 def run():
     df, all_dates = load_rows()
@@ -114,6 +174,8 @@ def run():
         scores = run_models(half, half, levels)
         rep = tm.evaluate(to_rows(half), scores, min(CONFIG.k, 50))
         return {"mode": "smoke", "rows": len(half), "positives": int((half["outcome"] == "positive").sum()), "ran": sorted(scores), "evaluated": rep["rows"]}
+    if MODE == "export":
+        return export_model(df, all_dates)
     split = te.split_weeks(weeks, CONFIG.steps, CONFIG.n_test_weeks)
     print("split:", split)
     if MODE == "dev":
