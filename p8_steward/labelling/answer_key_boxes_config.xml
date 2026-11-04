@@ -1,0 +1,60 @@
+<View>
+  <Style>h6 { font-size: 14px !important; font-weight: 600 !important; margin: 3px 0 !important; } h5 { font-size: 16px !important; margin: 10px 0 3px !important; }</Style>
+  <View style="display:flex; gap:20px">
+    <View style="width:58%">
+      <Header value="Nutrition photo (scroll to zoom, drag to move, use the rotate control for a tilted photo)"/>
+      <Image name="photo" value="$nutrition_photo" zoom="true" zoomControl="true" rotateControl="true"/>
+      <Header value="$g_title" size="5"/>
+      <Header value="$g_note" size="6"/>
+      <Header value="$g_energy" size="6"/>
+      <Header value="$g_fat" size="6"/>
+      <Header value="$g_saturated" size="6"/>
+      <Header value="$g_carbs" size="6"/>
+      <Header value="$g_sugars" size="6"/>
+      <Header value="$g_fibre" size="6"/>
+      <Header value="$g_protein" size="6"/>
+      <Header value="$g_salt" size="6"/>
+      <Header value="$g_sodium" size="6"/>
+      <Header value="$g_per100" size="6"/>
+      <Header value="$g_serving" size="6"/>
+    </View>
+    <View style="width:42%">
+      <Header value="$title" size="5"/>
+      <Header value="$barcode" size="6"/>
+      <Header value="OFF flagged: $flag_text" size="6"/>
+      <Header value="Type what the pack says for: $fields_to_type" size="6"/>
+      <Header value="1. Which column are you reading?" size="5"/>
+      <Choices name="basis" toName="photo" choice="single-radio" required="true">
+        <Choice value="per 100 g"/>
+        <Choice value="per 100 ml"/>
+        <Choice value="per serving only (no per-100 column)"/>
+        <Choice value="cannot read the table"/>
+      </Choices>
+      <Header value="2. The numbers as printed (one box each, text, so 0.045 types as written). Energy in kcal and kJ, the rest in grams; if the pack prints mg, type the figure and mg, for example 445mg: it is converted for you. A less-than figure is typed as printed (&lt;0.5). Leave blank what is not printed. Press Enter in a box after typing." size="6"/>
+      <Header value="Energy, kcal" size="6"/>
+      <TextArea name="k_energy_kcal" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 168"/>
+      <Header value="Energy, kJ" size="6"/>
+      <TextArea name="k_energy_kj" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 701"/>
+      <Header value="Fat, g" size="6"/>
+      <TextArea name="k_fat" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 9.7"/>
+      <Header value="Saturated fat, g" size="6"/>
+      <TextArea name="k_saturated_fat" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 1.7"/>
+      <Header value="Carbohydrates, g" size="6"/>
+      <TextArea name="k_carbohydrates" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 0"/>
+      <Header value="Sugars, g" size="6"/>
+      <TextArea name="k_sugars" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 0.045"/>
+      <Header value="Fibre, g" size="6"/>
+      <TextArea name="k_fiber" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 0"/>
+      <Header value="Protein, g" size="6"/>
+      <TextArea name="k_proteins" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 20.1"/>
+      <Header value="Salt, g" size="6"/>
+      <TextArea name="k_salt" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 2.55"/>
+      <Header value="Sodium, g (or with mg: 445mg)" size="6"/>
+      <TextArea name="k_sodium" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 0.445 or 445mg"/>
+      <Header value="Serving size as printed, if any (for example 30 g or 15 ml)" size="6"/>
+      <TextArea name="serving_size" toName="photo" rows="1" editable="true" placeholder="blank if none is printed"/>
+      <Header value="3. Anything else worth saying (optional)" size="5"/>
+      <TextArea name="note" toName="photo" rows="2" editable="true" placeholder="for example: photo blurry, two tables, prepared product"/>
+    </View>
+  </View>
+</View>
