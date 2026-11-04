@@ -445,10 +445,11 @@ models:
     description: >
       Brand scorecard: one row per scope (all or india) and brand, over the products we hold as they stood at the end of the newest complete day
       (as_of_date). Counts of products with each field filled, open flag spans and an is_ranked flag (30 or more products). A snapshot rebuilt in
-      full each night. It describes what we hold, not the brand's catalogue.
+      full each night. It describes what we hold, not the brand's catalogue. The brand is the CANONICAL brand (dim_brand_canonical): spellings with equal
+      comparison keys are one row.
     columns:
       - name: scorecard_key
-        description: Hash of (scope, first brand); a rebuild reproduces the same keys.
+        description: Hash of (scope, canonical brand); a rebuild reproduces the same keys.
         data_tests: [unique, not_null]
       - name: scope
         data_tests:
@@ -459,6 +460,9 @@ models:
       - name: brand_name
         data_tests: [not_null]
       - name: as_of_date
+        data_tests: [not_null]
+      - name: n_raw_spellings
+        description: How many different raw first-brand strings were merged into this row (1 = nothing merged).
         data_tests: [not_null]
       - name: n_products
         data_tests: [not_null]
@@ -536,7 +540,7 @@ models:
     description: >
       Canonical brand: one row per raw first brand of dim_brand and the canonical spelling of its group. Two strings are one brand only when their comparison
       keys are equal (accents, case, punctuation, spacing, a leading 'the', legal words and one trailing 's' ignored); no similarity rule. canonical_name is the
-      most frequent spelling of the group. Nothing reads it yet: the brand scorecard still groups by the raw brand.
+      most frequent spelling of the group. The brand scorecard groups by it (item 21c).
     columns:
       - name: brand_key
         description: Hash of the raw brand string (the same key as dim_brand).

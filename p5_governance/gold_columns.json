@@ -150,6 +150,7 @@
    "brand_key",
    "brand_name",
    "as_of_date",
+   "n_raw_spellings",
    "n_products",
    "n_with_nutrition",
    "n_with_nutriscore",

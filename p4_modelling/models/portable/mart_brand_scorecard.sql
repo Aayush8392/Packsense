@@ -4,8 +4,10 @@
 -- newest complete day (as_of_date; macro complete_days). A snapshot rebuilt in full each night, not a history: we hold only a few weeks, so a
 -- monthly series starts when a second month exists (P6 can keep month-end copies of this table).
 --   scope        'all' = every product we hold; 'india' = a product that ever had India in a period (the rule of the quality fact).
---   brand        the first free-text brand, lower-cased (dim_brand); spelling variants stay separate. Products with no brand form one row,
---                brand_name '(no brand)', never ranked.
+--   brand        the CANONICAL brand (item 21, decided 2026-11-04): the product's first free-text brand mapped through dim_brand_canonical, so spellings with
+--                equal comparison keys (case, accents, '&', punctuation, a leading 'the', legal words, one trailing plural 's') are one row and carry the most
+--                frequent spelling. No similarity rule is applied. Products with no brand form one row, brand_name '(no brand)', never ranked.
+--   n_raw_spellings   how many different raw first-brand strings were merged into the row (1 = nothing merged).
 --   n_products   products alive on as_of_date (one history period each).
 --   n_with_*     field coverage from the product's period: a nutrition table (new or legacy format), a known Nutri-Score (a to e), a NOVA group,
 --                a quantity, an ingredients fingerprint, at least one category, at least one label. coverage_points is the sum of the seven
@@ -61,7 +63,8 @@ india_codes as (
 per_product as (
     select
         a.code,
-        a.first_brand,
+        a.first_brand as raw_brand,
+        coalesce(bc.canonical_name, a.first_brand) as first_brand,
         a.as_of_date,
         case when a.nutrition_format in ('new', 'legacy') then 1 else 0 end as has_nutrition,
         case when a.nutriscore_grade in ('a', 'b', 'c', 'd', 'e') then 1 else 0 end as has_nutriscore,
@@ -76,6 +79,7 @@ per_product as (
     left join with_categories as c on c.history_key = a.history_key
     left join with_labels as l on l.history_key = a.history_key
     left join open_spans as o on o.code = a.code
+    left join {{ ref('dim_brand_canonical') }} as bc on bc.brand_name = a.first_brand
 ),
 
 filled as (
@@ -96,6 +100,7 @@ grouped as (
         scope,
         first_brand,
         max(as_of_date) as as_of_date,
+        count(distinct raw_brand) as n_raw_spellings,
         count(*) as n_products,
         sum(has_nutrition) as n_with_nutrition,
         sum(has_nutriscore) as n_with_nutriscore,
@@ -125,6 +130,7 @@ select
     {{ dbt.hash('first_brand') }} as brand_key,
     coalesce(first_brand, '(no brand)') as brand_name,
     as_of_date,
+    n_raw_spellings,
     n_products,
     n_with_nutrition,
     n_with_nutriscore,

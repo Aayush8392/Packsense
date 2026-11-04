@@ -10,7 +10,7 @@
 --                    period; a string with no letters or digits in a-z, 0-9 (for example a Cyrillic name) has no key and stays itself.
 --   merge_rule       'same'   the raw string is its own canonical;  'key'  it differs from the canonical only by case, accents, punctuation, spacing, a leading 'the' or a legal word;
 --                    'plural' it also differs by a trailing 's' (trader joe's / trader joes / traderjoes).
--- Nothing reads this table yet: the scorecard still groups by the raw first brand. A consumer (the scorecard, the India release) adopts it in its own change.
+-- Read by mart_brand_scorecard (item 21c: the scorecard groups by canonical_name). Any other consumer (the India release) adopts it in its own change.
 with counts as (
     select first_brand, count(*) as n_products
     from {{ ref('product_history') }}
