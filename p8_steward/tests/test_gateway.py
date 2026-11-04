@@ -48,11 +48,11 @@ def test_an_oversized_prompt_is_refused_before_anything_is_sent():
     assert e.value.kind == "prompt_too_long" and calls == []
 
 
-def test_the_rolling_budget_refuses_at_80_percent_and_forgets_after_24_hours():
+def test_the_rolling_budget_refuses_at_90_percent_and_forgets_after_24_hours():
     now = [0.0]
     usage = gw.UsageLog(clock=lambda: now[0])
-    g = gw.Gateway("k", usage=usage, transport=fake(total=159500), clock=lambda: now[0])
-    g.call("steward", MESSAGES)                                   # 159,500 used of the 160,000 allowed (80% of 200,000)
+    g = gw.Gateway("k", usage=usage, transport=fake(total=179500), clock=lambda: now[0])
+    g.call("steward", MESSAGES)                                   # 179,500 used of the 180,000 allowed (90% of 200,000)
     calls = []
     g.transport = fake(calls=calls)
     with pytest.raises(gw.GatewayError) as e:
@@ -93,3 +93,21 @@ def test_the_usage_log_survives_in_a_file(tmp_path):
     a.add("m", 500)
     b = gw.UsageLog(p, clock=lambda: 200.0)
     assert b.last_24h("m") == 500
+
+
+def test_a_measurement_run_can_ask_for_a_smaller_share_and_ask_how_much_is_left():
+    assert gw.load_config()["budget_share"] == 0.9
+    now = [0.0]
+    usage = gw.UsageLog(clock=lambda: now[0])
+    g = gw.Gateway("k", usage=usage, transport=fake(total=60000), clock=lambda: now[0], budget_share=0.5)     # 100,000 of the 200,000 pool
+    assert g.tokens_left("steward") == 100000
+    g.call("steward", MESSAGES)
+    assert g.tokens_left("steward") == 40000
+    with pytest.raises(gw.GatewayError) as e:
+        g.call("steward", MESSAGES * 1)                       # 60,000 used + the output allowance is fine, so spend until it is not
+        g.call("steward", MESSAGES * 1)
+    assert e.value.kind == "budget"
+    assert gw.Gateway("k", transport=fake()).tokens_left("steward") == 180000       # the configured default: 90% of the pool
+    assert g.tokens_left("narrator") == 100000                                      # the other pool is untouched
+    with pytest.raises(gw.GatewayError):
+        gw.Gateway("k", transport=fake(), budget_share=1.5)

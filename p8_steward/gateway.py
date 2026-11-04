@@ -3,8 +3,8 @@
 What it does, and nothing more:
   - the model for a role comes from gateway_config.json (never from code);
   - a call whose prompt is over the role's limit is refused BEFORE it is sent;
-  - a call that would take the role's rolling 24-hour token total past 80% of its daily pool is refused BEFORE it is sent (Groq's daily limit is a
-    rolling window; the owner's rule is to leave 20% headroom);
+  - a call that would take the role's rolling 24-hour token total past the share of its daily pool set in the config (0.9 = 180,000 of 200,000 tokens, the
+    owner's setting of 2026-11-04, was 0.8) is refused BEFORE it is sent (Groq's daily limit is a rolling window);
   - a rate-limit or quota answer (HTTP 429) raises at once with the server's retry-after and is never retried here; any other server error raises too;
   - every successful call returns a provenance record (role, model, time, prompt hash, tokens) and is added to the usage log.
 Standard library only, so nothing enters the hash locks. The key is read by name and never printed or logged. Prompt text is never logged: only its hash.
@@ -98,9 +98,18 @@ def read_key(name: str, env_file: str | None = None) -> str:
 
 class Gateway:
     def __init__(self, key: str, config: dict | None = None, usage: UsageLog | None = None,
-                 transport: Callable[[str, str, dict], dict] = http_transport, clock: Callable[[], float] = time.time):
+                 transport: Callable[[str, str, dict], dict] = http_transport, clock: Callable[[], float] = time.time, budget_share: float | None = None):
+        """`budget_share` overrides the config's share of the daily pool this gateway may use (a measurement run asks for less than the nightly work would)."""
         self.cfg = config or load_config()
         self.key, self.usage, self.transport, self.clock = key, usage or UsageLog(clock=clock), transport, clock
+        self.budget_share = self.cfg.get("budget_share", 0.8) if budget_share is None else budget_share
+        if not 0 < self.budget_share <= 1:
+            raise GatewayError("config", f"budget_share must be above 0 and at most 1, not {self.budget_share}")
+
+    def tokens_left(self, role: str) -> int:
+        """Tokens this gateway may still spend on the role's model in the rolling 24 hours (never below zero)."""
+        r = self.cfg["roles"][role]
+        return max(int(r["daily_tokens"] * self.budget_share) - self.usage.last_24h(r["model"]), 0)
 
     def call(self, role: str, messages: list[dict]) -> dict:
         """One call for a role. Returns {'text', 'finish_reason', 'provenance'}; raises GatewayError on refusal or server error."""
@@ -110,7 +119,7 @@ class Gateway:
         estimate = estimate_tokens(messages)
         if estimate > r["max_prompt_tokens"]:
             raise GatewayError("prompt_too_long", f"estimated {estimate} tokens, the limit for {role} is {r['max_prompt_tokens']}")
-        allowed = int(r["daily_tokens"] * self.cfg.get("budget_share", 0.8))
+        allowed = int(r["daily_tokens"] * self.budget_share)
         used = self.usage.last_24h(r["model"])
         if used + estimate + r["max_output_tokens"] > allowed:
             raise GatewayError("budget", f"{used} tokens used in the last 24 hours of {allowed} allowed for {r['model']}")
