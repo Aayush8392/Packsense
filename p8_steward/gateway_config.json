@@ -1,0 +1,11 @@
+{
+  "_note": "Model names live here, never in code (design item 17). Each role has its own model and its own daily token pool on Groq. 'fallbacks' is empty on purpose: Cloudflare Workers AI is not wired (owner decision, 2026-11-04); a later entry names another provider and model for the same role.",
+  "provider": "groq",
+  "endpoint": "https://api.groq.com/openai/v1/chat/completions",
+  "key_env": "GROQ_API_KEY",
+  "budget_share": 0.8,
+  "roles": {
+    "steward": {"model": "qwen/qwen3.8-27b", "daily_tokens": 200000, "max_prompt_tokens": 4500, "max_output_tokens": 700, "temperature": 0.2, "fallbacks": []},
+    "narrator": {"model": "openai/gpt-oss-20b", "daily_tokens": 200000, "max_prompt_tokens": 4500, "max_output_tokens": 900, "temperature": 0.2, "fallbacks": []}
+  }
+}
