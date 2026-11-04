@@ -11,3 +11,20 @@ useDefault = true
 description = "md5 row hashes of the DuckDB comparison golden file"
 targetRules = ["generic-api-key"]
 paths = ['''p4_modelling/fixtures/golden\.json''']
+
+# The same false positive in two more shapes (found 2026-11-04, when the weekly scan, which reads the whole history, reported 40 findings; every one was checked by hand).
+# 1) p6_serving/showcase/showcase.json carries surrogate keys (`"history_key": "<md5>"`, `"brand_key": "<md5>"`): hashes derived from public Open Food Facts values, as in the
+#    golden file. The entry matches only a WHOLE LINE that is a `*_key` name and a 32-character hex value, so a secret of any other shape still fails, in any file.
+# 2) one line of p4_modelling/models/portable/dim_brand_canonical.sql, `when k.key_r2 = c.canonical_key_r2 then 'key'`: SQL identifiers that the rule reads as a key assignment.
+[[allowlists]]
+description = "derived md5 surrogate keys written as a whole JSON line"
+targetRules = ["generic-api-key"]
+regexTarget = "line"
+regexes = ['''^\s*"[a-z_]+_key":\s*"[0-9a-f]{32}",?\s*$''']
+
+[[allowlists]]
+description = "SQL identifiers in the brand canonical model"
+targetRules = ["generic-api-key"]
+paths = ['''p4_modelling/models/portable/dim_brand_canonical\.sql''']
+regexTarget = "line"
+regexes = ['''when k\.key_r2 = c\.canonical_key_r2 then''']
