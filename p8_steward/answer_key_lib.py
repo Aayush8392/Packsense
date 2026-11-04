@@ -115,6 +115,16 @@ def parse_serving(text: str) -> tuple[float, str] | None:
     return (float(m.group("num").replace(",", ".")), m.group("unit").lower()) if m else None
 
 
+BRACKET_SERVING = re.compile(r"\(\s*(?P<num>\d*[.,]?\d+)\s*(?P<unit>g|ml)\s*\)", re.IGNORECASE)
+
+
+def parse_bracket_serving(text: str) -> tuple[float, str] | None:
+    """A serving size a pack prints with a household measure first, '1/4 Cup (30g)' or '1 bottle (330 ml)' -> the amount in brackets. Used ONLY for a model's reading of the
+    scan text: the owner's typed answers keep the strict rule above, so the key never changes meaning."""
+    m = BRACKET_SERVING.search(text or "")
+    return (float(m.group("num").replace(",", ".")), m.group("unit").lower()) if m else None
+
+
 def key_entry(task: dict) -> dict:
     """One answer-key entry from an exported task: the owner's numbers as per-100 values when the pack allows it, else the plain reason it cannot be used.
 
@@ -202,7 +212,7 @@ def reading_to_per100(reading: dict) -> dict:
     elif basis in ("per 100 g", "per 100 ml"):
         out.update(usable=True, per100=values)
     elif basis.startswith("per serving"):
-        serving = parse_serving(str(reading.get("serving_size") or ""))
+        serving = parse_serving(str(reading.get("serving_size") or "")) or parse_bracket_serving(str(reading.get("serving_size") or ""))
         if serving is None:
             out["reason"] = "per serving only and no serving size in g or ml"
         else:
@@ -219,6 +229,8 @@ def numbers_in_text(text: str) -> set[float]:
     """Every number a scan text could be printing, in the forms a pack uses: '9.8', '9,8' and '9-8' (a dash or comma between digits can be a decimal point), '2.307' or '2,307'
     as a thousands separator (also read as 2307), and plain integers. Used to check that a model's value is printed on the pack and not invented."""
     found: set[float] = set()
+    for grouped in re.finditer(r"(?<!\d)\d{1,3}(?: \d{3})+(?:[.,]\d+)?(?!\d)", text or ""):                     # '3 437.8' : a space as the thousands mark
+        found.add(float(grouped.group(0).replace(" ", "").replace(",", ".")))
     for token in NUMBER_TOKEN.findall(text or ""):
         parts = re.split(r"[.,\-]", token)
         found.add(float(parts[0] + "." + "".join(parts[1:])) if len(parts) > 1 else float(parts[0]))      # a separator as a decimal point
@@ -241,3 +253,12 @@ def grounded_values(values: dict, text: str) -> tuple[dict, list[str]]:
         ok = present(v) or (field not in ENERGY and present(round(v * 1000.0, 6)))
         (kept.__setitem__(field, v) if ok else dropped.append(field))
     return kept, dropped
+
+
+ENERGY_WORDS = re.compile(r"kcal|kj|energ|calor|valor\s+energ|brennwert|nutri|nahrw|valeur|n[aä]hr|declaraci", re.IGNORECASE)
+
+
+def text_has_table(text: str) -> bool:
+    """A cheap check that the scan text holds a nutrition table at all: an energy or nutrition word and at least six numbers. A text without one is never sent to a model
+    and never produces a proposal (the agent abstains)."""
+    return bool(ENERGY_WORDS.search(text or "")) and len(re.findall(r"\d+(?:[.,]\d+)?", text or "")) >= 6

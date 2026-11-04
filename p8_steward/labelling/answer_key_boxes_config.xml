@@ -1,7 +1,7 @@
 <View>
   <Style>h6 { font-size: 14px !important; font-weight: 600 !important; margin: 3px 0 !important; } h5 { font-size: 16px !important; margin: 10px 0 3px !important; }</Style>
-  <View style="display:flex; gap:20px">
-    <View style="width:58%">
+  <View style="display:flex; gap:20px; align-items:flex-start">
+    <View style="width:58%; height:85vh; overflow-y:auto; position:sticky; top:0">
       <Header value="Nutrition photo (scroll to zoom, drag to move, use the rotate control for a tilted photo)"/>
       <Image name="photo" value="$nutrition_photo" zoom="true" zoomControl="true" rotateControl="true"/>
       <Header value="$g_title" size="5"/>
@@ -18,7 +18,7 @@
       <Header value="$g_per100" size="6"/>
       <Header value="$g_serving" size="6"/>
     </View>
-    <View style="width:42%">
+    <View style="width:42%; height:85vh; overflow-y:auto; position:sticky; top:0">
       <Header value="$title" size="5"/>
       <Header value="$barcode" size="6"/>
       <Header value="OFF flagged: $flag_text" size="6"/>
