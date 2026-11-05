@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CUTOFF = "2026-10-07T00:00:00Z"
+CUTOFF = "2026-10-22T00:00:00Z"
 PYTHON = "3.12"                                   # the version the workflows run on
 SECURITY_FIX = {                                  # packages locked newer than the cutoff because pip-audit found an advisory fixed after it (found 2026-10-21)
     "certifi": "PYSEC-2026-4320",                 # fixed in 2026.10.19
