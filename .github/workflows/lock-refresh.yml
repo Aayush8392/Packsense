@@ -1,0 +1,82 @@
+name: Lock refresh (weekly pull request with newer dependency locks)
+
+# Python packages are bumped by moving the cutoff in tools/locks.py and recompiling the hash locks (Dependabot does not propose them: it edits the inputs, not the locks).
+# This workflow does that every Monday: it moves the cutoff to 14 days before today, recompiles all six locks, and when any lock changed it pushes a branch, opens ONE pull
+# request that lists the packages that moved, and starts CI on the branch. It never merges: the owner reviews the diff and moves main as for any change.
+# A push made with the workflow's own token does not start other workflows (GitHub's documented rule), so CI is started by an explicit dispatch of ci.yml on the branch.
+# If the repository setting "Allow GitHub Actions to create and approve pull requests" is off, the branch is still pushed, CI still runs, and the run summary says so.
+
+on:
+  schedule:
+    - cron: "30 5 * * 1" # Mondays 05:30 UTC, after the keep-alive (04:17) and the workflow-state check (05:00); GitHub's cron can run hours late
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lock-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # push the branch
+      pull-requests: write # open the pull request
+      actions: write # start CI on the branch
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12" # the version the locks are made for
+      - name: Install the pinned uv
+        run: pip install --no-cache-dir --require-hashes -r .github/requirements/uv-tool.lock
+      - name: Move the cutoff and recompile every lock
+        run: |
+          python tools/locks.py bump
+          python tools/locks.py compile
+      - name: Stop when no lock changed
+        id: changed
+        run: |
+          if git diff --quiet -- '*.lock'; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No lock changed: nothing newer than the two-week cutoff." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Push a branch, open the pull request, start CI
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          set -u
+          BRANCH="lock-refresh-$(date -u +%F)"
+          git diff -U0 -- '*.lock' | grep -E '^[+-][A-Za-z0-9_.-]+==' | grep -vE '^(\+\+\+|---)' | cut -c1-120 | head -150 > /tmp/moved.txt || true
+          {
+            echo "Weekly refresh of the hash locks: cutoff moved to 14 days before the run, all six locks recompiled."
+            echo
+            echo "Packages that moved (- old, + new; the first 150 lines):"
+            echo '```'
+            cat /tmp/moved.txt
+            echo '```'
+            echo
+            echo "Nothing is merged by the workflow. Check the diff and CI, then move main as usual. Advisories that need a package newer than the cutoff stay a named exception in tools/locks.py."
+          } > /tmp/body.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add tools/locks.py requirements-dev.lock p1_intake/requirements.lock p4_modelling/requirements.lock .github/requirements/*.lock
+          git commit -q -m "Refresh the hash locks (cutoff moved forward)"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:refs/heads/${BRANCH}"
+          if gh pr create --repo "$REPO" --base main --head "$BRANCH" --title "Refresh the hash locks ($(date -u +%F))" --body-file /tmp/body.md; then
+            echo "Pull request opened from ${BRANCH}." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "The branch ${BRANCH} was pushed, but the pull request could not be opened (check the setting 'Allow GitHub Actions to create and approve pull requests')." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          gh workflow run ci.yml --repo "$REPO" --ref "$BRANCH"
+          echo "CI was started on ${BRANCH} by dispatch." >> "$GITHUB_STEP_SUMMARY"

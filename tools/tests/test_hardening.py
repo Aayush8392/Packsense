@@ -127,3 +127,29 @@ def test_the_only_accepted_advisories_are_the_documented_oauthlib_ones_and_only_
     assert "p4_modelling/requirements.lock" in line
     locks = (ROOT / "tools" / "locks.py").read_text(encoding="utf-8")
     assert "PYSEC-2026-4114" in locks and "CVE-2026-49272" in locks
+
+
+# --- the weekly cutoff bump (lock-refresh workflow) -----------------------------------------------------------------------------------------------
+
+def test_bump_cutoff_moves_to_fourteen_days_before_today_and_touches_nothing_else():
+    import datetime as dt
+    text = 'A = 1\nCUTOFF = "2026-10-07T00:00:00Z"\nSECURITY_FIX = {"x": "y"}\n'
+    out = locks.bump_cutoff(text, dt.date(2026, 11, 9))
+    assert out == 'A = 1\nCUTOFF = "2026-10-26T00:00:00Z"\nSECURITY_FIX = {"x": "y"}\n'
+
+
+def test_bump_cutoff_never_moves_backwards():
+    import datetime as dt
+    text = 'CUTOFF = "2026-10-26T00:00:00Z"\n'
+    assert locks.bump_cutoff(text, dt.date(2026, 10, 20)) == text
+    assert locks.bump_cutoff(text, dt.date(2026, 11, 9)) == text
+
+
+def test_bump_cutoff_needs_a_cutoff_line():
+    import datetime as dt
+    with pytest.raises(ValueError):
+        locks.bump_cutoff("A = 1\n", dt.date(2026, 11, 9))
+
+
+def test_the_real_locks_file_has_exactly_one_cutoff_line():
+    assert len(locks.CUTOFF_LINE.findall((ROOT / "tools" / "locks.py").read_text(encoding="utf-8"))) == 1

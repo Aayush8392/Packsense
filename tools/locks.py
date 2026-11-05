@@ -1,6 +1,7 @@
 """Hash-locked Python dependencies: one lock file per requirements input, all made the same way.
 
   python tools/locks.py compile    rewrite every lock file (needs `uv`; `pip install -r .github/requirements/uv-tool.lock` gives the pinned one)
+  python tools/locks.py bump       move CUTOFF to 14 days before today (the weekly `lock-refresh` workflow runs this, then `compile`)
   python tools/locks.py check      recompile into a temporary folder and exit 1 if any committed lock differs (CI runs this in the `lint` job)
 
 The inputs (`requirements*.txt`) are what a person edits; the locks (`*.lock`) pin every package, transitive ones included, with the hashes of its files, and every
@@ -10,6 +11,8 @@ cutoff date; move the date forward in this file when you want newer versions, th
 """
 from __future__ import annotations
 
+import datetime as dt
+import re
 import shutil
 import subprocess
 import sys
@@ -51,10 +54,33 @@ def compile_one(inputs: list[str], out: Path) -> None:
     subprocess.run(cmd, cwd=ROOT, check=True)
 
 
+CUTOFF_LINE = re.compile(r'^CUTOFF = "[0-9T:Z-]+"', re.MULTILINE)
+CUTOFF_AGE_DAYS = 14                              # a package must be at least this old on the cutoff date
+
+
+def bump_cutoff(text: str, today: dt.date, age_days: int = CUTOFF_AGE_DAYS) -> str:
+    """The text of this file with `CUTOFF` moved to `age_days` before `today` (midnight UTC). The other settings (SECURITY_FIX, NEWER_OK) are left alone.
+    A cutoff is never moved backwards: a date older than the current one leaves the text as it is."""
+    new = dt.datetime.combine(today - dt.timedelta(days=age_days), dt.time(), tzinfo=dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    current = CUTOFF_LINE.search(text)
+    if not current:
+        raise ValueError("no CUTOFF line found")
+    if current.group(0).split('"')[1] >= new:
+        return text
+    return CUTOFF_LINE.sub(f'CUTOFF = "{new}"', text, count=1)
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 2 or argv[1] not in ("compile", "check"):
+    if len(argv) != 2 or argv[1] not in ("compile", "check", "bump"):
         print(__doc__)
         return 2
+    if argv[1] == "bump":
+        path = Path(__file__).resolve()
+        old = path.read_text(encoding="utf-8")
+        new = bump_cutoff(old, dt.datetime.now(dt.timezone.utc).date())
+        path.write_text(new, encoding="utf-8", newline="")
+        print("cutoff moved" if new != old else "cutoff already current")
+        return 0
     if argv[1] == "compile":
         for lock, inputs in LOCKS.items():
             compile_one(inputs, ROOT / lock)
