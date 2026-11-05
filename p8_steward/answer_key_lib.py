@@ -70,7 +70,17 @@ def parse(text: str) -> dict:
 
 
 BOX_NAMES = {"k_energy_kcal": "energy_kcal", "k_energy_kj": "energy_kj", "k_fat": "fat", "k_saturated_fat": "saturated_fat", "k_carbohydrates": "carbohydrates",
-             "k_sugars": "sugars", "k_fiber": "fiber", "k_proteins": "proteins", "k_salt": "salt", "k_sodium": "sodium"}
+             "k_sugars": "sugars", "k_fiber": "fiber", "k_proteins": "proteins", "k_salt": "salt", "k_sodium": "sodium", "k_sodium_mg": "sodium"}
+# The test form (project 38 on) has its sodium box in MILLIGRAMS: a bare number there is mg. The older box `k_sodium` (projects 36 and 37) keeps grams as its default, so re-reading those
+# projects never changes meaning. An explicit unit is always respected ('0.445g' in the mg box is 0.445 g).
+BOX_DEFAULT_UNIT = {"k_sodium_mg": "mg"}
+BARE_NUMBER = re.compile(r"^\s*(?:<=|<|~|≈)?\s*(?:\d*[.,]?\d+|\d+[.,])\s*$")
+
+
+def with_default_unit(box: str, text: str) -> str:
+    """The typed text with the box's default unit appended when only a number was typed ('445' in the sodium box becomes '445mg')."""
+    unit = BOX_DEFAULT_UNIT.get(box)
+    return f"{(text or '').strip()}{unit}" if unit and BARE_NUMBER.match(text or "") else (text or "")
 
 
 def parse_box(field: str, text: str) -> dict:
@@ -87,7 +97,7 @@ def parse_boxes(answers: dict) -> dict:
         field = BOX_NAMES.get(name)
         if field is None:
             continue
-        r = parse_box(field, text)
+        r = parse_box(field, with_default_unit(name, text))
         out["values"].update(r["values"])
         out["approx"] += r["approx"]
         out["errors"] += [f"{name}: {e}" for e in r["errors"]]

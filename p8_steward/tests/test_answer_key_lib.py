@@ -136,3 +136,37 @@ def test_a_value_is_grounded_when_printed_and_not_when_invented():
     assert dropped == ["sugars", "proteins"] and set(kept) == {"energy_kj", "energy_kcal", "fat", "salt", "sodium"}
     kept, dropped = ak.grounded_values({"energy_kj": 0.474}, "474 kJ")                    # energy is never rescaled by 1000
     assert dropped == ["energy_kj"]
+
+
+# --- the test form: sodium box in mg, no digit hotkeys (owner, 2026-11-05) ---------------------------------------------------------------------------
+
+def test_sodium_mg_box_reads_a_bare_number_as_milligrams_and_respects_an_explicit_unit():
+    r = ak.parse_boxes({"k_sodium_mg": "445"})
+    assert r["values"] == {"sodium": 0.445} and not r["errors"]
+    assert ak.parse_boxes({"k_sodium_mg": "0.445g"})["values"] == {"sodium": 0.445}
+    assert ak.parse_boxes({"k_sodium_mg": "445 mg"})["values"] == {"sodium": 0.445}
+    assert ak.parse_boxes({"k_sodium_mg": "12,5"})["values"] == {"sodium": 0.0125}
+    r = ak.parse_boxes({"k_sodium_mg": "<5"})
+    assert r["values"] == {"sodium": 0.005} and r["approx"] == ["sodium"]
+    assert ak.parse_boxes({"k_sodium_mg": ""})["values"] == {}
+
+
+def test_the_old_sodium_box_keeps_grams_so_earlier_projects_read_the_same():
+    assert ak.parse_boxes({"k_sodium": "0.022"})["values"] == {"sodium": 0.022}
+    assert ak.parse_boxes({"k_sodium": "445mg"})["values"] == {"sodium": 0.445}
+    assert ak.with_default_unit("k_fat", "9.7") == "9.7"              # only the sodium mg box has a default unit
+
+
+def test_the_form_config_has_the_mg_box_and_gives_every_choice_a_non_digit_hotkey():
+    import re
+    from pathlib import Path
+    xml = (Path(__file__).resolve().parents[1] / "labelling" / "answer_key_boxes_config.xml").read_text(encoding="utf-8")
+    assert 'name="k_sodium_mg"' in xml and 'name="k_sodium"' not in xml
+    choices = re.findall(r"<Choice [^>]*>", xml)
+    assert len(choices) == 4
+    for c in choices:
+        m = re.search(r'hotkey="([^"]+)"', c)
+        assert m and not m.group(1).isdigit(), c                   # a bare digit hotkey (the numpad keys 1 to 4) switched the column while typing numbers
+    for box in ak.BOX_NAMES:
+        if box not in ("k_sodium",):
+            assert f'name="{box}"' in xml, box
