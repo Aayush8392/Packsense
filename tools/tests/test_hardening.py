@@ -173,3 +173,14 @@ def test_the_refresh_workflow_never_stages_a_production_lock_and_guards_against_
 def test_dependabot_opens_no_version_update_pull_requests():
     text = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
     assert text.count("package-ecosystem:") == text.count("open-pull-requests-limit: 0")
+
+
+def test_the_refresh_workflow_opens_no_pull_request_and_moves_main_only_after_the_three_required_checks():
+    text = (WORKFLOWS / "lock-refresh.yml").read_text(encoding="utf-8")
+    assert "gh pr " not in text                                    # a bot's pull request would wait for a person to approve its runs
+    ci = (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+    for job in ("tests", "lint", "engines"):                         # the three contexts of the `require-ci` ruleset exist as CI jobs and are waited for by name
+        assert re.search(rf"^  {job}:", ci, re.MULTILINE), job
+        assert f'.name=="{job}"' in text, job
+    assert text.index('RESULT="green"') < text.index(":refs/heads/main")   # main is pushed after the wait, never before
+    assert "--force" not in text.split(":refs/heads/main")[0].splitlines()[-1]   # the move of main is never forced
