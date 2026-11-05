@@ -1,9 +1,12 @@
 version: 2
 updates:
+  # Version-update pull requests are OFF everywhere (limit 0), by the owner's decision of 2026-11-05: the finished project needs no click except token rotation. Dependabot
+  # SECURITY updates are a separate feature and still open pull requests when an advisory has a fix; they are a signal, never a duty (the running system uses what is committed).
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
     cooldown:
       default-days: 14          # propose a release only once it is two weeks old, as the pins are chosen
     groups:
@@ -15,7 +18,7 @@ updates:
     directory: "/p6_serving/app"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0
     cooldown:
       default-days: 14
     groups:

@@ -1,7 +1,7 @@
 """Hash-locked Python dependencies: one lock file per requirements input, all made the same way.
 
   python tools/locks.py compile    rewrite every lock file (needs `uv`; `pip install -r .github/requirements/uv-tool.lock` gives the pinned one)
-  python tools/locks.py bump       move CUTOFF to 14 days before today (the weekly `lock-refresh` workflow runs this, then `compile`)
+  python tools/locks.py bump       move CUTOFF (the tooling locks only) to 14 days before today (the weekly `lock-refresh` workflow runs this, then `compile`)
   python tools/locks.py check      recompile into a temporary folder and exit 1 if any committed lock differs (CI runs this in the `lint` job)
 
 The inputs (`requirements*.txt`) are what a person edits; the locks (`*.lock`) pin every package, transitive ones included, with the hashes of its files, and every
@@ -20,7 +20,8 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CUTOFF = "2026-10-07T00:00:00Z"
+CUTOFF = "2026-10-07T00:00:00Z"                   # the TOOLING locks: moved forward each week by the lock-refresh workflow (`bump`)
+PRODUCTION_CUTOFF = "2026-10-07T00:00:00Z"        # the PRODUCTION locks (capture, gold build): frozen on purpose, never moved by a bot; a person moves it for a deliberate update
 PYTHON = "3.12"                                   # the version the workflows run on
 SECURITY_FIX = {                                  # packages locked newer than the cutoff because pip-audit found an advisory fixed after it (found 2026-10-21)
     "certifi": "PYSEC-2026-4320",                 # fixed in 2026.10.19
@@ -46,10 +47,17 @@ LOCKS = {                                         # lock file -> its input files
 }
 
 
-def compile_one(inputs: list[str], out: Path) -> None:
+PRODUCTION_LOCKS = {"p1_intake/requirements.lock", "p4_modelling/requirements.lock"}    # every other lock is a tooling lock (CI, the scans, the deploy tools)
+
+
+def cutoff_for(lock: str) -> str:
+    return PRODUCTION_CUTOFF if lock in PRODUCTION_LOCKS else CUTOFF
+
+
+def compile_one(inputs: list[str], out: Path, cutoff: str = CUTOFF) -> None:
     out.unlink(missing_ok=True)                   # uv prefers the versions in an existing output file; a lock is always resolved from scratch, as `check` does
     cmd = ["uv", "pip", "compile", "--generate-hashes", "--universal", "--no-header", "--no-annotate", "--quiet", "--python-version", PYTHON,
-           "--exclude-newer", CUTOFF, *[a for pkg, d in NEWER_OK.items() for a in ("--exclude-newer-package", f"{pkg}={d}")],
+           "--exclude-newer", cutoff, *[a for pkg, d in NEWER_OK.items() for a in ("--exclude-newer-package", f"{pkg}={d}")],
            *inputs, "-o", str(out)]
     subprocess.run(cmd, cwd=ROOT, check=True)
 
@@ -83,7 +91,7 @@ def main(argv: list[str]) -> int:
         return 0
     if argv[1] == "compile":
         for lock, inputs in LOCKS.items():
-            compile_one(inputs, ROOT / lock)
+            compile_one(inputs, ROOT / lock, cutoff_for(lock))
             print("wrote", lock)
         return 0
     tmp = Path(tempfile.mkdtemp())
@@ -91,7 +99,7 @@ def main(argv: list[str]) -> int:
         stale = []
         for lock, inputs in LOCKS.items():
             out = tmp / lock.replace("/", "_")
-            compile_one(inputs, out)
+            compile_one(inputs, out, cutoff_for(lock))
             committed = (ROOT / lock).read_text(encoding="utf-8").replace("\r\n", "\n") if (ROOT / lock).exists() else None
             if committed != out.read_text(encoding="utf-8").replace("\r\n", "\n"):
                 stale.append(lock)

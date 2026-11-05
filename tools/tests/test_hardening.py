@@ -153,3 +153,23 @@ def test_bump_cutoff_needs_a_cutoff_line():
 
 def test_the_real_locks_file_has_exactly_one_cutoff_line():
     assert len(locks.CUTOFF_LINE.findall((ROOT / "tools" / "locks.py").read_text(encoding="utf-8"))) == 1
+
+
+def test_production_locks_use_the_frozen_cutoff_and_the_rest_use_the_moving_one():
+    assert locks.PRODUCTION_LOCKS <= set(locks.LOCKS)
+    assert {locks.cutoff_for(lock) for lock in locks.PRODUCTION_LOCKS} == {locks.PRODUCTION_CUTOFF}
+    tooling = set(locks.LOCKS) - locks.PRODUCTION_LOCKS
+    assert tooling == {"requirements-dev.lock", ".github/requirements/zizmor.lock", ".github/requirements/pip-audit.lock", ".github/requirements/uv-tool.lock"}
+    assert {locks.cutoff_for(lock) for lock in tooling} == {locks.CUTOFF}
+
+
+def test_the_refresh_workflow_never_stages_a_production_lock_and_guards_against_one_moving():
+    text = (WORKFLOWS / "lock-refresh.yml").read_text(encoding="utf-8")
+    add_line = next(line for line in text.splitlines() if line.strip().startswith("git add "))
+    assert "p1_intake" not in add_line and "p4_modelling" not in add_line
+    assert "git diff --quiet -- p1_intake/requirements.lock p4_modelling/requirements.lock" in text
+
+
+def test_dependabot_opens_no_version_update_pull_requests():
+    text = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    assert text.count("package-ecosystem:") == text.count("open-pull-requests-limit: 0")
