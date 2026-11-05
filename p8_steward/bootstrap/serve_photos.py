@@ -23,6 +23,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "max-age=3600")
         super().end_headers()
 
+    def log_message(self, format, *args):                             # under pythonw (no console) sys.stderr is None and the default log line would crash every request
+        return
+
     def do_POST(self):
         self.send_error(405)
 
