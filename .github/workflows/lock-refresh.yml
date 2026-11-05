@@ -101,8 +101,19 @@ jobs:
             echo "Not moved onto main: the required checks were not green (${RESULT}). The branch stays; the next run replaces it." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if git push "$URL" "${SHA}:refs/heads/main"; then
-            echo "main was fast-forwarded to ${SHA}. No deploy follows." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "main was NOT moved: the push was refused (main moved on, or a rule refused it). The branch stays; the next run replaces it." >> "$GITHUB_STEP_SUMMARY"
+          # The first proof run (2026-11-05) was refused with "3 of 3 required status checks are expected" although the checks API already showed them green: the rule
+          # may lag the API, so the push is retried after a pause. Each attempt is written to the summary.
+          sleep 45
+          MOVED="no"
+          for attempt in 1 2 3 4; do
+            if git push "$URL" "${SHA}:refs/heads/main" 2> /tmp/push_err.txt; then
+              echo "main was fast-forwarded to ${SHA} (attempt ${attempt}). No deploy follows." >> "$GITHUB_STEP_SUMMARY"
+              MOVED="yes"
+              break
+            fi
+            echo "Attempt ${attempt} refused: $(grep -m1 -E 'required status|rule violations|non-fast-forward|rejected' /tmp/push_err.txt | cut -c1-200)" >> "$GITHUB_STEP_SUMMARY"
+            sleep 60
+          done
+          if [ "$MOVED" != "yes" ]; then
+            echo "main was NOT moved: the push was refused 4 times (main moved on, or a rule refused it). The branch stays; the next run replaces it." >> "$GITHUB_STEP_SUMMARY"
           fi

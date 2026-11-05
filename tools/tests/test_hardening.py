@@ -183,4 +183,4 @@ def test_the_refresh_workflow_opens_no_pull_request_and_moves_main_only_after_th
         assert re.search(rf"^  {job}:", ci, re.MULTILINE), job
         assert f'.name=="{job}"' in text, job
     assert text.index('RESULT="green"') < text.index(":refs/heads/main")   # main is pushed after the wait, never before
-    assert "--force" not in text.split(":refs/heads/main")[0].splitlines()[-1]   # the move of main is never forced
+    assert "git push --force" not in text.split(":refs/heads/main")[1]        # the move of main is never forced (only the bot's own branch is)
