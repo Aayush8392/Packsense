@@ -21,7 +21,16 @@ Stages: `measured_reference`, `production`, `archived`. The weekly run scores wi
 | 2 | `archived` | A refit on every snapshot from 2026-03-22 to 2026-10-04. **Withdrawn the day it was made** (see the correction below): more than half of its training rows came from weeks that have no positive labels. |
 | 3 | `production` | The same recipe (same four code files, configuration and seed) trained on every labelled week from 2026-07-26 to 2026-10-04 (11 snapshots), features built from 2026-07-26 on. **Not measured**: every week it knows is training data. |
 
+| 4 | `production` | Added 2026-11-05. The same recipe trained on every labelled week from 2026-03-22 to 2026-10-04 (29 snapshots, every one holding positive labels), parent version 3. **Not measured**: every week it knows is training data. See the note of 2026-11-05 below. |
+
 `triage_export.py` is deliberately not one of the four frozen code files, so exporting never changes the identity of a measured model.
+
+## Note of 2026-11-05: the older weeks are labelled again, version 4
+
+The flag events of the 18 older snapshot pairs (2026-03-22 to 2026-07-26) were built on 2026-11-05 (the `events` task, after a fix that let it see more than the last 100 days of OFF's commit list), so the weeks the
+correction below took out can be used again. Version 4 was exported on all 29 labelled snapshots (`train_weeks=all`); `require_positives` passed, i.e. every one of the 29 weeks holds at least one positive label.
+This note adds to the correction and the plan below and does not change either. Version 4 was registered as `production` by the owner's own command, so from the weekly run of 2026-11-09 the newest `production` version, which is now 4, scores
+(version 3 stays in the table and is no longer the newest `production`). Rule from this date: a new version is registered as `archived` first and is promoted only on the owner's word after its figures are read.
 
 ## Correction of 2026-11-03: the label source starts in July
 
