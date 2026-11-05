@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CUTOFF = "2026-10-07T00:00:00Z"                   # the TOOLING locks: moved forward each week by the lock-refresh workflow (`bump`)
+CUTOFF = "2026-10-22T00:00:00Z"                   # the TOOLING locks: moved forward each week by the lock-refresh workflow (`bump`)
 FROZEN_CUTOFF = "2026-10-07T00:00:00Z"            # the FROZEN locks (capture, gold build, and the dev lock that the Pages build installs next to a secret): never moved by a bot; a person moves it for a deliberate update
 PYTHON = "3.12"                                   # the version the workflows run on
 SECURITY_FIX = {                                  # packages locked newer than the cutoff because pip-audit found an advisory fixed after it (found 2026-10-21)
