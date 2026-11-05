@@ -127,7 +127,7 @@ def run():
         spark.sql(sql)
     done = {r[0] for r in spark.sql(f"select pair_id from {SCHEMA}.snapshot_manifest").collect()}
     now = dt.datetime.now(dt.timezone.utc)
-    snaps = lib.pick_snapshots(lib.fetch_commits(), lib.weekly_targets(now, WEEKS))
+    snaps = lib.pick_snapshots(lib.fetch_commits(pages=lib.commit_pages(WEEKS)), lib.weekly_targets(now, WEEKS))
     if len(snaps) < WEEKS + 1:
         print(f"WARNING: only {len(snaps)} of {WEEKS + 1} weekly snapshots were found in the commit list that was read (older weeks are skipped)")
     todo = lib.pairs_to_do(snaps, done, MAX_PAIRS)
