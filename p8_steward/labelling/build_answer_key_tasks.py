@@ -95,7 +95,15 @@ def photo_languages(codes: list[str]) -> dict[str, list[str]]:
     return cache
 
 
-def build(part: str) -> list[dict]:
+def photo_ref(name: str, url_base: str | None) -> str:
+    """What the task carries as its photo: the file embedded as a data URI (the default: nothing is fetched while labelling, but every task is about 750 KB and a page of 30 is 22 MB, which
+    made Label Studio's SQLite database lock under the owner's keying on 2026-11-05), or, with url_base, a plain address served by `serve_photos.py` (a task of about 1 KB)."""
+    if url_base:
+        return f"{url_base.rstrip('/')}/{name}"
+    return "data:image/jpeg;base64," + base64.b64encode((SET / "photos" / name).read_bytes()).decode()
+
+
+def build(part: str, photo_url_base: str | None = None) -> list[dict]:
     split = json.loads((SET / "split.json").read_text(encoding="utf-8"))[part]
     manifest = json.loads((SET / "manifest.json").read_text(encoding="utf-8"))["cases_per_code"]
     photos = json.loads((SET / "photos" / "index.json").read_text(encoding="utf-8"))
@@ -110,9 +118,8 @@ def build(part: str) -> list[dict]:
     for code in wanted:
         name = photos[code]
         newest = max(rows[code], key=lambda r: r["last_modified_t"])
-        b64 = base64.b64encode((SET / "photos" / name).read_bytes()).decode()
         tasks.append({"data": {
-            "nutrition_photo": f"data:image/jpeg;base64,{b64}",
+            "nutrition_photo": photo_ref(name, photo_url_base),
             "title": f"{newest.get('product_name') or '(no name)'} ({newest.get('brands') or 'no brand'})",
             "barcode": f"Barcode {code}",
             "code": code,
@@ -163,9 +170,10 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--part", choices=["dev", "dev2", "test"], required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--photo-url-base", help="serve the photos by address (for example http://127.0.0.1:8090) instead of embedding them; run p8_steward/bootstrap/serve_photos.py while labelling")
     ap.add_argument("--carry-from", help="an export (JSON) of an earlier answer-key project: its finished cards are copied over as answers in the one-line form")
     args = ap.parse_args()
-    tasks = build(args.part)
+    tasks = build(args.part, args.photo_url_base)
     carried = carry_answers(tasks, Path(args.carry_from)) if args.carry_from else 0
     Path(args.out).write_text(json.dumps(tasks, ensure_ascii=False), encoding="utf-8")
     print(f"{len(tasks)} tasks for the {args.part} part, {carried} with an answer carried over -> {args.out} ({Path(args.out).stat().st_size // 1024} KB)")
