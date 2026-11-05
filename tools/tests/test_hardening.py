@@ -155,19 +155,34 @@ def test_the_real_locks_file_has_exactly_one_cutoff_line():
     assert len(locks.CUTOFF_LINE.findall((ROOT / "tools" / "locks.py").read_text(encoding="utf-8"))) == 1
 
 
-def test_production_locks_use_the_frozen_cutoff_and_the_rest_use_the_moving_one():
-    assert locks.PRODUCTION_LOCKS <= set(locks.LOCKS)
-    assert {locks.cutoff_for(lock) for lock in locks.PRODUCTION_LOCKS} == {locks.PRODUCTION_CUTOFF}
-    tooling = set(locks.LOCKS) - locks.PRODUCTION_LOCKS
-    assert tooling == {"requirements-dev.lock", ".github/requirements/zizmor.lock", ".github/requirements/pip-audit.lock", ".github/requirements/uv-tool.lock"}
-    assert {locks.cutoff_for(lock) for lock in tooling} == {locks.CUTOFF}
+def test_frozen_locks_use_the_frozen_cutoff_and_the_three_secret_free_locks_use_the_moving_one():
+    assert locks.FROZEN_LOCKS <= set(locks.LOCKS)
+    assert {locks.cutoff_for(lock) for lock in locks.FROZEN_LOCKS} == {locks.FROZEN_CUTOFF}
+    moving = set(locks.LOCKS) - locks.FROZEN_LOCKS
+    assert moving == {".github/requirements/zizmor.lock", ".github/requirements/pip-audit.lock", ".github/requirements/uv-tool.lock"}
+    assert {locks.cutoff_for(lock) for lock in moving} == {locks.CUTOFF}
 
 
-def test_the_refresh_workflow_never_stages_a_production_lock_and_guards_against_one_moving():
+def test_a_lock_that_a_workflow_with_a_secret_installs_is_frozen():
+    """The weekly bot may move only locks that no workflow holding a secret installs (found 2026-11-05: pages.yml installs requirements-dev.lock next to a secret)."""
+    for lock in set(locks.LOCKS) - locks.FROZEN_LOCKS:
+        for wf in WORKFLOWS.glob("*.yml"):
+            text = wf.read_text(encoding="utf-8")
+            if lock in text and wf.name != "lock-refresh.yml":
+                secrets = [line for line in text.splitlines() if "secrets." in line and "secrets.GITHUB_TOKEN" not in line]
+                assert not secrets, f"{lock} is installed by {wf.name}, which uses {secrets[:1]}"
+
+
+def test_the_refresh_workflow_stages_only_the_moving_locks_and_the_promote_job_checks_the_scope():
     text = (WORKFLOWS / "lock-refresh.yml").read_text(encoding="utf-8")
     add_line = next(line for line in text.splitlines() if line.strip().startswith("git add "))
-    assert "p1_intake" not in add_line and "p4_modelling" not in add_line
-    assert "git diff --quiet -- p1_intake/requirements.lock p4_modelling/requirements.lock" in text
+    for frozen in locks.FROZEN_LOCKS:
+        assert frozen not in add_line, frozen
+    assert "git diff --quiet -- p1_intake/requirements.lock p4_modelling/requirements.lock requirements-dev.lock" in text
+    promote = text[text.index("  promote:"):]
+    assert "KEEPALIVE_DEPLOY_KEY" in promote and "KEEPALIVE_DEPLOY_KEY" not in text[:text.index("  promote:")]   # the key is read by the promote job only
+    assert "pip " not in promote and "python" not in promote and "uv " not in promote     # no package install or run in the job that holds the key
+    assert text.count("KEEPALIVE_DEPLOY_KEY") == 1                                       # read once, as the promote checkout's ssh-key, nowhere else
 
 
 def test_dependabot_opens_no_version_update_pull_requests():

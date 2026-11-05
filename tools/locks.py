@@ -1,7 +1,7 @@
 """Hash-locked Python dependencies: one lock file per requirements input, all made the same way.
 
   python tools/locks.py compile    rewrite every lock file (needs `uv`; `pip install -r .github/requirements/uv-tool.lock` gives the pinned one)
-  python tools/locks.py bump       move CUTOFF (the tooling locks only) to 14 days before today (the weekly `lock-refresh` workflow runs this, then `compile`)
+  python tools/locks.py bump       move CUTOFF (the three scanner and tool locks only) to 14 days before today (the weekly `lock-refresh` workflow runs this, then `compile`)
   python tools/locks.py check      recompile into a temporary folder and exit 1 if any committed lock differs (CI runs this in the `lint` job)
 
 The inputs (`requirements*.txt`) are what a person edits; the locks (`*.lock`) pin every package, transitive ones included, with the hashes of its files, and every
@@ -21,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CUTOFF = "2026-10-07T00:00:00Z"                   # the TOOLING locks: moved forward each week by the lock-refresh workflow (`bump`)
-PRODUCTION_CUTOFF = "2026-10-07T00:00:00Z"        # the PRODUCTION locks (capture, gold build): frozen on purpose, never moved by a bot; a person moves it for a deliberate update
+FROZEN_CUTOFF = "2026-10-07T00:00:00Z"            # the FROZEN locks (capture, gold build, and the dev lock that the Pages build installs next to a secret): never moved by a bot; a person moves it for a deliberate update
 PYTHON = "3.12"                                   # the version the workflows run on
 SECURITY_FIX = {                                  # packages locked newer than the cutoff because pip-audit found an advisory fixed after it (found 2026-10-21)
     "certifi": "PYSEC-2026-4320",                 # fixed in 2026.10.19
@@ -47,11 +47,12 @@ LOCKS = {                                         # lock file -> its input files
 }
 
 
-PRODUCTION_LOCKS = {"p1_intake/requirements.lock", "p4_modelling/requirements.lock"}    # every other lock is a tooling lock (CI, the scans, the deploy tools)
+FROZEN_LOCKS = {"p1_intake/requirements.lock", "p4_modelling/requirements.lock", "requirements-dev.lock"}   # production code, plus the dev lock that pages.yml installs while it holds a secret
+# every other lock (zizmor, pip-audit, uv-tool) is used only by workflows that hold no secret, and is moved by the weekly lock-refresh workflow
 
 
 def cutoff_for(lock: str) -> str:
-    return PRODUCTION_CUTOFF if lock in PRODUCTION_LOCKS else CUTOFF
+    return FROZEN_CUTOFF if lock in FROZEN_LOCKS else CUTOFF
 
 
 def compile_one(inputs: list[str], out: Path, cutoff: str = CUTOFF) -> None:

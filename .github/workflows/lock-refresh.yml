@@ -1,15 +1,19 @@
-name: Lock refresh (weekly, tooling locks only, moved onto main by itself when CI is green)
+name: Lock refresh (weekly, three scanner and tool locks, moved onto main by itself when CI is green)
 
 # The owner's decision (2026-11-05): the only recurring human task of the finished project is token rotation, so dependency bumps must need no click.
 # Python packages are bumped by moving the cutoff in tools/locks.py and recompiling the hash locks (Dependabot does not propose them: it edits the inputs, not the locks).
-# Every Monday this workflow moves the TOOLING cutoff to 14 days before today and recompiles. The tooling locks are the ones CI, the scans and the deploy tools use
-# (requirements-dev, pip-audit, zizmor, uv-tool). The PRODUCTION locks (capture, gold build) have their own frozen cutoff and are never touched here: a run that changes
-# one of them stops and fails.
-# When a tooling lock changed it does what the owner does by hand, with no pull request (a bot's pull request would wait for a person to approve its workflow runs):
-# it pushes a branch, starts CI by dispatch (a push made with the workflow's own token starts no workflows by itself, GitHub's documented rule), waits until the three checks
-# that the `require-ci` rule demands (tests, lint, engines) are green on that exact commit, and only then fast-forwards main to it. If a check fails or main has moved,
-# nothing is merged: the branch stays, the run summary says why, and the next run replaces it. A push made with the workflow's token starts no deploy: nothing reaches
-# production from here.
+# Every Monday this workflow moves the cutoff of the three scanner and tool locks (zizmor, pip-audit, uv-tool) to 14 days before today and recompiles. They are used only by
+# workflows that hold no secret. The FROZEN locks (capture, gold build, and requirements-dev, which pages.yml installs next to a secret) have their own fixed cutoff and are never
+# touched here: a run that changes one of them stops and fails.
+# Why two jobs and a deploy key (found 2026-11-05, three proof runs): the `require-ci` rule on main counts only checks that a real `push` event started, so a dispatched run,
+# a pull request opened by a bot, and a push made with the workflow's token (which starts no workflows) all leave "3 of 3 required status checks are expected", even for the owner.
+# The deploy key `keepalive` holds the one bypass of that rule, so the move onto main is done with it, and with nothing else:
+#   job 1 (refresh): no key. Compiles, pushes a branch with the workflow's token, dispatches CI, waits until tests, lint and engines are green on that exact commit. Runs the
+#                    package installer and downloads packages, so it must never see the key.
+#   job 2 (promote): the key, and no package install at all, only git. Runs only if job 1 found the checks green. Before it pushes it re-checks the commit: its parent is the
+#                    current head of main, and it changes only the three scanner and tool locks and the CUTOFF line of tools/locks.py. Then it fast-forwards main over SSH.
+# A push over SSH with the deploy key starts no deploy. If a check fails, the checks time out or main has moved, nothing is moved: the branch stays, the run summary says why,
+# and the next run replaces it.
 
 on:
   schedule:
@@ -25,11 +29,17 @@ concurrency:
 
 jobs:
   refresh:
+    # Only ever act on main: a dispatch from another branch must not push anywhere.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
-      contents: write # push the branch, move main, delete old branches
+      contents: write # push the branch, delete old branches
       actions: write # start CI and the security scans on the branch
+    outputs:
+      green: ${{ steps.push.outputs.green }}
+      sha: ${{ steps.push.outputs.sha }}
+      branch: ${{ steps.push.outputs.branch }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
@@ -42,37 +52,38 @@ jobs:
           python-version: "3.12" # the version the locks are made for
       - name: Install the pinned uv
         run: pip install --no-cache-dir --require-hashes -r .github/requirements/uv-tool.lock
-      - name: Move the tooling cutoff and recompile every lock
+      - name: Move the cutoff and recompile every lock
         run: |
           python tools/locks.py bump
           python tools/locks.py compile
-      - name: Production locks must not have moved
+      - name: Frozen locks must not have moved
         run: |
-          if ! git diff --quiet -- p1_intake/requirements.lock p4_modelling/requirements.lock; then
-            echo "A production lock changed. They are frozen by decision (PRODUCTION_CUTOFF in tools/locks.py); stopping." >> "$GITHUB_STEP_SUMMARY"
+          if ! git diff --quiet -- p1_intake/requirements.lock p4_modelling/requirements.lock requirements-dev.lock; then
+            echo "A frozen lock changed. They are frozen by decision (FROZEN_CUTOFF in tools/locks.py); stopping." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-      - name: Stop when no tooling lock changed
+      - name: Stop when no scanner or tool lock changed
         id: changed
         run: |
-          if git diff --quiet -- requirements-dev.lock '.github/requirements/*.lock'; then
+          if git diff --quiet -- '.github/requirements/*.lock'; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No tooling lock changed: nothing newer than the two-week cutoff." >> "$GITHUB_STEP_SUMMARY"
+            echo "No scanner or tool lock changed: nothing newer than the two-week cutoff." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Push a branch, wait for the required checks, move main
+      - name: Push a branch, start the checks, wait for the three required ones
+        id: push
         if: steps.changed.outputs.changed == 'true'
         run: |
           set -u
           BRANCH="lock-refresh-$(date -u +%F)"
           URL="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
-          git diff -U0 -- requirements-dev.lock '.github/requirements/*.lock' | grep -E '^[+-][A-Za-z0-9_.-]+==' | grep -vE '^(\+\+\+|---)' | cut -c1-120 | head -150 > /tmp/moved.txt || true
+          git diff -U0 -- '.github/requirements/*.lock' | grep -E '^[+-][A-Za-z0-9_.-]+==' | grep -vE '^(\+\+\+|---)' | cut -c1-120 | head -150 > /tmp/moved.txt || true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add tools/locks.py requirements-dev.lock .github/requirements/*.lock
-          git commit -q -m "Refresh the tooling hash locks (cutoff moved forward)"
+          git add tools/locks.py .github/requirements/*.lock
+          git commit -q -m "Refresh the scanner and tool hash locks (cutoff moved forward)"
           SHA="$(git rev-parse HEAD)"
           git push --force "$URL" "HEAD:refs/heads/${BRANCH}"
           # older refresh branches are replaced, not stacked
@@ -97,23 +108,45 @@ jobs:
             if [ "$bad" != "0" ]; then RESULT="failed"; break; fi
             if [ "$ok" = "3" ]; then RESULT="green"; break; fi
           done
-          if [ "$RESULT" != "green" ]; then
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+          if [ "$RESULT" = "green" ]; then
+            echo "green=true" >> "$GITHUB_OUTPUT"
+            echo "The required checks are green; handing over to the promote job." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "green=false" >> "$GITHUB_OUTPUT"
             echo "Not moved onto main: the required checks were not green (${RESULT}). The branch stays; the next run replaces it." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
           fi
-          # The first proof run (2026-11-05) was refused with "3 of 3 required status checks are expected" although the checks API already showed them green: the rule
-          # may lag the API, so the push is retried after a pause. Each attempt is written to the summary.
-          sleep 45
-          MOVED="no"
-          for attempt in 1 2 3 4; do
-            if git push "$URL" "${SHA}:refs/heads/main" 2> /tmp/push_err.txt; then
-              echo "main was fast-forwarded to ${SHA} (attempt ${attempt}). No deploy follows." >> "$GITHUB_STEP_SUMMARY"
-              MOVED="yes"
-              break
-            fi
-            echo "Attempt ${attempt} refused: $(grep -m1 -E 'required status|rule violations|non-fast-forward|rejected' /tmp/push_err.txt | cut -c1-200)" >> "$GITHUB_STEP_SUMMARY"
-            sleep 60
-          done
-          if [ "$MOVED" != "yes" ]; then
-            echo "main was NOT moved: the push was refused 4 times (main moved on, or a rule refused it). The branch stays; the next run replaces it." >> "$GITHUB_STEP_SUMMARY"
-          fi
+
+  promote:
+    needs: refresh
+    if: github.ref == 'refs/heads/main' && needs.refresh.outputs.green == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # the push goes over SSH with the deploy key, not through this token
+    env:
+      SHA: ${{ needs.refresh.outputs.sha }}
+      BRANCH: ${{ needs.refresh.outputs.branch }}
+    steps:
+      # Credentials persist for the push, over SSH with the deploy key (the one bypass of the require-ci rule, infra/terraform/github/main.tf). Accepted zizmor finding
+      # (artipacked), as in keepalive.yml. This job installs and runs no package.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
+        with:
+          ref: main
+          fetch-depth: 2
+          ssh-key: ${{ secrets.KEEPALIVE_DEPLOY_KEY }}
+      - name: Check the commit, then fast-forward main
+        run: |
+          set -eu
+          case "$BRANCH" in lock-refresh-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) echo "unexpected branch name" >> "$GITHUB_STEP_SUMMARY"; exit 1 ;; esac
+          git fetch --depth=2 origin "refs/heads/${BRANCH}"
+          [ "$(git rev-parse FETCH_HEAD)" = "$SHA" ] || { echo "The branch moved since the checks ran (not ${SHA}); nothing pushed." >> "$GITHUB_STEP_SUMMARY"; exit 1; }
+          [ "$(git rev-parse "${SHA}^")" = "$(git rev-parse HEAD)" ] || { echo "main has moved on since the branch was cut; nothing pushed (the next run starts again)." >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+          # only the three scanner and tool locks and the CUTOFF line of tools/locks.py may change
+          bad_files="$(git diff --name-only HEAD "$SHA" | grep -vE '^(\.github/requirements/(zizmor|pip-audit|uv-tool)\.lock|tools/locks\.py)$' || true)"
+          if [ -n "$bad_files" ]; then echo "The commit changes files outside the allowed list; nothing pushed: $(echo "$bad_files" | head -5 | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"; exit 1; fi
+          bad_lines="$(git diff -U0 HEAD "$SHA" -- tools/locks.py | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' | grep -vE '^[+-]CUTOFF = "[0-9T:Z-]+"' || true)"
+          if [ -n "$bad_lines" ]; then echo "tools/locks.py changes more than the CUTOFF line; nothing pushed." >> "$GITHUB_STEP_SUMMARY"; exit 1; fi
+          git push origin "${SHA}:refs/heads/main"
+          echo "main was fast-forwarded to ${SHA}. No deploy follows." >> "$GITHUB_STEP_SUMMARY"
