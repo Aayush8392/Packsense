@@ -32,11 +32,20 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def record(part: str, version: str) -> dict:
+def reader_block(model: str) -> dict:
+    """The reader that is frozen when it is not the gateway's own steward model: its model id, its endpoint and the code that calls it (no key, no value)."""
+    import exploratory_model_run as emr
+    return {"model": model, "endpoint": emr.ENDPOINT, "runner": "p8_steward/bootstrap/exploratory_model_run.py",
+            "runner_sha256": sha(ROOT / "p8_steward" / "bootstrap" / "exploratory_model_run.py"), "pause_between_calls_s": emr.PAUSE,
+            "json_retry": "on (the unusable-JSON retry only)", "key_variable": "GEMINI_API_KEY (name only)"}
+
+
+def record(part: str, version: str, reader_model: str = "") -> dict:
     cfg = json.loads((ROOT / "p8_steward" / "gateway_config.json").read_text(encoding="utf-8"))
     key_file = SET / f"answer_key_{part}_key.json"
     key = json.loads(key_file.read_text(encoding="utf-8"))
-    return {
+    extra = {"reader": reader_block(reader_model)} if reader_model else {}
+    return {**extra,
         "part": part, "version": version,
         "files": {f: sha(ROOT / f) for f in FILES},
         "prompt_sha256": hashlib.sha256(dr.SYSTEMS[version].encode("utf-8")).hexdigest(),
@@ -54,16 +63,19 @@ def main() -> None:
     ap.add_argument("--part", required=True)
     ap.add_argument("--version", required=True, choices=sorted(dr.SYSTEMS))
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--reader-model", default="", help="freeze another reader than the gateway's steward model (for example gemini-3.5-flash-lite); the check reads it from the stored record")
     a = ap.parse_args()
     out = SET / f"freeze_{a.part}_{a.version}.json"
-    now = record(a.part, a.version)
     if a.check:
         then = json.loads(out.read_text(encoding="utf-8"))["record"]
-        diffs = [k for k in now if now[k] != then.get(k)]
+        now = record(a.part, a.version, then.get("reader", {}).get("model", ""))
+        diffs = [k for k in set(now) | set(then) if now.get(k) != then.get(k)]
+        diffs.sort()
         print("FREEZE HOLDS" if not diffs else f"FREEZE BROKEN: {diffs}")
         sys.exit(1 if diffs else 0)
     if out.exists():
         sys.exit(f"{out.name} already exists: a freeze is written once")
+    now = record(a.part, a.version, a.reader_model)
     out.write_text(json.dumps({"written_utc": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), "record": now}, indent=1), encoding="utf-8")
     print("freeze written:", out.name, "\n", json.dumps(now, indent=1))
 
