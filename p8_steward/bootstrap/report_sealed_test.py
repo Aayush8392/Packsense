@@ -122,6 +122,27 @@ def weighted_verdict(wb: dict, proposals_total: int) -> str:
     return "PASS" if wb["point"] >= POINT_BAR and wb["lower95"] >= LOWER_BAR else "FAIL"
 
 
+def match_split(rows: list[dict]) -> dict:
+    """A121 11 (d): the 'appears to match' family is split and each part is measured on its own, shown only if its own rate passes the same bar as the proposals (point 90%,
+    Wilson lower end 80%, at least MIN_PROPOSALS cases). 'plain' = action 'no change'; 'pack_disagrees' = 'no change (the pack's own numbers disagree)';
+    'not_printed' = 'not assessed: the pack does not print it' (A121 11 (e)): no verdict is given, so only its count and how often the record equalled the key are reported."""
+    plain = [r for r in rows if r["action"] == "no change"]
+    note = [r for r in rows if r["action"].startswith("no change (the pack's own numbers disagree)")]
+    unprinted = [r for r in rows if r["action"].startswith("abstain (the pack does not print it)")]
+    out = {}
+    for name, part in (("plain", plain), ("pack_disagrees", note)):
+        x = rate(sum(bool(r["stored_right"]) for r in part), len(part))
+        x["public"] = bool(part) and len(part) >= MIN_PROPOSALS and x["rate"] >= POINT_BAR and x["lower95"] >= LOWER_BAR
+        out[name] = x
+    out["not_printed"] = {"n": len(unprinted), "record_equals_key": sum(bool(r["stored_right"]) for r in unprinted)}
+    return out
+
+
+def misprint_rows(rows: list[dict]) -> list[dict]:
+    """A121 11 (a): cards the owner ticked as 'the pack misprints a value or a unit' are their own group (they also stay in the pooled bar: nothing is excluded after the results)."""
+    return [r for r in rows if r.get("misprint")]
+
+
 def families_of(error_tags) -> list[str]:
     """The flag families a product carries, from OFF's ERROR tags (`data_quality_errors_tags`), in the fixed priority order (A121 paragraph 11 (j))."""
     import review_set_lib as rsl
@@ -171,11 +192,19 @@ def main() -> None:
         cmp = ak.matches_key_for_group(d["per100"], truth, group) if d["per100"] else None
         pr = cmp["match"] if cmp else None
         rows.append({"code": code, "group": group[0], "action": d["action"], "stored_right": stored_ok["match"], "proposal_right": pr, "height": median_height(code, dr.SET / "ocr_json"),
-                     "dropped": d["dropped"], "unscorable": bool(cmp and cmp["compared"] == 0)})
+                     "dropped": d["dropped"], "unscorable": bool(cmp and cmp["compared"] == 0), "misprint": bool(entry.get("misprint"))})
     s = summarise(rows)
     print(f"[{a.part} {a.version}] cards {s['cards']}\n")
     print("proposals ('appears to differ') right:", fmt(s["proposals"]), "->", s["bar"])
     print("'appears to match' verdicts right:   ", fmt(s["match_verdicts"]), "->", s["match_bar"])
+    ms = match_split(rows)
+    s["match_split"] = ms
+    for name, label in (("plain", "  plain 'appears to match'"), ("pack_disagrees", "  matches, 'the pack's own numbers disagree'")):
+        print(f"{label}: {fmt(ms[name])} -> {'public bar PASS' if ms[name]['public'] else 'not public (fewer than ' + str(MIN_PROPOSALS) + ' cases or bar not met)'}")
+    print(f"  not assessed, 'the pack does not print it' (A121 11 (e)): {ms['not_printed']['n']} cards (record equals the key on {ms['not_printed']['record_equals_key']})")
+    mp = summarise(misprint_rows(rows))
+    s["misprint_group"] = mp
+    print(f"MISPRINT-TICKED CARDS (own group, A121 11 (a); they stay in every figure of the bar): {mp['cards']} cards | proposals {fmt(mp['proposals'])} | matches right {fmt(mp['match_verdicts'])} | not assessed {mp['abstentions']['k']}")
     print("silent misses (of all cards):        ", fmt(s["silent_misses"]))
     print(f"proposals dropped (the key lacks the field they concern; rule (b)): {s['dropped_unscorable']}")
     print("abstentions ('not assessed'):        ", fmt(s["abstentions"]))

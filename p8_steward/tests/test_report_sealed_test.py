@@ -100,3 +100,24 @@ def test_a_family_is_judged_only_with_fifteen_proposals():
     assert rs.family_verdict(rs.rate(16, 16)) == "PASS"                              # 16 of 16: lower end 80.6%
     assert rs.family_verdict(rs.rate(15, 15)) == "FAIL"                              # 15 of 15: lower end 79.6%, under the bar
     assert rs.family_verdict(rs.rate(36, 40)) == "FAIL"                              # 90% point, lower end about 77%: under the bar
+
+
+def mrow(action, stored_right=True, misprint=False):
+    return {"code": "x", "action": action, "stored_right": stored_right, "proposal_right": None, "height": 25.0, "misprint": misprint}
+
+
+def test_the_match_statuses_are_split_and_each_needs_its_own_bar():
+    rows = ([mrow("no change")] * 44 + [mrow("no change", False)] * 1 + [mrow("no change (the pack's own numbers disagree)")] * 7 + [mrow("no change (the pack's own numbers disagree)", False)] * 3
+            + [mrow("abstain (the pack does not print it)", False)] * 2 + [mrow("abstain (the pack does not print it)", True)] + [mrow("abstain (no readable table in the scan)")])
+    ms = rs.match_split(rows)
+    assert (ms["plain"]["k"], ms["plain"]["n"]) == (44, 45) and ms["plain"]["public"]                  # 97.8%, lower end above 80%, 45 cases
+    assert (ms["pack_disagrees"]["k"], ms["pack_disagrees"]["n"]) == (7, 10) and not ms["pack_disagrees"]["public"]      # the closed test's weak status: 7 of 10, and too few cases
+    assert ms["not_printed"] == {"n": 3, "record_equals_key": 1}                                       # an abstention with no verdict: counted, never a match
+    assert rs.match_split([mrow("no change")] * 39)["plain"]["public"] is False                         # fewer than 40 cases is never public, even when perfect
+
+
+def test_misprint_ticked_cards_form_their_own_group_and_stay_in_the_pool():
+    rows = [mrow("change to reading", misprint=True), mrow("no change"), mrow("no change", misprint=True)]
+    assert len(rs.misprint_rows(rows)) == 2
+    assert rs.summarise(rows)["cards"] == 3                                                            # nothing is removed from the pooled figures
+    assert rs.summarise(rs.misprint_rows(rows))["cards"] == 2

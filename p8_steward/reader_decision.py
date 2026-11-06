@@ -6,6 +6,7 @@ The reader's reading is only evidence. Code decides, and the default is to say n
     figures; if dropping exactly ONE field of the reading clears every violation, that field is a misread and is left out; otherwise abstain;
   - the record is already what the reading says: 'no change'. If the record itself breaks the salt/sodium rule and the printed side agrees with the record, the field the pack does not
     print is the inconsistent one -> 'no change' with the computed figures; any other rule the reading did not cover -> abstain;
+  - (A121 11 (e)) a record that holds a value for a field of the flagged group which the pack does not print is never 'no change': 'not assessed: the pack does not print it';
   - the reading only swaps values the record already holds (the scan cannot say which label a value belongs to) -> abstain;
   - otherwise propose every field of the flagged group where the reading differs from the record.
 Every outcome carries 'evidence': plain sentences with the figures computed by code (rule_evidence.py). Every proposal still needs a human before anything leaves the system.
@@ -18,8 +19,9 @@ import answer_key_lib as ak
 import fix_candidates as fc
 from rule_evidence import explain
 
+UNPRINTED = "abstain (the pack does not print it)"        # public status: not assessed: the pack does not print it (A121 11 (e))
 MIN_FIELDS = 2          # a reading with fewer printed, grounded values than this is not a table
-OPTIONS = {"table_guard", "min_fields", "uncovered", "swap", "explain", "dropone"}      # guards that are ON; "minimal" (smallest change) was measured, lost fixes, and stays off
+OPTIONS = {"table_guard", "min_fields", "uncovered", "swap", "explain", "dropone", "unprinted"}      # guards that are ON; "minimal" (smallest change) was measured, lost fixes, and stays off
 
 
 def _is_permutation(stored: dict, read: dict, fields: list[str]) -> bool:
@@ -94,6 +96,10 @@ def decide(stored: dict, reading: dict | None, text: str, group: str, version: s
         return out
     if not both:                                                                 # nothing the record carries can be compared: only a fill-in is possible
         out["per100"] = {f: read[f] for f in fields}
+        if not fields and "unprinted" in on and any(stored.get(f) is not None for f in ak.GROUP_FIELDS[group]):
+            out["action"] = UNPRINTED                                            # A121 11 (e): the record holds a value the pack does not print: never 'matches'
+            out["evidence"] = ["the record holds a value for a field of the flagged group that the pack does not print"]
+            return out
         out["action"] = "fill in" if fields else "no change"
         return out
     diff = [f for f in both if not ak.field_matches(f, stored[f], read[f])]
@@ -101,7 +107,8 @@ def decide(stored: dict, reading: dict | None, text: str, group: str, version: s
         if base and "uncovered" in on:
             printed = [f for f in ("salt", "sodium") if f in read and stored.get(f) is not None]
             if "explain" in on and base == {"salt-does-not-match-sodium"} and len(printed) == 1 and stored.get("salt") is not None and stored.get("sodium") is not None:
-                out["action"] = "no change (an unprinted field is inconsistent)"        # the printed side agrees with the record; the other side is the one that does not
+                # the printed side agrees with the record; the other side is the one that does not (it was 'no change (an unprinted field is inconsistent)' before A121 11 (e))
+                out["action"] = UNPRINTED if "unprinted" in on else "no change (an unprinted field is inconsistent)"
                 out["evidence"] = [explain(stored, "salt-does-not-match-sodium")]
             else:
                 out["action"] = "abstain (the record breaks a rule the reading did not cover)"

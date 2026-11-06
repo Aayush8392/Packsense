@@ -60,12 +60,14 @@ def test_when_the_pack_contradicts_itself_and_the_record_says_the_same_the_statu
     assert out["action"] == "no change (the pack's own numbers disagree)" and any("kJ" in s for s in out["evidence"]) and not out["per100"]
 
 
-def test_a_record_whose_salt_disagrees_with_the_printed_sodium_is_called_inconsistent_not_wrong_on_the_pack():
+def test_a_record_whose_salt_disagrees_with_the_printed_sodium_is_not_assessed_because_the_pack_does_not_print_the_salt():   # was "no change (an unprinted field...)" before A121 11 (e)
     stored = {"energy_kcal": 513.0, "energy_kj": 2145.5, "fat": 26.1, "saturated_fat": 11.0, "carbohydrates": 62.6, "sugars": 2.2, "fiber": 0.0, "proteins": 6.8, "salt": 5.0, "sodium": 0.756}
     reading = {"basis": "per 100 g", "values_per_100": {"energy_kcal": 513, "fat": 26.1, "saturated_fat": 11, "carbohydrates": 62.6, "sugars": 2.2, "proteins": 6.8, "sodium": 0.756}}
     scan = "Energy 513 kcal | Fat 26.1 g | of which saturates 11 g | Carbohydrate 62.6 g | of which sugars 2.2 g | Protein 6.8 g | Sodium 756 mg"
     out = rd.decide(stored, reading, scan, "B_salt_vs_sodium", "v2")
-    assert out["action"] == "no change (an unprinted field is inconsistent)" and "1.89 g of salt" in out["evidence"][0] and "5 g" in out["evidence"][0]
+    assert out["action"] == rd.UNPRINTED and "1.89 g of salt" in out["evidence"][0] and "5 g" in out["evidence"][0] and not out["per100"]
+    # the older status stays reachable only when the guard is switched off (so the change is one option, visible in the freeze record)
+    assert rd.decide(stored, reading, scan, "B_salt_vs_sodium", "v2", rd.OPTIONS - {"unprinted"})["action"] == "no change (an unprinted field is inconsistent)"
 
 
 def test_one_misread_field_is_left_out_and_the_rest_of_the_reading_is_used():
@@ -85,3 +87,23 @@ def test_the_retry_message_describes_the_readings_own_broken_checks_with_compute
     assert rd.reading_problems(None, scan) is None
     clean = {"basis": "per 100 g", "values_per_100": {"energy_kcal": 400, "fat": 3, "carbohydrates": 7, "proteins": 83, "sugars": 3}}
     assert rd.reading_problems(clean, "400 kcal | 3 | 7 | 83 | 3 | fat") == []
+
+
+def test_a_record_with_salt_and_sodium_the_pack_never_prints_is_not_a_match():
+    # real record of the first sealed test (card 0745178376174, group B): the pack prints neither salt nor sodium; OFF holds salt 10 g, sodium 0
+    stored = {"energy_kcal": 45.02, "energy_kj": 188.0, "fat": 0.0, "saturated_fat": 0.0, "carbohydrates": 11.13, "sugars": 0.0, "fiber": 0.0, "proteins": 0.0, "salt": 10.0, "sodium": 0.0}
+    reading = {"basis": "per 100 g", "values_per_100": {"energy_kcal": 45.02, "carbohydrates": 11.13, "sugars": 0.0, "fiber": 0.0, "proteins": 0.0, "fat": 0.0}}
+    scan = "Nutrition Facts per 100 g | Energy 45.02 kcal | Carbohydrate 11.13 g | of which sugars 0 g | Dietary fibre 0 g | Protein 0 g | Fat 0 g"
+    out = rd.decide(stored, reading, scan, "B_salt_vs_sodium", "v3rows")
+    assert out["action"] == rd.UNPRINTED and not out["per100"]
+    assert rd.decide(stored, reading, scan, "B_salt_vs_sodium", "v3rows", rd.OPTIONS - {"unprinted"})["action"] == "no change"       # what the closed test did
+    # a record that holds nothing for the flagged group is still just 'no change' (nothing unprinted to doubt)
+    bare = {k: v for k, v in stored.items() if k not in ("salt", "sodium")}
+    assert rd.decide(bare, reading, scan, "B_salt_vs_sodium", "v3rows")["action"] == "no change"
+
+
+def test_a_record_whose_flagged_fields_are_all_printed_is_still_unchanged():
+    stored = {"energy_kcal": 400.0, "fat": 10.0, "carbohydrates": 60.0, "proteins": 8.0, "salt": 1.0, "sodium": 0.4}
+    reading = {"basis": "per 100 g", "values_per_100": dict(stored)}
+    scan = "Energy 400 kcal | Fat 10 g | Carbohydrate 60 g | Protein 8 g | Salt 1.0 g | Sodium 0.4 g"
+    assert rd.decide(stored, reading, scan, "B_salt_vs_sodium", "v3rows")["action"] == "no change"
