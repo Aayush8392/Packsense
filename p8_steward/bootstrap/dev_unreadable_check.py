@@ -37,9 +37,9 @@ def unreadable_cards(key_cards: dict) -> dict:
     return {c: e for c, e in key_cards.items() if not e["usable"]}
 
 
-def all_unreadable() -> dict:
+def all_unreadable(parts: tuple = PARTS) -> dict:
     out = {}
-    for part in PARTS:
+    for part in parts:
         key = json.loads((SET / f"answer_key_{part}_key.json").read_text(encoding="utf-8"))["cards"]
         for code, entry in unreadable_cards(key).items():
             out[code] = {**entry, "part": part}
@@ -68,11 +68,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry", action="store_true")
     ap.add_argument("--run", action="store_true")
+    ap.add_argument("--part", choices=["test"], help="run the sealed TEST part's unreadable cards instead (counts only, no barcodes printed; output dev_unreadable_v3rows_test.json)")
     ap.add_argument("--env-file", default=str(ROOT / ".env"))
     a = ap.parse_args()
     if a.dry == a.run:
         sys.exit("give exactly one of --dry and --run")
-    cards = all_unreadable()
+    test = a.part == "test"
+    out_file = SET / "dev_unreadable_v3rows_test.json" if test else OUT
+    cards = all_unreadable(("test",) if test else PARTS)
     states = {c: status(c) for c in cards}
     print(f"{len(cards)} unreadable cards ({Counter(e['part'] for e in cards.values())}); scan state: {dict(Counter(s for s, _ in states.values()))}")
     if a.dry:
@@ -80,7 +83,7 @@ def main() -> None:
         return
     rows_by = stored_rows()
     gateway = gw.Gateway(gw.read_key("GROQ_API_KEY", a.env_file), usage=gw.UsageLog(ROOT / "output" / "gateway_usage.jsonl"))
-    done = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
+    done = json.loads(out_file.read_text(encoding="utf-8")) if out_file.exists() else {}
     for code, entry in cards.items():
         state, text = states[code]
         if code in done:
@@ -92,7 +95,7 @@ def main() -> None:
         try:
             res = gateway.call("steward", messages)
         except gw.GatewayError as e:
-            print(code, "STOP", e.kind, str(e)[:500], e.retry_after)
+            print("STOP" if test else code, e.kind, str(e)[:500], e.retry_after)
             break
         first = {"answer": res["text"], "reading": dr.read_json(res["text"]), "tokens": res["provenance"]["total_tokens"]}
         time.sleep(13)
@@ -101,14 +104,14 @@ def main() -> None:
         stored = fc.clean(rows_by[code])
         d = dr.decide(stored, final["reading"], text, entry["group"], VERSION)
         done[code] = {"state": state, "action": d["action"], "tokens": final["tokens"], "dropped": d["dropped"]}
-        OUT.write_text(json.dumps(done, ensure_ascii=False, indent=1), encoding="utf-8")
-        print(code, entry["part"], "->", d["action"][:70], flush=True)
+        out_file.write_text(json.dumps(done, ensure_ascii=False, indent=1), encoding="utf-8")
+        print("." if test else f"{code} {entry['part']} -> {d['action'][:70]}", flush=True)
         time.sleep(13)
-    OUT.write_text(json.dumps(done, ensure_ascii=False, indent=1), encoding="utf-8")
+    out_file.write_text(json.dumps(done, ensure_ascii=False, indent=1), encoding="utf-8")
     acted = [c for c, v in done.items() if not v["action"].startswith(("abstain", "not assessed"))]
     print(f"\n{len(done)} of {len(cards)} cards done; tokens used: {sum(v['tokens'] for v in done.values())}")
     print("actions:", dict(Counter(v["action"].split(' (')[0][:40] for v in done.values())))
-    print(f"cards on which the reader ACTED (should be looked at by hand): {len(acted)}", acted)
+    print(f"cards on which the reader ACTED (should be looked at by hand): {len(acted)}", [] if test else acted)
 
 
 if __name__ == "__main__":

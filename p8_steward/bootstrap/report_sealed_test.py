@@ -1,0 +1,144 @@
+"""The report of the sealed test (A121 paragraphs 8 and 9). Pure analysis of one finished reader run: it changes nothing and calls no model.
+
+  python p8_steward/bootstrap/report_sealed_test.py --part test --version v3rows
+
+Definitions (fixed before the run, same as A121):
+  proposal          the reader's action is 'change to reading' or 'fill in' (the public status 'appears to differ'); RIGHT when every field of the flagged group is within 10% of the key
+  match verdict     the action starts with 'no change' ('appears to match'); RIGHT when the stored record agrees with the key on the flagged group
+  silent miss       a 'no change' verdict on a record that does NOT agree with the key (the check said 'matches' and was wrong)
+  abstention        the action starts with 'abstain' ('not assessed'); coverage = 1 - abstention rate
+  band              the median word height (px) of the raw scan; edges under 15, 15 to 20, 20 to 30, 30 to 50, 50 and up
+Bar: proposals right at least 90% (point) AND Wilson 95% lower bound at least 80%; fewer than 40 proposals = inconclusive (a fail for publication).
+A band is switched on only with at least 15 keyed proposals AND a lower bound of at least 80%.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import statistics
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "p8_steward"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+BAND_EDGES = [0, 15, 20, 30, 50]
+BAND_NAMES = ["under 15 px", "15 to 20 px", "20 to 30 px", "30 to 50 px", "50 px and up"]
+POINT_BAR, LOWER_BAR, MIN_PROPOSALS, BAND_MIN_N = 0.90, 0.80, 40, 15
+
+
+def wilson(k: int, n: int, z: float = 1.959964) -> tuple[float, float]:
+    """95% Wilson score interval for k of n (0, 0 when n is 0)."""
+    if n == 0:
+        return 0.0, 0.0
+    p = k / n
+    d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return max(0.0, c - h), min(1.0, c + h)
+
+
+def band_of(height: float | None) -> str:
+    if height is None:
+        return "no word height"
+    i = max(j for j, e in enumerate(BAND_EDGES) if height >= e)
+    return BAND_NAMES[i]
+
+
+def rate(k: int, n: int) -> dict:
+    lo, hi = wilson(k, n)
+    return {"k": k, "n": n, "rate": (k / n) if n else None, "lower95": lo, "upper95": hi}
+
+
+def summarise(rows: list[dict]) -> dict:
+    """rows: {code, action, stored_right, proposal_right (bool|None), height}. Returns every figure of the report."""
+    n = len(rows)
+    props = [r for r in rows if r["action"] in ("change to reading", "fill in")]
+    matches = [r for r in rows if r["action"].startswith("no change")]
+    absts = [r for r in rows if r["action"].startswith("abstain")]
+    p_right = sum(bool(r["proposal_right"]) for r in props)
+    out = {"cards": n, "proposals": rate(p_right, len(props)), "match_verdicts": rate(sum(bool(r["stored_right"]) for r in matches), len(matches)),
+           "silent_misses": rate(sum(not r["stored_right"] for r in matches), n), "abstentions": rate(len(absts), n), "coverage": rate(n - len(absts), n)}
+    pr = out["proposals"]
+    if len(props) < MIN_PROPOSALS:
+        out["bar"] = f"INCONCLUSIVE ({len(props)} proposals, fewer than {MIN_PROPOSALS}): a fail for publication"
+    elif pr["rate"] >= POINT_BAR and pr["lower95"] >= LOWER_BAR:
+        out["bar"] = "PASS"
+    else:
+        out["bar"] = "FAIL"
+    out["match_bar"] = ("PASS" if matches and out["match_verdicts"]["rate"] >= POINT_BAR and out["match_verdicts"]["lower95"] >= LOWER_BAR else "not passed (not public)")
+    bands = {}
+    for name in BAND_NAMES + ["no word height"]:
+        bp = [r for r in props if band_of(r["height"]) == name]
+        b = rate(sum(bool(r["proposal_right"]) for r in bp), len(bp))
+        b["switched_on"] = len(bp) >= BAND_MIN_N and b["lower95"] >= LOWER_BAR
+        bands[name] = b
+    out["bands"] = bands
+    return out
+
+
+def median_height(code: str, ocr_dir: Path) -> float | None:
+    import scan_layout as sl
+    f = ocr_dir / f"{code}.json"
+    if not f.exists():
+        return None
+    ws = sl.words_of(json.loads(f.read_text(encoding="utf-8") or "{}"))
+    return statistics.median(w["h"] for w in ws) if ws else None
+
+
+def fmt(x: dict) -> str:
+    return "n/a" if not x["n"] else f"{x['k']} of {x['n']} = {x['rate']:.1%} (95% interval {x['lower95']:.1%} to {x['upper95']:.1%})"
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--part", required=True)
+    ap.add_argument("--version", required=True)
+    ap.add_argument("--readings", help="score another readings file (an exploratory model run) instead of the sealed one; the report file gets a suffix")
+    a = ap.parse_args()
+    import answer_key_lib as ak
+    import dev_ocr_reader as dr
+    import fix_candidates as fc
+    key, (_, out_file) = dr.usable_cards(a.part, a.version), dr.paths(a.part, a.version)
+    if a.readings:
+        out_file = Path(a.readings)
+    readings = json.loads(out_file.read_text(encoding="utf-8"))
+    rows_by: dict = {}
+    for line in (dr.SET / "stg_silver_versions.jsonl").read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            r = json.loads(line)
+            if r["code"] not in rows_by or r["last_modified_t"] > rows_by[r["code"]]["last_modified_t"]:
+                rows_by[r["code"]] = r
+    rows = []
+    for code, entry in key.items():
+        group, truth = entry["group"], entry["per100"]
+        stored_ok = ak.matches_key_for_group(fc.clean(rows_by[code]), truth, group)
+        d = dr.decide(fc.clean(rows_by[code]), (readings.get(code) or {}).get("reading"), dr.scan_text(code, a.version), group, a.version)
+        pr = ak.matches_key_for_group(d["per100"], truth, group)["match"] if d["per100"] else None
+        rows.append({"code": code, "group": group[0], "action": d["action"], "stored_right": stored_ok["match"], "proposal_right": pr, "height": median_height(code, dr.SET / "ocr_json"),
+                     "dropped": d["dropped"]})
+    s = summarise(rows)
+    print(f"[{a.part} {a.version}] cards {s['cards']}\n")
+    print("proposals ('appears to differ') right:", fmt(s["proposals"]), "->", s["bar"])
+    print("'appears to match' verdicts right:   ", fmt(s["match_verdicts"]), "->", s["match_bar"])
+    print("silent misses (of all cards):        ", fmt(s["silent_misses"]))
+    print("abstentions ('not assessed'):        ", fmt(s["abstentions"]))
+    print("coverage (acted on):                 ", fmt(s["coverage"]))
+    print("\nprecision of proposals by median word height:")
+    for name, b in s["bands"].items():
+        if b["n"]:
+            print(f"  {name:15} {fmt(b)}  {'ON' if b['switched_on'] else 'off (fewer than 15 proposals or lower bound under 80%)'}")
+    print("\nmisses to tag with a cause (local only):")
+    for r in rows:
+        if r["action"] in ("change to reading", "fill in") and not r["proposal_right"]:
+            print("  wrong proposal ", r["code"], r["group"], band_of(r["height"]), r["action"])
+        elif r["action"].startswith("no change") and not r["stored_right"]:
+            print("  silent miss    ", r["code"], r["group"], band_of(r["height"]), r["action"])
+    suffix = f"__{out_file.stem.split('__', 1)[1]}" if a.readings and "__" in out_file.stem else ""
+    (dr.SET / f"sealed_report_{a.part}_{a.version}{suffix}.json").write_text(json.dumps({"summary": s, "rows": rows}, indent=1), encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()
