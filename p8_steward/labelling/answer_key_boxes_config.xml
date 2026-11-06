@@ -55,8 +55,8 @@
       <TextArea name="serving_size" toName="photo" rows="1" editable="true" placeholder="blank if none is printed"/>
       <Header value="Tick if it applies (leave both empty on a normal card)" size="6"/>
       <Choices name="pack_flags" toName="photo" choice="multiple">
-        <Choice value="The pack misprints a value or a unit (I typed it exactly as printed)"/>
-        <Choice value="A flagged number is unreadable (glare, cut off, hidden)"/>
+        <Choice value="The pack misprints a value or a unit (I typed it exactly as printed)" hotkey="alt+5"/>
+        <Choice value="A flagged number is unreadable (glare, cut off, hidden)" hotkey="alt+6"/>
       </Choices>
       <Header value="3. Anything else worth saying (optional)" size="5"/>
       <TextArea name="note" toName="photo" rows="2" editable="true" placeholder="for example: photo blurry, two tables, prepared product"/>

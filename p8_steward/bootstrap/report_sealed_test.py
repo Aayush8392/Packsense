@@ -55,11 +55,11 @@ def rate(k: int, n: int) -> dict:
 def summarise(rows: list[dict]) -> dict:
     """rows: {code, action, stored_right, proposal_right (bool|None), height}. Returns every figure of the report."""
     n = len(rows)
-    props = [r for r in rows if r["action"] in ("change to reading", "fill in")]
+    props = [r for r in rows if r["action"] in ("change to reading", "fill in") and not r.get("unscorable")]      # rule (b): a proposal on a field the key does not hold is dropped, right or wrong
     matches = [r for r in rows if r["action"].startswith("no change")]
     absts = [r for r in rows if r["action"].startswith("abstain")]
     p_right = sum(bool(r["proposal_right"]) for r in props)
-    out = {"cards": n, "proposals": rate(p_right, len(props)), "match_verdicts": rate(sum(bool(r["stored_right"]) for r in matches), len(matches)),
+    out = {"cards": n, "dropped_unscorable": sum(1 for r in rows if r["action"] in ("change to reading", "fill in") and r.get("unscorable")), "proposals": rate(p_right, len(props)), "match_verdicts": rate(sum(bool(r["stored_right"]) for r in matches), len(matches)),
            "silent_misses": rate(sum(not r["stored_right"] for r in matches), n), "abstentions": rate(len(absts), n), "coverage": rate(n - len(absts), n)}
     pr = out["proposals"]
     if len(props) < MIN_PROPOSALS:
@@ -125,14 +125,16 @@ def main() -> None:
         group, truth = entry["group"], entry["per100"]
         stored_ok = ak.matches_key_for_group(fc.clean(rows_by[code]), truth, group)
         d = dr.decide(fc.clean(rows_by[code]), (readings.get(code) or {}).get("reading"), dr.scan_text(code, a.version), group, a.version)
-        pr = ak.matches_key_for_group(d["per100"], truth, group)["match"] if d["per100"] else None
+        cmp = ak.matches_key_for_group(d["per100"], truth, group) if d["per100"] else None
+        pr = cmp["match"] if cmp else None
         rows.append({"code": code, "group": group[0], "action": d["action"], "stored_right": stored_ok["match"], "proposal_right": pr, "height": median_height(code, dr.SET / "ocr_json"),
-                     "dropped": d["dropped"]})
+                     "dropped": d["dropped"], "unscorable": bool(cmp and cmp["compared"] == 0)})
     s = summarise(rows)
     print(f"[{a.part} {a.version}] cards {s['cards']}\n")
     print("proposals ('appears to differ') right:", fmt(s["proposals"]), "->", s["bar"])
     print("'appears to match' verdicts right:   ", fmt(s["match_verdicts"]), "->", s["match_bar"])
     print("silent misses (of all cards):        ", fmt(s["silent_misses"]))
+    print(f"proposals dropped (the key lacks the field they concern; rule (b)): {s['dropped_unscorable']}")
     print("abstentions ('not assessed'):        ", fmt(s["abstentions"]))
     print("coverage (acted on):                 ", fmt(s["coverage"]))
     print("\nprecision of proposals by median word height:")
@@ -141,7 +143,7 @@ def main() -> None:
             print(f"  {name:15} {fmt(b)}  {'ON' if b['switched_on'] else 'off (fewer than 15 proposals or lower bound under 80%)'}")
     print("\nmisses to tag with a cause (local only):")
     for r in rows:
-        if r["action"] in ("change to reading", "fill in") and not r["proposal_right"]:
+        if r["action"] in ("change to reading", "fill in") and not r["proposal_right"] and not r.get("unscorable"):
             print("  wrong proposal ", r["code"], r["group"], band_of(r["height"]), r["action"])
         elif r["action"].startswith("no change") and not r["stored_right"]:
             print("  silent miss    ", r["code"], r["group"], band_of(r["height"]), r["action"])
@@ -151,8 +153,9 @@ def main() -> None:
         for fam in families_of(rows_by[code].get("data_quality_errors_tags")):
             d = dr.decide(stored, (readings.get(code) or {}).get("reading"), dr.scan_text(code, a.version), fam, a.version)
             truth = entry["per100"]
+            cmp = ak.matches_key_for_group(d["per100"], truth, fam) if d["per100"] else None
             fam_rows.setdefault(fam, []).append({"code": code, "action": d["action"], "stored_right": ak.matches_key_for_group(stored, truth, fam)["match"],
-                                                 "proposal_right": ak.matches_key_for_group(d["per100"], truth, fam)["match"] if d["per100"] else None, "height": None})
+                                                 "proposal_right": cmp["match"] if cmp else None, "height": None, "unscorable": bool(cmp and cmp["compared"] == 0)})
     print("\nBY FLAG FAMILY (a card counts in every family it carries: overlapping strata, never added together; the bar above stays one case per product):")
     fam_summary = {}
     for fam, frows in sorted(fam_rows.items()):

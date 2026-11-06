@@ -162,8 +162,8 @@ def test_the_form_config_has_the_unit_required_sodium_box_and_gives_every_choice
     from pathlib import Path
     xml = (Path(__file__).resolve().parents[1] / "labelling" / "answer_key_boxes_config.xml").read_text(encoding="utf-8")
     assert 'name="k_sodium_unit"' in xml and 'name="k_sodium"' not in xml and 'name="k_sodium_mg"' not in xml      # the fresh set's sodium box takes its unit from the owner (the first test's mg-default box is gone from the form)
-    choices = re.findall(r"<Choice [^>]*>", xml.split("pack_flags")[0])           # the column choices (the two ticks after them have no hotkey)
-    assert len(choices) == 4 and 'name="pack_flags"' in xml
+    choices = re.findall(r"<Choice [^>]*>", xml)                       # the four column choices and the two ticks: every one needs a non-digit hotkey, or Label Studio gives it a plain digit
+    assert len(choices) == 6 and 'name="pack_flags"' in xml
     for c in choices:
         m = re.search(r'hotkey="([^"]+)"', c)
         assert m and not m.group(1).isdigit(), c                   # a bare digit hotkey (the numpad keys 1 to 4) switched the column while typing numbers

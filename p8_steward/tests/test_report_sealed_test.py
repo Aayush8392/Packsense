@@ -55,3 +55,11 @@ def test_families_of_reads_the_error_tags_in_priority_order():
     assert rs.families_of(tags) == ["A_energy_mismatch", "D_sums_too_large"]
     assert rs.families_of(json.dumps(["en:nutrition-values-are-all-identical"])) == ["E_other_nutrition"]
     assert rs.families_of(None) == [] and rs.families_of([]) == []
+
+
+def test_a_proposal_on_a_field_the_key_lacks_is_dropped_not_counted_wrong_but_a_silent_match_stays_wrong():
+    rows = [row("change to reading", False, True)] * 4 + [row("change to reading", False, False)] + [dict(row("change to reading", False, False), unscorable=True)] * 3
+    rows += [dict(row("no change", False), unscorable=True)]          # a 'no change' on a record with an unprinted value is the reader's fault: not dropped
+    s = rs.summarise(rows)
+    assert (s["proposals"]["k"], s["proposals"]["n"], s["dropped_unscorable"]) == (4, 5, 3)
+    assert s["match_verdicts"]["n"] == 1 and s["silent_misses"]["k"] == 1
