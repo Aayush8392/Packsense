@@ -27,6 +27,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 BAND_EDGES = [0, 15, 20, 30, 50]
 BAND_NAMES = ["under 15 px", "15 to 20 px", "20 to 30 px", "30 to 50 px", "50 px and up"]
 POINT_BAR, LOWER_BAR, MIN_PROPOSALS, BAND_MIN_N = 0.90, 0.80, 40, 15
+# Weights of the weighted pooled bar (A121 (k), owner 2026-11-06): the share of each family among the India nutrition ERROR flags open in production,
+# counted 2026-11-06 by p8_steward/notebooks/count_flag_mix.py (1,264 flags: A 438, B 57, C 442, D 157, E 170). Fixed here before the freeze; the freeze record carries them.
+FAMILY_WEIGHTS = {"A_energy_mismatch": 438, "B_salt_vs_sodium": 57, "C_values_too_large": 442, "D_sums_too_large": 157, "E_other_nutrition": 170}
 
 
 def wilson(k: int, n: int, z: float = 1.959964) -> tuple[float, float]:
@@ -77,6 +80,38 @@ def summarise(rows: list[dict]) -> dict:
         bands[name] = b
     out["bands"] = bands
     return out
+
+
+def weighted_bar(fam_summary: dict, weights: dict[str, float] = FAMILY_WEIGHTS, z: float = 1.959964) -> dict:
+    """The weighted pooled bar of A121 (k) (owner's choice, 6 Nov): each family's proposal precision is weighted by the family's share of the open India error flags
+    in production, so the easy family C cannot dominate. Weights are renormalised over the families that have at least one scorable proposal (the weight left out is
+    reported). The interval is the Agresti-Coull one per family combined as a stratified estimate: p~ = (k + z^2/2) / (n + z^2); variance = sum W^2 p~(1-p~) / (n + z^2);
+    lower = weighted p~ - z sqrt(variance). Overlapping strata (a card in several families) make the families not independent: the interval is approximate, and the
+    unweighted pooled bar stays printed beside it. PASS needs: weighted point estimate >= 0.90, lower >= 0.80 and at least 40 proposals in the one-case-per-product pool.
+    """
+    fams = {f: s["proposals"] for f, s in fam_summary.items() if f in weights and s["proposals"]["n"] > 0}
+    total_w = sum(weights[f] for f in fams)
+    if not fams or total_w == 0:
+        return {"point": None, "lower95": None, "families_used": [], "weight_left_out": 1.0, "bar": "INCONCLUSIVE (no family has a scorable proposal)"}
+    point = lower_c = var = 0.0
+    for f, pr in fams.items():
+        w = weights[f] / total_w
+        k, n = pr["k"], pr["n"]
+        pt = (k + z * z / 2) / (n + z * z)
+        point += w * (k / n)
+        lower_c += w * pt
+        var += w * w * pt * (1 - pt) / (n + z * z)
+    lower = max(0.0, lower_c - z * math.sqrt(var))
+    return {"point": point, "lower95": lower, "families_used": sorted(fams), "weight_left_out": round(1 - total_w / sum(weights.values()), 4),
+            "per_family": {f: {"k": p["k"], "n": p["n"], "weight": round(weights[f] / total_w, 4)} for f, p in fams.items()}}
+
+
+def weighted_verdict(wb: dict, proposals_total: int) -> str:
+    if wb["point"] is None:
+        return wb["bar"]
+    if proposals_total < MIN_PROPOSALS:
+        return f"INCONCLUSIVE ({proposals_total} proposals, fewer than {MIN_PROPOSALS}): a fail for publication"
+    return "PASS" if wb["point"] >= POINT_BAR and wb["lower95"] >= LOWER_BAR else "FAIL"
 
 
 def families_of(error_tags) -> list[str]:
@@ -163,6 +198,15 @@ def main() -> None:
         fam_summary[fam] = fs
         print(f"  {fam:20} cards {fs['cards']:3} | proposals right {fmt(fs['proposals'])} | matches right {fmt(fs['match_verdicts'])} | not assessed {fs['abstentions']['k']}")
     s["families"] = fam_summary
+    wb = weighted_bar(fam_summary)
+    wb["bar"] = weighted_verdict(wb, s["proposals"]["n"])
+    s["weighted_bar"] = wb
+    if wb["point"] is not None:
+        print(f"\nWEIGHTED BAR (A121 (k): families weighted by the production stock of open India error flags; the pass/fail of the weighted reading): "
+              f"{wb['point']:.1%} (lower end {wb['lower95']:.1%}; approximate interval) -> {wb['bar']}")
+        print("  weights used:", {f: f"{v['weight']:.1%} ({v['k']} of {v['n']})" for f, v in wb["per_family"].items()}, "| weight left out:", wb["weight_left_out"])
+    else:
+        print("\nWEIGHTED BAR:", wb["bar"])
     suffix = f"__{out_file.stem.split('__', 1)[1]}" if a.readings and "__" in out_file.stem else ""
     (dr.SET / f"sealed_report_{a.part}_{a.version}{suffix}.json").write_text(json.dumps({"summary": s, "rows": rows}, indent=1), encoding="utf-8")
 

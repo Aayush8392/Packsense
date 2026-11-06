@@ -27,6 +27,7 @@ def test_a_record_without_a_reader_model_has_no_reader_key(tmp_path, monkeypatch
     (tmp_path / "answer_key_t_key.json").write_text('{"cards": {"1": {"usable": true}}}', encoding="utf-8")
     plain = fm.record("t", "v3rows")
     with_reader = fm.record("t", "v3rows", "gemini-3.5-flash-lite")
-    assert "reader" not in plain
+    assert "reader" not in plain and "weighted_bar" not in plain
     assert with_reader["reader"]["model"] == "gemini-3.5-flash-lite"
-    assert {k: v for k, v in with_reader.items() if k != "reader"} == plain
+    assert {k: v for k, v in with_reader.items() if k not in ("reader", "weighted_bar")} == plain
+    assert with_reader["weighted_bar"]["weights"]["B_salt_vs_sodium"] == 57

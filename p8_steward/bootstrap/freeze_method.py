@@ -44,7 +44,9 @@ def record(part: str, version: str, reader_model: str = "") -> dict:
     cfg = json.loads((ROOT / "p8_steward" / "gateway_config.json").read_text(encoding="utf-8"))
     key_file = SET / f"answer_key_{part}_key.json"
     key = json.loads(key_file.read_text(encoding="utf-8"))
-    extra = {"reader": reader_block(reader_model)} if reader_model else {}
+    import report_sealed_test as rst      # the weights are frozen with the reader; the first test's record (no reader) keeps its old shape
+    extra = {"reader": reader_block(reader_model), "weighted_bar": {"rule": "A121 (k): family precision weighted by the production stock of open India error flags; point >= 0.90, approximate lower end >= 0.80, >= 40 proposals",
+                                                                       "weights": rst.FAMILY_WEIGHTS, "report_sha256": sha(ROOT / "p8_steward" / "bootstrap" / "report_sealed_test.py")}} if reader_model else {}
     return {**extra,
         "part": part, "version": version,
         "files": {f: sha(ROOT / f) for f in FILES},

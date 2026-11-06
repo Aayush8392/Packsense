@@ -63,3 +63,33 @@ def test_a_proposal_on_a_field_the_key_lacks_is_dropped_not_counted_wrong_but_a_
     s = rs.summarise(rows)
     assert (s["proposals"]["k"], s["proposals"]["n"], s["dropped_unscorable"]) == (4, 5, 3)
     assert s["match_verdicts"]["n"] == 1 and s["silent_misses"]["k"] == 1
+
+
+def fam(k, n):
+    return {"proposals": rs.rate(k, n)}
+
+
+def test_weighted_bar_stops_the_easy_family_from_dominating():
+    # C is perfect and large; A is weak: the unweighted pool looks fine, the weighted reading must not
+    fams = {"A_energy_mismatch": fam(5, 10), "C_values_too_large": fam(40, 40)}
+    pooled = 45 / 50
+    wb = rs.weighted_bar(fams, {"A_energy_mismatch": 438, "C_values_too_large": 442})
+    assert pooled == 0.9 and wb["point"] < 0.80
+    assert abs(sum(v["weight"] for v in wb["per_family"].values()) - 1) < 1e-3
+    assert rs.weighted_verdict(wb, 50) == "FAIL"
+
+
+def test_weighted_bar_passes_when_every_family_is_clean_and_renormalises_missing_ones():
+    fams = {f: fam(n, n) for f, n in (("A_energy_mismatch", 30), ("C_values_too_large", 30), ("D_sums_too_large", 20))}
+    wb = rs.weighted_bar(fams)
+    assert abs(wb["point"] - 1.0) < 1e-9 and wb["lower95"] >= 0.80
+    assert wb["weight_left_out"] > 0 and "B_salt_vs_sodium" not in wb["families_used"]        # B and E had no proposals: their weight is reported as left out
+    assert rs.weighted_verdict(wb, 80) == "PASS"
+    assert rs.weighted_verdict(wb, 39).startswith("INCONCLUSIVE")                              # fewer than 40 proposals is never a pass
+
+
+def test_weighted_bar_one_field_variant_one_wrong_proposal_in_a_small_family_costs_its_weight():
+    base = {"A_energy_mismatch": fam(20, 20), "B_salt_vs_sodium": fam(5, 5), "C_values_too_large": fam(20, 20)}
+    worse = {**base, "B_salt_vs_sodium": fam(4, 5)}
+    assert rs.weighted_bar(worse)["point"] < rs.weighted_bar(base)["point"]
+    assert rs.weighted_bar({})["point"] is None
