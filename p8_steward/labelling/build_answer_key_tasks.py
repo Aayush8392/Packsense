@@ -103,7 +103,10 @@ def photo_ref(name: str, url_base: str | None) -> str:
     return "data:image/jpeg;base64," + base64.b64encode((SET / "photos" / name).read_bytes()).decode()
 
 
-def build(part: str, photo_url_base: str | None = None) -> list[dict]:
+EVERYTHING = "every nutrient printed in the table (energy, fat, saturated fat, carbohydrates, sugars, fibre, protein, salt, sodium)"
+
+
+def build(part: str, photo_url_base: str | None = None, type_everything: bool = False) -> list[dict]:
     split = json.loads((SET / "split.json").read_text(encoding="utf-8"))[part]
     manifest = json.loads((SET / "manifest.json").read_text(encoding="utf-8"))["cases_per_code"]
     photos = json.loads((SET / "photos" / "index.json").read_text(encoding="utf-8"))
@@ -125,7 +128,7 @@ def build(part: str, photo_url_base: str | None = None) -> list[dict]:
             "code": code,
             "group": manifest[code][0],
             "flag_text": flag_text(newest.get("data_quality_errors_tags") or []),
-            "fields_to_type": FIELDS_TO_TYPE[manifest[code][0]],
+            "fields_to_type": EVERYTHING if type_everything else FIELDS_TO_TYPE[manifest[code][0]],
             **cl.glossary_lines({"photo_languages": langs.get(code, [])}),
         }})
     return tasks
@@ -171,9 +174,10 @@ def main() -> None:
     ap.add_argument("--part", choices=["dev", "dev2", "test", "test2"], required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--photo-url-base", help="serve the photos by address (for example http://127.0.0.1:8090) instead of embedding them; run p8_steward/bootstrap/serve_photos.py while labelling")
+    ap.add_argument("--type-everything", action="store_true", help="every card asks for every printed nutrient (the fresh sealed set: the flag family of a card is decided afterwards from OFF's tags)")
     ap.add_argument("--carry-from", help="an export (JSON) of an earlier answer-key project: its finished cards are copied over as answers in the one-line form")
     args = ap.parse_args()
-    tasks = build(args.part, args.photo_url_base)
+    tasks = build(args.part, args.photo_url_base, args.type_everything)
     carried = carry_answers(tasks, Path(args.carry_from)) if args.carry_from else 0
     Path(args.out).write_text(json.dumps(tasks, ensure_ascii=False), encoding="utf-8")
     print(f"{len(tasks)} tasks for the {args.part} part, {carried} with an answer carried over -> {args.out} ({Path(args.out).stat().st_size // 1024} KB)")
