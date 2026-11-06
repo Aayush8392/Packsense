@@ -211,8 +211,8 @@ def main() -> None:
     wb["bar"] = weighted_verdict(wb, s["proposals"]["n"])
     s["weighted_bar"] = wb
     if wb["point"] is not None:
-        print(f"\nWEIGHTED BAR (A121 (k): families weighted by the production stock of open India error flags; the pass/fail of the weighted reading): "
-              f"{wb['point']:.1%} (lower end {wb['lower95']:.1%}; approximate interval) -> {wb['bar']}")
+        print(f"\nWEIGHTED READING (information only, A121 (k); the verdicts are the per-family ones above): "
+              f"{wb['point']:.1%} (lower end {wb['lower95']:.1%}; approximate interval)")
         print("  weights used:", {f: f"{v['weight']:.1%} ({v['k']} of {v['n']})" for f, v in wb["per_family"].items()}, "| weight left out:", wb["weight_left_out"])
     else:
         print("\nWEIGHTED BAR:", wb["bar"])
