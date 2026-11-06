@@ -152,11 +152,14 @@ def key_entry(task: dict) -> dict:
     boxes = {r["from_name"]: r["value"]["text"][0] for r in results if r["from_name"].startswith("k_")}
     serving_text = next((r["value"]["text"][0] for r in results if r["from_name"] == "serving_size"), "")
     note = next((r["value"]["text"][0] for r in results if r["from_name"] == "note"), "")
+    flags = " ".join(c for r in results if r["from_name"] == "pack_flags" for c in r["value"].get("choices", []))
     parsed = parse_boxes(boxes)
     entry = {"code": data["code"], "group": data.get("group"), "basis": basis, "serving": serving_text, "note": note, "approx": parsed["approx"], "errors": parsed["errors"],
-             "usable": False, "reason": None, "per100": {}, "unit": None}
+             "usable": False, "reason": None, "per100": {}, "unit": None, "misprint": "misprints" in flags}
     if parsed["errors"]:
         entry["reason"] = "a box could not be read: " + "; ".join(parsed["errors"])
+    elif "unreadable" in flags:
+        entry["reason"] = "a flagged number is unreadable on the photo (the owner's tick)"
     elif basis == "cannot read the table" or not basis:
         entry["reason"] = "the owner could not read the table"
     elif not parsed["values"]:

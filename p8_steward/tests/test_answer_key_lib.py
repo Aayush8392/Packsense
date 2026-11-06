@@ -162,8 +162,8 @@ def test_the_form_config_has_the_unit_required_sodium_box_and_gives_every_choice
     from pathlib import Path
     xml = (Path(__file__).resolve().parents[1] / "labelling" / "answer_key_boxes_config.xml").read_text(encoding="utf-8")
     assert 'name="k_sodium_unit"' in xml and 'name="k_sodium"' not in xml and 'name="k_sodium_mg"' not in xml      # the fresh set's sodium box takes its unit from the owner (the first test's mg-default box is gone from the form)
-    choices = re.findall(r"<Choice [^>]*>", xml)
-    assert len(choices) == 4
+    choices = re.findall(r"<Choice [^>]*>", xml.split("pack_flags")[0])           # the column choices (the two ticks after them have no hotkey)
+    assert len(choices) == 4 and 'name="pack_flags"' in xml
     for c in choices:
         m = re.search(r'hotkey="([^"]+)"', c)
         assert m and not m.group(1).isdigit(), c                   # a bare digit hotkey (the numpad keys 1 to 4) switched the column while typing numbers
@@ -179,3 +179,17 @@ def test_the_unit_required_sodium_box_refuses_a_bare_number_and_respects_an_expl
     assert ak.parse_boxes({"k_sodium_unit": "445mg"})["values"] == {"sodium": 0.445}
     assert ak.parse_boxes({"k_sodium_unit": ""})["errors"] == []                 # a blank box means 'not printed'
     assert ak.parse_boxes({"k_sodium_mg": "445"})["values"] == {"sodium": 0.445}   # the first test's form still reads the same
+
+
+def test_the_misprint_tick_is_kept_and_the_unreadable_tick_makes_the_card_unusable():
+    def task(flag):
+        res = [{"from_name": "basis", "value": {"choices": ["per 100 g"]}}, {"from_name": "k_fat", "value": {"text": ["9.7"]}}]
+        if flag:
+            res.append({"from_name": "pack_flags", "value": {"choices": [flag]}})
+        return {"data": {"code": "1", "group": "A_energy_mismatch"}, "annotations": [{"result": res}]}
+    plain = ak.key_entry(task(None))
+    assert plain["usable"] and plain["misprint"] is False
+    misprint = ak.key_entry(task("The pack misprints a value or a unit (I typed it exactly as printed)"))
+    assert misprint["usable"] and misprint["misprint"] is True
+    unreadable = ak.key_entry(task("A flagged number is unreadable (glare, cut off, hidden)"))
+    assert not unreadable["usable"] and "unreadable" in unreadable["reason"]

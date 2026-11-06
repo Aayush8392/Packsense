@@ -53,6 +53,11 @@
       <TextArea name="k_sodium_unit" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 445 mg   or   0.9 g"/>
       <Header value="Serving size as printed, if any (for example 30 g or 15 ml)" size="6"/>
       <TextArea name="serving_size" toName="photo" rows="1" editable="true" placeholder="blank if none is printed"/>
+      <Header value="Tick if it applies (leave both empty on a normal card)" size="6"/>
+      <Choices name="pack_flags" toName="photo" choice="multiple">
+        <Choice value="The pack misprints a value or a unit (I typed it exactly as printed)"/>
+        <Choice value="A flagged number is unreadable (glare, cut off, hidden)"/>
+      </Choices>
       <Header value="3. Anything else worth saying (optional)" size="5"/>
       <TextArea name="note" toName="photo" rows="2" editable="true" placeholder="for example: photo blurry, two tables, prepared product"/>
     </View>
