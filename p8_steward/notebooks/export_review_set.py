@@ -64,6 +64,7 @@ C = contract.load()
 dbutils.widgets.text("exclude_codes", "")           # barcodes to leave out (the six sample products), comma separated
 dbutils.widgets.text("limit_per_group", "36")
 dbutils.widgets.text("india_per_group", "22")
+dbutils.widgets.text("india_only", "0")            # "1": only Indian products are taken (the fresh sealed set)
 EXCLUDE = {c.strip() for c in dbutils.widgets.get("exclude_codes").split(",") if c.strip()}
 LIMIT_PER_GROUP, INDIA_PER_GROUP = int(dbutils.widgets.get("limit_per_group")), int(dbutils.widgets.get("india_per_group"))
 LIMITS = {g: LIMIT_PER_GROUP for g in rsl.ALL_GROUPS}
@@ -79,7 +80,7 @@ select per.code, per.r, ind.india, md5(per.code) as h from per inner join ind on
 """
 candidates = [{"code": r["code"], "group": rsl.group_name(r["r"]), "india": int(r["india"]), "h": r["h"]} for r in spark.sql(candidates_sql).collect()]
 print("candidate products with an open nutrition error flag:", len(candidates), "| India:", sum(c["india"] for c in candidates))
-picked, pick_report = rsl.choose(candidates, LIMIT_PER_GROUP, INDIA_PER_GROUP, EXCLUDE)
+picked, pick_report = rsl.choose(candidates, LIMIT_PER_GROUP, INDIA_PER_GROUP, EXCLUDE, india_only=dbutils.widgets.get("india_only") == "1")
 cases = {c["code"]: {c["group"]} for c in picked}
 codes = sorted(cases)
 case_counts = {g: pick_report["per_group"][g]["taken"] for g in rsl.ALL_GROUPS}

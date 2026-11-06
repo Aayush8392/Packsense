@@ -168,7 +168,7 @@ def carry_answers(tasks: list[dict], backup_file: Path) -> int:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--part", choices=["dev", "dev2", "test"], required=True)
+    ap.add_argument("--part", choices=["dev", "dev2", "test", "test2"], required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--photo-url-base", help="serve the photos by address (for example http://127.0.0.1:8090) instead of embedding them; run p8_steward/bootstrap/serve_photos.py while labelling")
     ap.add_argument("--carry-from", help="an export (JSON) of an earlier answer-key project: its finished cards are copied over as answers in the one-line form")

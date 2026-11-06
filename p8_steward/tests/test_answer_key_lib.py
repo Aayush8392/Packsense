@@ -157,16 +157,25 @@ def test_the_old_sodium_box_keeps_grams_so_earlier_projects_read_the_same():
     assert ak.with_default_unit("k_fat", "9.7") == "9.7"              # only the sodium mg box has a default unit
 
 
-def test_the_form_config_has_the_mg_box_and_gives_every_choice_a_non_digit_hotkey():
+def test_the_form_config_has_the_unit_required_sodium_box_and_gives_every_choice_a_non_digit_hotkey():
     import re
     from pathlib import Path
     xml = (Path(__file__).resolve().parents[1] / "labelling" / "answer_key_boxes_config.xml").read_text(encoding="utf-8")
-    assert 'name="k_sodium_mg"' in xml and 'name="k_sodium"' not in xml
+    assert 'name="k_sodium_unit"' in xml and 'name="k_sodium"' not in xml and 'name="k_sodium_mg"' not in xml      # the fresh set's sodium box takes its unit from the owner (the first test's mg-default box is gone from the form)
     choices = re.findall(r"<Choice [^>]*>", xml)
     assert len(choices) == 4
     for c in choices:
         m = re.search(r'hotkey="([^"]+)"', c)
         assert m and not m.group(1).isdigit(), c                   # a bare digit hotkey (the numpad keys 1 to 4) switched the column while typing numbers
     for box in ak.BOX_NAMES:
-        if box not in ("k_sodium",):
+        if box not in ("k_sodium", "k_sodium_mg"):         # the two older sodium boxes stay readable for projects 36 to 40, but are not in the form
             assert f'name="{box}"' in xml, box
+
+
+def test_the_unit_required_sodium_box_refuses_a_bare_number_and_respects_an_explicit_unit():
+    bare = ak.parse_boxes({"k_sodium_unit": "0.9"})
+    assert bare["values"] == {} and "unit (mg or g) is required" in bare["errors"][0]
+    assert ak.parse_boxes({"k_sodium_unit": "0.9 g"})["values"] == {"sodium": 0.9}
+    assert ak.parse_boxes({"k_sodium_unit": "445mg"})["values"] == {"sodium": 0.445}
+    assert ak.parse_boxes({"k_sodium_unit": ""})["errors"] == []                 # a blank box means 'not printed'
+    assert ak.parse_boxes({"k_sodium_mg": "445"})["values"] == {"sodium": 0.445}   # the first test's form still reads the same

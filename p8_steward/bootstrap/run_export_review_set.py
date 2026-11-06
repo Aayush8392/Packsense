@@ -30,11 +30,12 @@ def main() -> int:
     ap.add_argument("--exclude", default="", help="barcodes to leave out, comma separated (the sample products)")
     ap.add_argument("--limit-per-group", default="36")
     ap.add_argument("--india-per-group", default="22")
+    ap.add_argument("--india-only", action="store_true", help="take only Indian products (the fresh sealed set)")
     ap.add_argument("--name", help="a further part of the review set (for example dev2): written to its own volume folder, fetched with fetch_review_set.py --name")
     args = ap.parse_args()
     if args.env_file:
         load_env_file(args.env_file)
-    params = {"run_id": "{{job.run_id}}", "exclude_codes": args.exclude, "limit_per_group": args.limit_per_group, "india_per_group": args.india_per_group}
+    params = {"run_id": "{{job.run_id}}", "exclude_codes": args.exclude, "limit_per_group": args.limit_per_group, "india_per_group": args.india_per_group, "india_only": "1" if args.india_only else "0"}
     if args.name:
         params["out_dir"] = f"/Volumes/workspace/packsense_dev/landing/_review_set_{args.name}"
 

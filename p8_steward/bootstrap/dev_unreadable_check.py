@@ -68,14 +68,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry", action="store_true")
     ap.add_argument("--run", action="store_true")
-    ap.add_argument("--part", choices=["test"], help="run the sealed TEST part's unreadable cards instead (counts only, no barcodes printed; output dev_unreadable_v3rows_test.json)")
+    ap.add_argument("--part", choices=["test", "test2"], help="run the sealed TEST part's unreadable cards instead (counts only, no barcodes printed; output dev_unreadable_v3rows_test.json)")
     ap.add_argument("--env-file", default=str(ROOT / ".env"))
     a = ap.parse_args()
     if a.dry == a.run:
         sys.exit("give exactly one of --dry and --run")
-    test = a.part == "test"
-    out_file = SET / "dev_unreadable_v3rows_test.json" if test else OUT
-    cards = all_unreadable(("test",) if test else PARTS)
+    test = a.part is not None
+    out_file = SET / f"dev_unreadable_v3rows_{a.part}.json" if test else OUT
+    cards = all_unreadable((a.part,) if test else PARTS)
     states = {c: status(c) for c in cards}
     print(f"{len(cards)} unreadable cards ({Counter(e['part'] for e in cards.values())}); scan state: {dict(Counter(s for s, _ in states.values()))}")
     if a.dry:

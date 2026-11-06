@@ -93,3 +93,12 @@ def test_the_review_set_never_goes_through_the_fixture_fetcher_paths():
     fetch = (ROOT / "p8_steward" / "bootstrap" / "fetch_review_set.py").read_text(encoding="utf-8")
     local_dir_line = [line for line in fetch.splitlines() if line.startswith("LOCAL_DIR =")][0]
     assert '"output" / "review_set"' in local_dir_line and "p4_modelling" not in local_dir_line and "fixtures" not in local_dir_line
+
+
+def test_india_only_never_takes_a_non_indian_product_even_when_a_group_is_short():
+    pool = candidates()
+    chosen, report = rsl.choose(pool, 36, 36, india_only=True)
+    assert chosen and all(c["india"] for c in chosen)
+    assert all(v["taken"] == v["india"] for v in report["per_group"].values())
+    plain, _ = rsl.choose(pool, 36, 22)
+    assert any(not c["india"] for c in plain)              # without the switch the old behaviour (non-Indian products fill a group) is unchanged

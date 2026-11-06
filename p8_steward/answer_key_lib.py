@@ -70,10 +70,13 @@ def parse(text: str) -> dict:
 
 
 BOX_NAMES = {"k_energy_kcal": "energy_kcal", "k_energy_kj": "energy_kj", "k_fat": "fat", "k_saturated_fat": "saturated_fat", "k_carbohydrates": "carbohydrates",
-             "k_sugars": "sugars", "k_fiber": "fiber", "k_proteins": "proteins", "k_salt": "salt", "k_sodium": "sodium", "k_sodium_mg": "sodium"}
+             "k_sugars": "sugars", "k_fiber": "fiber", "k_proteins": "proteins", "k_salt": "salt", "k_sodium": "sodium", "k_sodium_mg": "sodium", "k_sodium_unit": "sodium"}
 # The test form (project 38 on) has its sodium box in MILLIGRAMS: a bare number there is mg. The older box `k_sodium` (projects 36 and 37) keeps grams as its default, so re-reading those
 # projects never changes meaning. An explicit unit is always respected ('0.445g' in the mg box is 0.445 g).
 BOX_DEFAULT_UNIT = {"k_sodium_mg": "mg"}
+# The fresh sealed set (project on from 2026-11-06) has its sodium box with NO default: a bare number there is refused (the card is listed as unreadable by make_answer_key.py until the owner adds mg or g).
+# Two keys of the first sealed test were wrong because the mg default hid a printed g.
+REQUIRE_UNIT = {"k_sodium_unit"}
 BARE_NUMBER = re.compile(r"^\s*(?:<=|<|~|≈)?\s*(?:\d*[.,]?\d+|\d+[.,])\s*$")
 
 
@@ -96,6 +99,9 @@ def parse_boxes(answers: dict) -> dict:
     for name, text in answers.items():
         field = BOX_NAMES.get(name)
         if field is None:
+            continue
+        if name in REQUIRE_UNIT and BARE_NUMBER.match(text or ""):
+            out["errors"].append(f"{name}: a unit (mg or g) is required, not a bare number")
             continue
         r = parse_box(field, with_default_unit(name, text))
         out["values"].update(r["values"])

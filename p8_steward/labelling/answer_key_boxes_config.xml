@@ -30,7 +30,7 @@
         <Choice value="per serving only (no per-100 column)" hotkey="alt+3"/>
         <Choice value="cannot read the table" hotkey="alt+4"/>
       </Choices>
-      <Header value="2. The numbers as printed (one box each, text, so 0.045 types as written). Energy in kcal and kJ, sodium in mg, the rest in grams; if the pack prints another nutrient in mg, type the figure and mg, for example 445mg: it is converted for you. A less-than figure is typed as printed (&lt;0.5). Leave blank what is not printed. Press Enter in a box after typing." size="6"/>
+      <Header value="2. The numbers as printed (one box each, text, so 0.045 types as written). Energy in kcal and kJ, the rest in grams (but SODIUM: always type its unit, mg or g, exactly as printed: a number without a unit is refused); if the pack prints another nutrient in mg, type the figure and mg, for example 445mg: it is converted for you. A less-than figure is typed as printed (&lt;0.5). Leave blank what is not printed. Press Enter in a box after typing." size="6"/>
       <Header value="Energy, kcal" size="6"/>
       <TextArea name="k_energy_kcal" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 168"/>
       <Header value="Energy, kJ" size="6"/>
@@ -49,8 +49,8 @@
       <TextArea name="k_proteins" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 20.1"/>
       <Header value="Salt, g" size="6"/>
       <TextArea name="k_salt" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 2.55"/>
-      <Header value="Sodium, mg" size="6"/>
-      <TextArea name="k_sodium_mg" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 445 (mg)"/>
+      <Header value="Sodium WITH ITS UNIT (mg or g, as printed)" size="6"/>
+      <TextArea name="k_sodium_unit" toName="photo" rows="1" editable="true" maxSubmissions="1" placeholder="e.g. 445 mg   or   0.9 g"/>
       <Header value="Serving size as printed, if any (for example 30 g or 15 ml)" size="6"/>
       <TextArea name="serving_size" toName="photo" rows="1" editable="true" placeholder="blank if none is printed"/>
       <Header value="3. Anything else worth saying (optional)" size="5"/>

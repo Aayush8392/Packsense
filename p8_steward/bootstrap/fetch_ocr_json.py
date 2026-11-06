@@ -1,6 +1,6 @@
 """Fetches OFF's own raw scan file (Google Vision output, with word positions) of each nutrition photo, into output/review_set/ocr_json/ (gitignored, private working copy).
 
-  python p8_steward/bootstrap/fetch_ocr_json.py --part dev|dev2|test [--only-usable] [--limit N]
+  python p8_steward/bootstrap/fetch_ocr_json.py --part dev|dev2|test|test2 [--only-usable] [--limit N]
 Same source and pace as fetch_ocr_text.py (two small requests per product, 4 seconds apart); it keeps the whole scan file, not just the text, so the table can be rebuilt from word positions.
 A product with no scan gets an empty marker file so a rerun does not ask again.
 """
@@ -35,7 +35,7 @@ def scan_json(code: str) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--part", choices=["dev", "dev2", "test"], required=True)
+    ap.add_argument("--part", choices=["dev", "dev2", "test", "test2"], required=True)
     ap.add_argument("--only-usable", action="store_true")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--codes", nargs="*")

@@ -41,15 +41,16 @@ def group_name(rank: int) -> str:
     return ALL_GROUPS[rank - 1]
 
 
-def choose(candidates: list[dict], limit_per_group: int, india_per_group: int, exclude: set[str] = frozenset()) -> tuple[list[dict], dict]:
+def choose(candidates: list[dict], limit_per_group: int, india_per_group: int, exclude: set[str] = frozenset(), india_only: bool = False) -> tuple[list[dict], dict]:
     """Pick products. `candidates` are dicts with code, group, india (0/1) and h (a hash string that fixes the order).
 
     Per group: up to `india_per_group` Indian products, then non-Indian ones up to `limit_per_group`; when one side runs short the other fills the group.
+    With `india_only` only Indian products are ever taken (a group that runs short stays short; nothing else fills it).
     Returns (chosen rows, report), where the report says per group how many were taken and how many were India, and which groups came up short.
     """
     chosen, report = [], {"per_group": {}, "short_groups": []}
     for g in ALL_GROUPS:
-        pool = sorted((c for c in candidates if c["group"] == g and c["code"] not in exclude), key=lambda c: c["h"])
+        pool = sorted((c for c in candidates if c["group"] == g and c["code"] not in exclude and (c["india"] or not india_only)), key=lambda c: c["h"])
         india = [c for c in pool if c["india"]][:india_per_group]
         taken = {c["code"] for c in india}
         rest = [c for c in pool if c["code"] not in taken]
