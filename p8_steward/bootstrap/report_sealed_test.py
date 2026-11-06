@@ -79,6 +79,15 @@ def summarise(rows: list[dict]) -> dict:
     return out
 
 
+def families_of(error_tags) -> list[str]:
+    """The flag families a product carries, from OFF's ERROR tags (`data_quality_errors_tags`), in the fixed priority order (A121 paragraph 11 (j))."""
+    import review_set_lib as rsl
+    if isinstance(error_tags, str):
+        error_tags = json.loads(error_tags) if error_tags.startswith("[") else [error_tags]
+    found = {rsl.group_of(t) for t in (error_tags or [])} - {None}
+    return [g for g in rsl.ALL_GROUPS if g in found]
+
+
 def median_height(code: str, ocr_dir: Path) -> float | None:
     import scan_layout as sl
     f = ocr_dir / f"{code}.json"
@@ -136,6 +145,21 @@ def main() -> None:
             print("  wrong proposal ", r["code"], r["group"], band_of(r["height"]), r["action"])
         elif r["action"].startswith("no change") and not r["stored_right"]:
             print("  silent miss    ", r["code"], r["group"], band_of(r["height"]), r["action"])
+    fam_rows: dict[str, list[dict]] = {}
+    for code, entry in key.items():
+        stored = fc.clean(rows_by[code])
+        for fam in families_of(rows_by[code].get("data_quality_errors_tags")):
+            d = dr.decide(stored, (readings.get(code) or {}).get("reading"), dr.scan_text(code, a.version), fam, a.version)
+            truth = entry["per100"]
+            fam_rows.setdefault(fam, []).append({"code": code, "action": d["action"], "stored_right": ak.matches_key_for_group(stored, truth, fam)["match"],
+                                                 "proposal_right": ak.matches_key_for_group(d["per100"], truth, fam)["match"] if d["per100"] else None, "height": None})
+    print("\nBY FLAG FAMILY (a card counts in every family it carries: overlapping strata, never added together; the bar above stays one case per product):")
+    fam_summary = {}
+    for fam, frows in sorted(fam_rows.items()):
+        fs = summarise(frows)
+        fam_summary[fam] = fs
+        print(f"  {fam:20} cards {fs['cards']:3} | proposals right {fmt(fs['proposals'])} | matches right {fmt(fs['match_verdicts'])} | not assessed {fs['abstentions']['k']}")
+    s["families"] = fam_summary
     suffix = f"__{out_file.stem.split('__', 1)[1]}" if a.readings and "__" in out_file.stem else ""
     (dr.SET / f"sealed_report_{a.part}_{a.version}{suffix}.json").write_text(json.dumps({"summary": s, "rows": rows}, indent=1), encoding="utf-8")
 

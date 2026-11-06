@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -47,3 +48,10 @@ def test_band_switch_needs_15_and_lower_bound():
     assert enough["switched_on"] is True
     weak = rs.summarise([row("fill in", False, i < 14, 40.0) for i in range(20)])["bands"]["30 to 50 px"]
     assert weak["switched_on"] is False
+
+
+def test_families_of_reads_the_error_tags_in_priority_order():
+    tags = ["en:nutrition-saturated-fat-greater-than-fat", "en:nutrition-energy-value-in-kcal-does-not-match-value-computed-from-other-nutrients", "en:ingredients-fr-photo-to-be-selected"]
+    assert rs.families_of(tags) == ["A_energy_mismatch", "D_sums_too_large"]
+    assert rs.families_of(json.dumps(["en:nutrition-values-are-all-identical"])) == ["E_other_nutrition"]
+    assert rs.families_of(None) == [] and rs.families_of([]) == []
