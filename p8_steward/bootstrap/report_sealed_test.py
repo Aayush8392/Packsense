@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 BAND_EDGES = [0, 15, 20, 30, 50]
 BAND_NAMES = ["under 15 px", "15 to 20 px", "20 to 30 px", "30 to 50 px", "50 px and up"]
-POINT_BAR, LOWER_BAR, MIN_PROPOSALS, BAND_MIN_N = 0.90, 0.80, 40, 15
+POINT_BAR, LOWER_BAR, MIN_PROPOSALS, BAND_MIN_N, FAMILY_MIN_N = 0.90, 0.80, 40, 15, 15
 # Weights of the weighted pooled bar (A121 (k), owner 2026-11-06): the share of each family among the India nutrition ERROR flags open in production,
 # counted 2026-11-06 by p8_steward/notebooks/count_flag_mix.py (1,264 flags: A 438, B 57, C 442, D 157, E 170). Fixed here before the freeze; the freeze record carries them.
 FAMILY_WEIGHTS = {"A_energy_mismatch": 438, "B_salt_vs_sodium": 57, "C_values_too_large": 442, "D_sums_too_large": 157, "E_other_nutrition": 170}
@@ -104,6 +104,14 @@ def weighted_bar(fam_summary: dict, weights: dict[str, float] = FAMILY_WEIGHTS, 
     lower = max(0.0, lower_c - z * math.sqrt(var))
     return {"point": point, "lower95": lower, "families_used": sorted(fams), "weight_left_out": round(1 - total_w / sum(weights.values()), 4),
             "per_family": {f: {"k": p["k"], "n": p["n"], "weight": round(weights[f] / total_w, 4)} for f, p in fams.items()}}
+
+
+def family_verdict(rate_: dict) -> str:
+    """A121 (k), owner's final reading (6 Nov): a family is JUDGED only with at least FAMILY_MIN_N scorable proposals, by the same bar as the pooled one (point 90%, Wilson 95% lower end 80%);
+    a smaller family is reported with its interval and never passes or fails (a pool that small cannot meet the bar even for a human)."""
+    if rate_["n"] < FAMILY_MIN_N:
+        return f"reported only (fewer than {FAMILY_MIN_N} proposals)"
+    return "PASS" if rate_["rate"] >= POINT_BAR and rate_["lower95"] >= LOWER_BAR else "FAIL"
 
 
 def weighted_verdict(wb: dict, proposals_total: int) -> str:
@@ -196,7 +204,8 @@ def main() -> None:
     for fam, frows in sorted(fam_rows.items()):
         fs = summarise(frows)
         fam_summary[fam] = fs
-        print(f"  {fam:20} cards {fs['cards']:3} | proposals right {fmt(fs['proposals'])} | matches right {fmt(fs['match_verdicts'])} | not assessed {fs['abstentions']['k']}")
+        fs["verdict"] = family_verdict(fs["proposals"])
+        print(f"  {fam:20} cards {fs['cards']:3} | proposals right {fmt(fs['proposals'])} -> {fs['verdict']} | matches right {fmt(fs['match_verdicts'])} | not assessed {fs['abstentions']['k']}")
     s["families"] = fam_summary
     wb = weighted_bar(fam_summary)
     wb["bar"] = weighted_verdict(wb, s["proposals"]["n"])

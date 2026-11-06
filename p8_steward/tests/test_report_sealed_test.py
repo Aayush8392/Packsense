@@ -93,3 +93,10 @@ def test_weighted_bar_one_field_variant_one_wrong_proposal_in_a_small_family_cos
     worse = {**base, "B_salt_vs_sodium": fam(4, 5)}
     assert rs.weighted_bar(worse)["point"] < rs.weighted_bar(base)["point"]
     assert rs.weighted_bar({})["point"] is None
+
+
+def test_a_family_is_judged_only_with_fifteen_proposals():
+    assert rs.family_verdict(rs.rate(9, 9)).startswith("reported only")               # too small to judge, even when perfect
+    assert rs.family_verdict(rs.rate(16, 16)) == "PASS"                              # 16 of 16: lower end 80.6%
+    assert rs.family_verdict(rs.rate(15, 15)) == "FAIL"                              # 15 of 15: lower end 79.6%, under the bar
+    assert rs.family_verdict(rs.rate(36, 40)) == "FAIL"                              # 90% point, lower end about 77%: under the bar
