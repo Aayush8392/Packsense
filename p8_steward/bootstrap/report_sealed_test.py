@@ -125,12 +125,13 @@ def weighted_verdict(wb: dict, proposals_total: int) -> str:
 def match_split(rows: list[dict]) -> dict:
     """A121 11 (d): the 'appears to match' family is split and each part is measured on its own, shown only if its own rate passes the same bar as the proposals (point 90%,
     Wilson lower end 80%, at least MIN_PROPOSALS cases). 'plain' = action 'no change'; 'pack_disagrees' = 'no change (the pack's own numbers disagree)';
-    'not_printed' = 'not assessed: the pack does not print it' (A121 11 (e)): no verdict is given, so only its count and how often the record equalled the key are reported."""
+    'unprinted_inconsistent' = 'no change (an unprinted field is inconsistent)'; 'not_printed' = 'not assessed: the pack does not print it' (A121 11 (e)): no verdict is given, so only its count and how often the record equalled the key are reported."""
     plain = [r for r in rows if r["action"] == "no change"]
     note = [r for r in rows if r["action"].startswith("no change (the pack's own numbers disagree)")]
     unprinted = [r for r in rows if r["action"].startswith("abstain (the pack does not print it)")]
+    inconsistent = [r for r in rows if r["action"].startswith("no change (an unprinted field is inconsistent)")]
     out = {}
-    for name, part in (("plain", plain), ("pack_disagrees", note)):
+    for name, part in (("plain", plain), ("pack_disagrees", note), ("unprinted_inconsistent", inconsistent)):
         x = rate(sum(bool(r["stored_right"]) for r in part), len(part))
         x["public"] = bool(part) and len(part) >= MIN_PROPOSALS and x["rate"] >= POINT_BAR and x["lower95"] >= LOWER_BAR
         out[name] = x
@@ -199,7 +200,7 @@ def main() -> None:
     print("'appears to match' verdicts right:   ", fmt(s["match_verdicts"]), "->", s["match_bar"])
     ms = match_split(rows)
     s["match_split"] = ms
-    for name, label in (("plain", "  plain 'appears to match'"), ("pack_disagrees", "  matches, 'the pack's own numbers disagree'")):
+    for name, label in (("plain", "  plain 'appears to match'"), ("pack_disagrees", "  matches, 'the pack's own numbers disagree'"), ("unprinted_inconsistent", "  matches, 'an unprinted field is inconsistent'")):
         print(f"{label}: {fmt(ms[name])} -> {'public bar PASS' if ms[name]['public'] else 'not public (fewer than ' + str(MIN_PROPOSALS) + ' cases or bar not met)'}")
     print(f"  not assessed, 'the pack does not print it' (A121 11 (e)): {ms['not_printed']['n']} cards (record equals the key on {ms['not_printed']['record_equals_key']})")
     mp = summarise(misprint_rows(rows))

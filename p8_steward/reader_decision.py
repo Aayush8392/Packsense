@@ -21,7 +21,7 @@ from rule_evidence import explain
 
 UNPRINTED = "abstain (the pack does not print it)"        # public status: not assessed: the pack does not print it (A121 11 (e))
 MIN_FIELDS = 2          # a reading with fewer printed, grounded values than this is not a table
-OPTIONS = {"table_guard", "min_fields", "uncovered", "swap", "explain", "dropone", "unprinted"}      # guards that are ON; "minimal" (smallest change) was measured, lost fixes, and stays off
+OPTIONS = {"table_guard", "min_fields", "uncovered", "swap", "explain", "dropone", "unprinted"}      # guards that are ON ("unprinted_inconsistent", A121 11 (e) in full, is OFF: it cost 8 to 9 points of coverage for one silent miss; see the worklog); "minimal" (smallest change) was measured, lost fixes, and stays off
 
 
 def _is_permutation(stored: dict, read: dict, fields: list[str]) -> bool:
@@ -108,7 +108,7 @@ def decide(stored: dict, reading: dict | None, text: str, group: str, version: s
             printed = [f for f in ("salt", "sodium") if f in read and stored.get(f) is not None]
             if "explain" in on and base == {"salt-does-not-match-sodium"} and len(printed) == 1 and stored.get("salt") is not None and stored.get("sodium") is not None:
                 # the printed side agrees with the record; the other side is the one that does not (it was 'no change (an unprinted field is inconsistent)' before A121 11 (e))
-                out["action"] = UNPRINTED if "unprinted" in on else "no change (an unprinted field is inconsistent)"
+                out["action"] = UNPRINTED if "unprinted_inconsistent" in on else "no change (an unprinted field is inconsistent)"
                 out["evidence"] = [explain(stored, "salt-does-not-match-sodium")]
             else:
                 out["action"] = "abstain (the record breaks a rule the reading did not cover)"

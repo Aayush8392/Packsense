@@ -113,6 +113,7 @@ def test_the_match_statuses_are_split_and_each_needs_its_own_bar():
     assert (ms["plain"]["k"], ms["plain"]["n"]) == (44, 45) and ms["plain"]["public"]                  # 97.8%, lower end above 80%, 45 cases
     assert (ms["pack_disagrees"]["k"], ms["pack_disagrees"]["n"]) == (7, 10) and not ms["pack_disagrees"]["public"]      # the closed test's weak status: 7 of 10, and too few cases
     assert ms["not_printed"] == {"n": 3, "record_equals_key": 1}                                       # an abstention with no verdict: counted, never a match
+    assert rs.match_split([mrow("no change (an unprinted field is inconsistent)")] * 2 + [mrow("no change (an unprinted field is inconsistent)", False)])["unprinted_inconsistent"]["n"] == 3
     assert rs.match_split([mrow("no change")] * 39)["plain"]["public"] is False                         # fewer than 40 cases is never public, even when perfect
 
 

@@ -60,14 +60,14 @@ def test_when_the_pack_contradicts_itself_and_the_record_says_the_same_the_statu
     assert out["action"] == "no change (the pack's own numbers disagree)" and any("kJ" in s for s in out["evidence"]) and not out["per100"]
 
 
-def test_a_record_whose_salt_disagrees_with_the_printed_sodium_is_not_assessed_because_the_pack_does_not_print_the_salt():   # was "no change (an unprinted field...)" before A121 11 (e)
+def test_a_record_whose_salt_disagrees_with_the_printed_sodium_is_called_inconsistent_not_wrong_on_the_pack():
     stored = {"energy_kcal": 513.0, "energy_kj": 2145.5, "fat": 26.1, "saturated_fat": 11.0, "carbohydrates": 62.6, "sugars": 2.2, "fiber": 0.0, "proteins": 6.8, "salt": 5.0, "sodium": 0.756}
     reading = {"basis": "per 100 g", "values_per_100": {"energy_kcal": 513, "fat": 26.1, "saturated_fat": 11, "carbohydrates": 62.6, "sugars": 2.2, "proteins": 6.8, "sodium": 0.756}}
     scan = "Energy 513 kcal | Fat 26.1 g | of which saturates 11 g | Carbohydrate 62.6 g | of which sugars 2.2 g | Protein 6.8 g | Sodium 756 mg"
     out = rd.decide(stored, reading, scan, "B_salt_vs_sodium", "v2")
-    assert out["action"] == rd.UNPRINTED and "1.89 g of salt" in out["evidence"][0] and "5 g" in out["evidence"][0] and not out["per100"]
-    # the older status stays reachable only when the guard is switched off (so the change is one option, visible in the freeze record)
-    assert rd.decide(stored, reading, scan, "B_salt_vs_sodium", "v2", rd.OPTIONS - {"unprinted"})["action"] == "no change (an unprinted field is inconsistent)"
+    assert out["action"] == "no change (an unprinted field is inconsistent)" and "1.89 g of salt" in out["evidence"][0] and "5 g" in out["evidence"][0] and not out["per100"]
+    # the stricter reading of A121 11 (e) (this status becomes 'not assessed') is the option "unprinted_inconsistent", OFF by default: it cost 8 to 9 points of coverage on the closed test
+    assert rd.decide(stored, reading, scan, "B_salt_vs_sodium", "v2", rd.OPTIONS | {"unprinted_inconsistent"})["action"] == rd.UNPRINTED
 
 
 def test_one_misread_field_is_left_out_and_the_rest_of_the_reading_is_used():
