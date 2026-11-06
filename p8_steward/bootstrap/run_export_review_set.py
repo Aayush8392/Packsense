@@ -11,7 +11,7 @@ import sys
 from datetime import timedelta
 
 REPO = "https://github.com/Aayush8392/Packsense"
-NOTEBOOK = "p8_steward/notebooks/export_review_set"
+NOTEBOOK = "p8_steward/notebooks/export_review_set"      # --notebook count_closed_flag_pool runs the count-only notebook instead
 TIMEOUT_SECONDS = 1800
 
 
@@ -30,6 +30,7 @@ def main() -> int:
     ap.add_argument("--exclude", default="", help="barcodes to leave out, comma separated (the sample products)")
     ap.add_argument("--limit-per-group", default="36")
     ap.add_argument("--india-per-group", default="22")
+    ap.add_argument("--notebook", default="export_review_set", help="a notebook of p8_steward/notebooks (default the export; count_closed_flag_pool for the count)")
     ap.add_argument("--india-only", action="store_true", help="take only Indian products (the fresh sealed set)")
     ap.add_argument("--name", help="a further part of the review set (for example dev2): written to its own volume folder, fetched with fetch_review_set.py --name")
     args = ap.parse_args()
@@ -45,7 +46,7 @@ def main() -> int:
     waiter = w.jobs.submit(
         run_name="packsense-export-review-set", timeout_seconds=TIMEOUT_SECONDS,
         git_source=jobs.GitSource(git_url=REPO, git_provider=jobs.GitProvider.GIT_HUB, git_branch=args.branch),
-        tasks=[jobs.SubmitTask(task_key="export", notebook_task=jobs.NotebookTask(notebook_path=NOTEBOOK, source=jobs.Source.GIT, base_parameters=params))])
+        tasks=[jobs.SubmitTask(task_key="export", notebook_task=jobs.NotebookTask(notebook_path=f"p8_steward/notebooks/{args.notebook}", source=jobs.Source.GIT, base_parameters=params))])
     print("submitted run", waiter.run_id, flush=True)
     try:
         run = waiter.result(timeout=timedelta(minutes=29))
