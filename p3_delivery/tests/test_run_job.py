@@ -20,6 +20,14 @@ def test_a_unique_match_is_found_case_insensitively():
     assert run_job.pick_job(JOBS, "[DEV packsense_gold_dev]").job_id == 4
 
 
+def test_exact_picks_the_production_job_whose_name_the_dev_copy_contains():
+    assert run_job.pick_job(JOBS, "packsense-bronze-load", exact=True).job_id == 1
+    assert run_job.pick_job(JOBS, "PACKSENSE-GOLD-BUILD", exact=True).job_id == 3
+    assert run_job.pick_job(JOBS, "[dev packsense_gold_dev] packsense-gold-build", exact=True).job_id == 4
+    with pytest.raises(LookupError, match="found 0"):
+        run_job.pick_job(JOBS, "gold-build", exact=True)               # a part of a name is not enough
+
+
 def test_zero_or_several_matches_are_refused():
     with pytest.raises(LookupError, match="found 2"):
         run_job.pick_job(JOBS, "packsense-bronze-load")

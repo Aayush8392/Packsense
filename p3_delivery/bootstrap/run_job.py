@@ -25,9 +25,12 @@ def load_env_file(path: str) -> None:
             os.environ.setdefault(key.strip(), value.strip())
 
 
-def pick_job(jobs: list, needle: str):
-    """The one job whose name contains the needle (case-insensitive). Raises LookupError for none or several."""
-    hits = [j for j in jobs if needle.lower() in ((j.settings.name if j.settings else "") or "").lower()]
+def pick_job(jobs: list, needle: str, exact: bool = False):
+    """The one job whose name contains the needle (case-insensitive), or, with `exact`, whose whole name equals it (the way to pick the production job
+    when a dev copy has the same name inside brackets). Raises LookupError for none or several."""
+    def name_of(j):
+        return ((j.settings.name if j.settings else "") or "").lower()
+    hits = [j for j in jobs if (name_of(j) == needle.lower() if exact else needle.lower() in name_of(j))]
     if len(hits) != 1:
         names = [(j.settings.name if j.settings else None) for j in hits]
         raise LookupError(f"expected exactly one job matching {needle!r}, found {len(hits)}: {names}")
@@ -38,6 +41,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--match", required=True)
     ap.add_argument("--only", action="append", default=[])
+    ap.add_argument("--exact", action="store_true", help="--match must equal the whole job name (picks the production job when a dev copy exists)")
     ap.add_argument("--env-file")
     ap.add_argument("--timeout-min", type=float, default=25)
     a = ap.parse_args(argv)
@@ -51,7 +55,7 @@ def main(argv=None) -> int:
     from databricks.sdk import WorkspaceClient
     w = WorkspaceClient(host=os.environ["DATABRICKS_HOST"], token=os.environ["DATABRICKS_TOKEN"], auth_type="pat")
     try:
-        job = pick_job(list(w.jobs.list()), a.match)
+        job = pick_job(list(w.jobs.list()), a.match, exact=a.exact)
     except LookupError as e:
         print(e)
         return 2
