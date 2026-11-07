@@ -33,8 +33,8 @@ describe('quality figures', () => {
 
   it('adds nothing for a hidden count, so a figure is "at least"', () => {
     const rows: QualityRow[] = [
-      { day: '2026-10-01', scope: 'all', severity: 'warning', family: 'a', openFlags: null, productsHeld: 10 },
-      { day: '2026-10-01', scope: 'all', severity: 'warning', family: 'b', openFlags: 20, productsHeld: 10 },
+      { day: '2026-10-01', scope: 'all', severity: 'warning', family: 'a', openFlags: null, productsHeld: 10, appeared: null, ended: null },
+      { day: '2026-10-01', scope: 'all', severity: 'warning', family: 'b', openFlags: 20, productsHeld: 10, appeared: 0, ended: 0 },
     ];
     expect(flagsPerProduct(rows, 'all', 'all')[0].value).toBe(2);
   });

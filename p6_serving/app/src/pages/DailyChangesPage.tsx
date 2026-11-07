@@ -7,7 +7,8 @@ import example from '../data/indiaExample.json';
 import { useResource } from '../data/resource';
 import { JumpLink } from '../nav/JumpLink';
 import { KINDS, changeDays, changeSeries, kindsOnDay, type DayPoint, type Scope } from '../data/series';
-import { changeDaily, type ChangeRow } from '../data/siteData';
+import { brandScorecard, changeDaily, qualityDaily, type ChangeRow } from '../data/siteData';
+import { ChartGallery } from '../gallery/ChartGallery';
 import { formatCount, formatDay } from '../format';
 
 const HIDDEN = 'fewer than 5';
@@ -216,6 +217,8 @@ function IndiaToday({ rows }: { rows: ChangeRow[] }) {
 
 export function DailyChangesPage() {
   const loaded = useResource(changeDaily);
+  const quality = useResource(qualityDaily);
+  const brands = useResource(brandScorecard);
   const [market, setMarket] = useMarket();
   const { intro, sections } = pageSections('daily-changes');
 
@@ -228,6 +231,9 @@ export function DailyChangesPage() {
         <>
           <Main rows={loaded.data} market={market} />
           <IndiaToday rows={loaded.data} />
+          {quality.phase === 'ready' && brands.phase === 'ready' && (
+            <ChartGallery data={{ change: loaded.data, quality: quality.data, brands: brands.data }} market={market} />
+          )}
         </>
       ) : (
         <LoadState loaded={[loaded]} />

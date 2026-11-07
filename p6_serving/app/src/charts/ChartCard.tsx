@@ -13,13 +13,15 @@ export interface ChartCardProps {
   unknownText: string;
   compact?: boolean;
   headingLevel?: 2 | 3 | 4;
+  /** A sentence written by code from the numbers, shown under the chart. */
+  caption?: string;
 }
 
 /**
  * A chart in a card, with a button that shows the very same numbers as a table. The table lists the newest day first, ten days to a
  * page, so it stays short however many days the data grows to. Each card opens and closes on its own.
  */
-export function ChartCard({ title, note, series, format, unknownText, compact = false, headingLevel = 3 }: ChartCardProps) {
+export function ChartCard({ title, note, series, format, unknownText, compact = false, headingLevel = 3, caption }: ChartCardProps) {
   const id = useId();
   const [asTable, setAsTable] = useState(false);
   const [page, setPage] = useState(0);
@@ -40,6 +42,7 @@ export function ChartCard({ title, note, series, format, unknownText, compact = 
         {note && <p className="chart-card__note">{note}</p>}
       </figcaption>
       <LineChart series={series} format={format} label={title} compact={compact} />
+      {caption && <p className="chart-card__caption">{caption}</p>}
       <button type="button" className="button button--quiet" aria-expanded={asTable} aria-controls={`${id}-table`} onClick={toggle}>
         {asTable ? 'Hide the table' : 'Show as a table'}
       </button>

@@ -42,6 +42,10 @@ export interface QualityRow {
   openFlags: number | null;
   /** Products PackSense held that day (the same on every row of a day and scope). */
   productsHeld: number;
+  /** Flags that appeared that day on a product PackSense already held; null when the count was 1 to 4 and blanked on purpose. */
+  appeared: number | null;
+  /** Flags that ended that day: fixed, or the product left (the file does not tell the two apart); null when blanked. */
+  ended: number | null;
 }
 
 /** One brand's row of the scorecard: how many of its products fill each of the seven things, on the day the file was made. */
@@ -108,7 +112,7 @@ export function parseChangeDaily(text: string): ChangeRow[] {
 
 export function parseQualityDaily(text: string): QualityRow[] {
   const rows = parseCsv(text);
-  requireColumns(rows, 'quality_daily.csv', ['snapshot_date', 'scope', 'severity', 'flag_family', 'open_spans', 'n_products_held']);
+  requireColumns(rows, 'quality_daily.csv', ['snapshot_date', 'scope', 'severity', 'flag_family', 'open_spans', 'opened_on_known_product', 'vanished', 'n_products_held']);
   return rows.map((row) => ({
     day: row.snapshot_date,
     scope: row.scope,
@@ -116,6 +120,8 @@ export function parseQualityDaily(text: string): QualityRow[] {
     family: row.flag_family,
     openFlags: countOrNull(row.open_spans, 'quality_daily.csv'),
     productsHeld: numberOf(row.n_products_held, 'quality_daily.csv'),
+    appeared: countOrNull(row.opened_on_known_product, 'quality_daily.csv'),
+    ended: countOrNull(row.vanished, 'quality_daily.csv'),
   }));
 }
 

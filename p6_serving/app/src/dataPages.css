@@ -1569,3 +1569,122 @@
 .right-now dd a:hover {
   text-decoration-style: solid;
 }
+
+/* The chart gallery: one chart at a time (a carousel), a catalogue of every chart by name, and bar charts drawn as plain rows. */
+.gallery {
+  margin-top: var(--space-xl);
+}
+.gallery__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.gallery__head h2 {
+  margin: 0;
+}
+.gallery__position,
+.gallery__intro {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.gallery__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+.gallery__catalogue {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0;
+  padding: 0;
+  list-style: none;
+}
+.gallery__tab {
+  min-height: var(--tap);
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+.gallery__tab:hover {
+  background: var(--soft);
+}
+.gallery__tab[aria-current='true'] {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.chart-card__caption {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--text-body);
+}
+/* One grid for the whole list (the rows share its columns), so every track starts and ends in the same place. */
+.bar-chart {
+  display: grid;
+  grid-template-columns: minmax(8rem, 14rem) 1fr auto;
+  gap: var(--space-sm) var(--space-md);
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.bar-chart li {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+}
+.bar-chart__label {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+.bar-chart__label small {
+  color: var(--fg-muted);
+  font-size: var(--text-label);
+}
+.bar-chart__track {
+  position: relative;
+  display: block;
+  block-size: 0.75rem;
+  background: var(--raised);
+  border-radius: var(--radius);
+}
+.bar-chart__fill {
+  position: absolute;
+  inset-block: 0;
+  background: var(--primary);
+  border-radius: var(--radius);
+}
+.bar-chart__fill--down {
+  background: var(--secondary);
+}
+.bar-chart__zero {
+  position: absolute;
+  inset-block: -0.25rem;
+  inline-size: 2px;
+  background: var(--fg-muted);
+}
+.bar-chart__value {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--text-small);
+  text-align: end;
+}
+@media (max-width: 40rem) {
+  .bar-chart {
+    grid-template-columns: 1fr auto;
+  }
+  .bar-chart__track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
