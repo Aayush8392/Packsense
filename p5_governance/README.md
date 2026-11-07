@@ -168,6 +168,9 @@ GRANT SELECT ON TABLE workspace.packsense_gold.mart_brand_scorecard TO `packsens
 GRANT SELECT ON TABLE workspace.packsense_gold.fct_catalogue_quality_daily TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_gold.fct_product_change_daily TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_gold.mart_product_card TO `packsense-publish`;
+GRANT SELECT ON TABLE workspace.packsense_gold.mart_category_fitness TO `packsense-publish`;
+GRANT SELECT ON TABLE workspace.packsense_gold.mart_rule_checks TO `packsense-publish`;
+GRANT SELECT ON TABLE workspace.packsense_gold.mart_nutrition_sources TO `packsense-publish`;
 GRANT USE SCHEMA ON SCHEMA workspace.packsense_health TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_health.health_metric_daily TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_snapshots.public_off_weekly TO `packsense-publish`;

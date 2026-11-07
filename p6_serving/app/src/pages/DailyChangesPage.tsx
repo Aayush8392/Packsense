@@ -7,7 +7,7 @@ import example from '../data/indiaExample.json';
 import { useResource } from '../data/resource';
 import { JumpLink } from '../nav/JumpLink';
 import { KINDS, changeDays, changeSeries, kindsOnDay, type DayPoint, type Scope } from '../data/series';
-import { brandScorecard, changeDaily, qualityDaily, type ChangeRow } from '../data/siteData';
+import { brandScorecard, categoryFitness, changeDaily, nutritionSources, qualityDaily, ruleChecks, type ChangeRow } from '../data/siteData';
 import { ChartGallery } from '../gallery/ChartGallery';
 import { formatCount, formatDay } from '../format';
 
@@ -219,6 +219,9 @@ export function DailyChangesPage() {
   const loaded = useResource(changeDaily);
   const quality = useResource(qualityDaily);
   const brands = useResource(brandScorecard);
+  const categories = useResource(categoryFitness);
+  const rules = useResource(ruleChecks);
+  const sources = useResource(nutritionSources);
   const [market, setMarket] = useMarket();
   const { intro, sections } = pageSections('daily-changes');
 
@@ -231,8 +234,18 @@ export function DailyChangesPage() {
         <>
           <Main rows={loaded.data} market={market} />
           <IndiaToday rows={loaded.data} />
-          {quality.phase === 'ready' && brands.phase === 'ready' && (
-            <ChartGallery data={{ change: loaded.data, quality: quality.data, brands: brands.data }} market={market} />
+          {quality.phase === 'ready' && brands.phase === 'ready' && [categories, rules, sources].every((r) => r.phase === 'ready' || r.phase === 'error') && (
+            <ChartGallery
+              data={{
+                change: loaded.data,
+                quality: quality.data,
+                brands: brands.data,
+                categories: categories.phase === 'ready' ? categories.data : undefined,
+                rules: rules.phase === 'ready' ? rules.data : undefined,
+                sources: sources.phase === 'ready' ? sources.data : undefined,
+              }}
+              market={market}
+            />
           )}
         </>
       ) : (

@@ -23,6 +23,12 @@ STATUS = {"built_at_utc": "2026-10-21T08:30:00", "first_complete_day": "2026-10-
           "last_complete_day": "2026-10-15", "products_held_all": 233, "products_held_india": 60}
 
 
+def category_rows():
+    """The ranked rows of mart_category_fitness as production built them on 7 Nov 2026 (counts and category tags only), typed."""
+    table = json.loads((HERE / "fixtures" / "category_fitness_real.json").read_text(encoding="utf-8"))
+    return [{k: (v if k in ("scope", "category", "as_of_date") else int(v)) for k, v in zip(table["columns"], row)} for row in table["rows"]]
+
+
 def off_rows(name):
     """The real rows of one whole-OFF table with their types back (Spark hands the SDK strings): dates as dates, the severity and kind as text, the rest as integers."""
     table = OFF[name]
@@ -45,6 +51,7 @@ def datasets(rank_all_named=True):
     out["pipeline_health"] = [{k: r[k] for k in cols} for r in HEALTH]
     for name, table in (("off_weekly", "public_off_weekly"), ("off_open_flags", "public_off_open_flags")):
         out[name] = [{k: r[k] for k in SPEC["datasets"][name]["columns"]} for r in off_rows(table)]
+    out["category_fitness"] = category_rows()   # the fixture build has no category with 200 products, so the ranked rows are production's own
     return out
 
 
@@ -108,7 +115,7 @@ def test_the_release_folder_passes_the_gate_and_the_files_are_deterministic(tmp_
     m2 = ex.build_release(tmp_path / "b", datasets(), STATUS)
     assert [f["sha256"] for f in m1["files"]] == [f["sha256"] for f in m2["files"]]
     names = sorted(f["path"] for f in m1["files"])
-    assert names == ["ATTRIBUTION.md", "brand_scorecard.csv", "change_daily.csv", "off_open_flags.csv", "off_weekly.csv", "pipeline_health.csv", "quality_daily.csv", "site_status.csv"]
+    assert names == ["ATTRIBUTION.md", "brand_scorecard.csv", "category_fitness.csv", "change_daily.csv", "nutrition_sources.csv", "off_open_flags.csv", "off_weekly.csv", "pipeline_health.csv", "quality_daily.csv", "rule_checks.csv", "site_status.csv"]
     with open(tmp_path / "a" / "brand_scorecard.csv", encoding="utf-8", newline="") as f:
         header = next(csv.reader(f))
     assert header == SPEC["datasets"]["brand_scorecard"]["columns"]
@@ -188,3 +195,43 @@ def test_the_weekly_file_has_one_row_per_week_ending_on_a_snapshot():
     ends = sorted(r["week_end"] for r in rows)
     assert len(set(ends)) == 32 and ends[0] == dt.date(2026, 3, 29) and ends[-1] == dt.date(2026, 11, 1)
     assert all(6 <= (b - a).days <= 8 for a, b in zip(ends, ends[1:]))           # weekly, but OFF's snapshots are not always exactly 7 days apart (6 and 8 days in July)
+
+
+# --- the three datasets behind the chart gallery (real rows of the DuckDB fixture build) ---------------------------------------------------------------
+
+def test_the_rule_checks_name_exactly_the_eleven_rules_for_each_scope_and_never_flag_more_than_they_check():
+    sys.path.insert(0, str(ROOT / "p7_triage_ml"))
+    import rules_lib
+    rows = ROWS["rule_checks"]
+    for scope in ("all", "india"):
+        assert {r["rule"] for r in rows if r["scope"] == scope} == set(rules_lib.RULES)
+    assert all(0 <= r["n_products_flagged"] <= r["n_products_checked"] for r in rows)
+    assert "n_products_flagged" in SPEC["datasets"]["rule_checks"]["columns"] and "code" not in SPEC["datasets"]["rule_checks"]["columns"]
+
+
+def test_the_nutrition_sources_hold_sets_and_products_and_a_source_never_has_more_products_than_sets():
+    rows = ROWS["nutrition_sources"]
+    assert {r["source"] for r in rows if r["scope"] == "all"} >= {"packaging", "estimate"}
+    assert all(1 <= r["n_products"] <= r["n_sets"] for r in rows)
+    assert not {"code", "barcode"} & set(SPEC["datasets"]["nutrition_sources"]["columns"])
+
+
+def test_the_category_file_is_ranked_categories_only_and_leaves_out_the_28_day_artefact():
+    spec = SPEC["datasets"]["category_fitness"]
+    assert spec["where"] == "is_ranked = 1"
+    assert not {"n_changed_28d", "n_stale_365d", "is_ranked"} & set(spec["columns"])
+    assert "(no category)" not in {r["category"] for r in ROWS["category_fitness"] if r["is_ranked"] == 1}
+
+
+def test_the_gallery_files_pass_the_exit_function_and_the_blanking_is_counted(tmp_path):
+    m = ex.build_release(tmp_path / "r", datasets(), STATUS)
+    paths = {f["path"] for f in m["files"]}
+    assert {"category_fitness.csv", "rule_checks.csv", "nutrition_sources.csv"} <= paths
+
+
+def test_the_real_ranked_categories_are_big_public_counts_that_blanking_leaves_alone():
+    rows = category_rows()
+    assert len(rows) == 29 and {r["scope"] for r in rows} == {"all", "india"}
+    assert all(r["n_products"] >= 200 for r in rows) and all(r["category"] != "(no category)" for r in rows)
+    out, rep = ex.build_dataset("category_fitness", rows, SPEC)
+    assert rep["suppressed_cells"] == 0 and len(out) == 29

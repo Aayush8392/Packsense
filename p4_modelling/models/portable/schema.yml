@@ -536,6 +536,49 @@ models:
               arguments:
                 values: [0, 1]
 
+  - name: mart_rule_checks
+    description: >
+      Which of OFF's 11 arithmetic checks flag the most products: one row per scope (all or india) and rule, over the products we hold (the latest version of
+      each, from product_rule_verdicts). A product counts once per rule: checked when at least one of its input sets could be decided for the rule, flagged when
+      any set violates it. Counts only; the reader computes the share. Flagged is not wrong.
+    columns:
+      - name: rule_check_key
+        description: Hash of (scope, rule); a rebuild reproduces the same keys.
+        data_tests: [unique, not_null]
+      - name: scope
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['all', 'india']
+      - name: rule
+        data_tests: [not_null]
+      - name: n_products_checked
+        data_tests: [not_null]
+      - name: n_products_flagged
+        data_tests: [not_null]
+
+  - name: mart_nutrition_sources
+    description: >
+      Where the nutrition numbers come from: one row per scope (all or india) and source (packaging, manufacturer, estimate and any other OFF lists), over the
+      input sets of the products we hold (the latest version of each). n_sets counts sets, n_products distinct products with a set of that source. Counts only.
+    columns:
+      - name: nutrition_source_key
+        description: Hash of (scope, source); a rebuild reproduces the same keys.
+        data_tests: [unique, not_null]
+      - name: scope
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['all', 'india']
+      - name: source
+        data_tests: [not_null]
+      - name: n_sets
+        data_tests: [not_null]
+      - name: n_products
+        data_tests: [not_null]
+
   - name: dim_brand_canonical
     description: >
       Canonical brand: one row per raw first brand of dim_brand and the canonical spelling of its group. Two strings are one brand only when their comparison

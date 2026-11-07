@@ -1,8 +1,8 @@
 import type { LineSeries } from '../charts/LineChart';
 import { ITEMS } from '../data/brands';
-import { flagName } from '../data/flagNames';
+import { flagName, readableTag } from '../data/flagNames';
 import { KINDS, changeDays, changeSeries, dayRange, qualityDays, type DayPoint, type Scope } from '../data/series';
-import type { BrandRow, ChangeRow, QualityRow } from '../data/siteData';
+import type { BrandRow, CategoryRow, ChangeRow, NutritionSourceRow, QualityRow, RuleCheckRow } from '../data/siteData';
 import { formatCount, formatDay } from '../format';
 
 /**
@@ -53,6 +53,10 @@ export interface GalleryData {
   quality: QualityRow[];
   change: ChangeRow[];
   brands: BrandRow[];
+  /** The three files added later; a chart whose file is missing is left out, the others are unaffected. */
+  categories?: CategoryRow[];
+  rules?: RuleCheckRow[];
+  sources?: NutritionSourceRow[];
 }
 
 /** A share from 0 to 1 as a percent: a decimal below 10%, whole numbers above. */
@@ -370,6 +374,109 @@ function sizeBands(brands: BrandRow[], scope: Scope): BarChartSpec | null {
   };
 }
 
+/** A category tag such as 'en:baby-foods' in words: 'Baby foods'. */
+function categoryName(tag: string): string {
+  return readableTag(tag);
+}
+
+const THIN_COUNT = 8;
+const THIN_MIN_CATEGORIES = 3;
+
+/** The categories (at least 200 products each) with the smallest share of products that fill all five core nutrients. */
+function thinCategories(categories: CategoryRow[] | undefined, scope: Scope): BarChartSpec | null {
+  const own = (categories ?? []).filter((c) => c.scope === scope && c.fiveNutrients !== null && c.products > 0);
+  if (own.length < THIN_MIN_CATEGORIES) return null;
+  const ranked = own
+    .map((c) => ({ c, share: (c.fiveNutrients as number) / c.products }))
+    .sort((a, b) => a.share - b.share || a.c.category.localeCompare(b.c.category))
+    .slice(0, THIN_COUNT);
+  const thinnest = ranked[0];
+  return {
+    kind: 'bars',
+    id: 'thin-categories',
+    title: 'Categories where the data is thin',
+    note: `Among the ${formatCount(own.length)} top-level categories with at least 200 products, the ${ranked.length} with the smallest share of products that carry all five core nutrients (energy, fat, carbohydrates, proteins and salt). A product sits in the first category listed on it.`,
+    caption: `${categoryName(thinnest.c.category)} has the fewest: ${percent(thinnest.share)} of its ${formatCount(thinnest.c.products)} products carry all five.`,
+    valueHeading: 'Products with all five core nutrients',
+    rows: ranked.map(({ c, share }) => ({
+      id: c.category,
+      label: categoryName(c.category),
+      value: share * 100,
+      display: `${percent(share)} of ${formatCount(c.products)}`,
+      small: c.category,
+    })),
+  };
+}
+
+/** The name of an arithmetic check in words: the owner's written name for its flag when there is one, otherwise OFF's family made readable. */
+function ruleName(rule: string): string {
+  for (const tag of [`en:nutrition-${rule}`, `en:${rule}`]) {
+    const written = flagName(tag);
+    if (written.plain) return written.name;
+  }
+  return readableTag(`en:${rule}`);
+}
+
+/** How many of the products each of the 11 arithmetic checks could be decided for are flagged by it. */
+function ruleChecks(rules: RuleCheckRow[] | undefined, scope: Scope): BarChartSpec | null {
+  const own = (rules ?? []).filter((r) => r.scope === scope && r.checked !== null && r.checked > 0);
+  if (own.length < 2) return null;
+  const rows = own
+    .map((r) => ({ r, share: r.flagged === null ? null : r.flagged / (r.checked as number) }))
+    .sort((a, b) => (b.share ?? -1) - (a.share ?? -1) || a.r.rule.localeCompare(b.r.rule));
+  const top = rows[0];
+  const hasKnown = top.share !== null;
+  return {
+    kind: 'bars',
+    id: 'rule-checks',
+    title: 'Which checks flag the most products',
+    note: "Open Food Facts' own arithmetic checks on the nutrition tables, run by PackSense. A product is flagged when at least one of its tables breaks the check; a flag is not a verdict that the number is wrong. A count of 1 to 4 is not shown.",
+    caption: hasKnown
+      ? `The check that flags the most products is "${ruleName(top.r.rule).replace(/\.$/, '')}". It flags ${formatCount(top.r.flagged as number)} of the ${formatCount(top.r.checked as number)} products it could be decided for (${percent(top.share as number)}).`
+      : 'Too few products are flagged to show.',
+    valueHeading: 'Products flagged',
+    rows: rows.map(({ r, share }) => ({
+      id: r.rule,
+      label: ruleName(r.rule),
+      value: share === null ? null : share * 100,
+      display: share === null ? '' : `${percent(share)} (${formatCount(r.flagged as number)} of ${formatCount(r.checked as number)})`,
+      small: r.rule,
+    })),
+  };
+}
+
+const SOURCE_NAMES: Record<string, string> = {
+  packaging: 'Printed on the pack',
+  manufacturer: 'Given by the maker',
+  estimate: "Open Food Facts' own estimate",
+};
+
+/** Where the nutrition tables come from: printed on the pack, given by the maker, or an estimate. */
+function nutritionSources(sources: NutritionSourceRow[] | undefined, scope: Scope): BarChartSpec | null {
+  const own = (sources ?? []).filter((s) => s.scope === scope && s.sets !== null && s.sets > 0);
+  if (own.length < 2) return null;
+  const total = own.reduce((sum, s) => sum + (s.sets as number), 0);
+  const rows = own.map((s) => ({ s, share: (s.sets as number) / total })).sort((a, b) => b.share - a.share || a.s.source.localeCompare(b.s.source));
+  const lead = rows[0];
+  const estimate = rows.find((r) => r.s.source === 'estimate');
+  const nameOf = (source: string) => SOURCE_NAMES[source] ?? readableTag(source);
+  return {
+    kind: 'bars',
+    id: 'nutrition-sources',
+    title: 'Where nutrition numbers come from',
+    note: `Each product can have several nutrition tables. The bars are shares of the ${formatCount(total)} tables of the products PackSense holds, by who the table says it came from.`,
+    caption: `${percent(lead.share)} of the tables are "${nameOf(lead.s.source).toLowerCase()}"${estimate && lead.s.source !== 'estimate' ? `; ${percent(estimate.share)} are Open Food Facts' own estimates` : ''}.`,
+    valueHeading: 'Share of nutrition tables',
+    rows: rows.map(({ s, share }) => ({
+      id: s.source,
+      label: nameOf(s.source),
+      value: share * 100,
+      display: `${percent(share)} (${formatCount(s.sets as number)} tables)`,
+      small: s.products === null ? undefined : `${formatCount(s.products)} products`,
+    })),
+  };
+}
+
 /**
  * Every chart of the gallery for one market, in a fixed order. A chart whose figures are missing or too few to draw is left out (never drawn
  * from a guess). India's share is a comparison of the two markets, so it is the same for either choice.
@@ -383,6 +490,9 @@ export function buildGallery(data: GalleryData, scope: Scope): GalleryChart[] {
     indiaShare(data.change),
     emptyFields(data.brands, scope),
     sizeBands(data.brands, scope),
+    thinCategories(data.categories, scope),
+    ruleChecks(data.rules, scope),
+    nutritionSources(data.sources, scope),
   ];
   return charts.filter((c): c is GalleryChart => c !== null);
 }

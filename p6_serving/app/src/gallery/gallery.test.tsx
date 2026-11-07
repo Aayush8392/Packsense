@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { parseBrandScorecard, parseChangeDaily, parseQualityDaily } from '../data/siteData';
+import { parseBrandScorecard, parseCategoryFitness, parseChangeDaily, parseNutritionSources, parseQualityDaily, parseRuleChecks } from '../data/siteData';
 import { formatCount } from '../format';
 import { ChartGallery } from './ChartGallery';
 import { buildGallery, changeWords, dayNumber, median, percent, startIndex, weekOverWeek, weekdayOf, type BarChartSpec, type GalleryData, type LineChartSpec } from './charts';
@@ -15,7 +15,17 @@ const read = (name: string) => readFileSync(join(import.meta.dirname, '..', 'dat
 const qualityText = read('quality_daily.sample.csv');
 const changeText = read('change_daily.sample.csv');
 const brandText = read('brand_scorecard.sample.csv');
-const data: GalleryData = { quality: parseQualityDaily(qualityText), change: parseChangeDaily(changeText), brands: parseBrandScorecard(brandText) };
+const categoryText = read('category_fitness.real.csv');
+const ruleText = read('rule_checks.real.csv');
+const sourceText = read('nutrition_sources.real.csv');
+const data: GalleryData = {
+  quality: parseQualityDaily(qualityText),
+  change: parseChangeDaily(changeText),
+  brands: parseBrandScorecard(brandText),
+  categories: parseCategoryFitness(categoryText),
+  rules: parseRuleChecks(ruleText),
+  sources: parseNutritionSources(sourceText),
+};
 
 const table = (text: string) => {
   const [head, ...lines] = text.trim().split('\n');
@@ -27,8 +37,8 @@ const change = table(changeText);
 const brands = table(brandText);
 
 describe('buildGallery', () => {
-  it('builds all seven charts in a fixed order for each market', () => {
-    const ids = ['flag-flow', 'family-change', 'kind-share', 'weekday-edits', 'india-share', 'empty-fields', 'size-bands'];
+  it('builds all ten charts in a fixed order for each market', () => {
+    const ids = ['flag-flow', 'family-change', 'kind-share', 'weekday-edits', 'india-share', 'empty-fields', 'size-bands', 'thin-categories', 'rule-checks', 'nutrition-sources'];
     expect(buildGallery(data, 'all').map((c) => c.id)).toEqual(ids);
     // India's daily counts are small and often hidden (1 to 4), so a chart that needs a full run of known days can drop out; the order never changes.
     const india = buildGallery(data, 'india').map((c) => c.id);
@@ -230,31 +240,32 @@ describe('the opening chart rotates by day number', () => {
 
 describe('the carousel', () => {
   const now = new Date('2026-11-07T06:00:00Z');
-  const start = startIndex(now, 7);
+  const N = 10;                                             // seven charts of the first batch and the three that came with the later files
+  const start = startIndex(now, N);
 
   it('opens on the chart of the day and says which of the seven it is', () => {
     render(<ChartGallery data={data} market="all" now={now} />);
-    expect(screen.getByText(`Chart ${start + 1} of 7`)).toBeTruthy();
-    const slide = screen.getByRole('group', { name: new RegExp(`^${start + 1} of 7`) });
+    expect(screen.getByText(`Chart ${start + 1} of ${N}`)).toBeTruthy();
+    const slide = screen.getByRole('group', { name: new RegExp(`^${start + 1} of ${N}`) });
     expect(within(slide).getAllByRole('heading', { level: 3 })).toHaveLength(1);
   });
 
   it('moves with Next and Previous, and wraps round the ends', () => {
     render(<ChartGallery data={data} market="all" now={now} />);
     fireEvent.click(screen.getByRole('button', { name: /Next chart/ }));
-    expect(screen.getByText(`Chart ${((start + 1) % 7) + 1} of 7`)).toBeTruthy();
+    expect(screen.getByText(`Chart ${((start + 1) % N) + 1} of ${N}`)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Previous chart/ }));
     fireEvent.click(screen.getByRole('button', { name: /Previous chart/ }));
-    expect(screen.getByText(`Chart ${((start + 6) % 7) + 1} of 7`)).toBeTruthy();
+    expect(screen.getByText(`Chart ${((start + N - 1) % N) + 1} of ${N}`)).toBeTruthy();
   });
 
   it('lists every chart by name and jumps to the one chosen', () => {
     render(<ChartGallery data={data} market="all" now={now} />);
     const catalogue = screen.getByRole('list', { name: 'All the charts' });
     const tabs = within(catalogue).getAllByRole('button');
-    expect(tabs).toHaveLength(7);
+    expect(tabs).toHaveLength(N);
     fireEvent.click(tabs[3]);
-    expect(screen.getByText('Chart 4 of 7')).toBeTruthy();
+    expect(screen.getByText(`Chart 4 of ${N}`)).toBeTruthy();
     expect(tabs[3].getAttribute('aria-current')).toBe('true');
     expect(screen.getByRole('heading', { level: 3, name: 'Edits by day of the week' })).toBeTruthy();
   });
@@ -273,5 +284,87 @@ describe('the carousel', () => {
   it('draws nothing when no chart can be built', () => {
     const { container } = render(<ChartGallery data={{ quality: [], change: [], brands: [] }} market="all" now={now} />);
     expect(container.firstChild).toBeNull();
+  });
+});
+
+// --- the three charts of the later files: categories, arithmetic checks and nutrition sources --------------------------------------------------------
+
+describe('categories where the data is thin', () => {
+  const chart = buildGallery(data, 'all').find((c) => c.id === 'thin-categories') as BarChartSpec;
+  const raw = table(categoryText).filter((r) => r.scope === 'all');
+
+  it('lists the eight categories with the smallest share of products that carry all five core nutrients, the thinnest first', () => {
+    const shares = raw.map((r) => ({ category: r.category, share: Number(r.n_five_nutrients) / Number(r.n_products) })).sort((a, b) => a.share - b.share);
+    expect(chart.rows).toHaveLength(8);
+    expect(chart.rows.map((r) => r.id)).toEqual(shares.slice(0, 8).map((s) => s.category));
+    expect(chart.rows[0].value).toBeCloseTo(shares[0].share * 100, 9);
+    expect(chart.caption).toContain(`${formatCount(Number(raw.find((r) => r.category === shares[0].category)?.n_products))} products carry all five`);
+  });
+
+  it('counts the ranked categories in its note and names the first category rule', () => {
+    expect(chart.note).toContain(`${raw.length} top-level categories with at least 200 products`);
+    expect(chart.note).toContain('first category listed');
+  });
+
+  it('is left out when fewer than three ranked categories are known', () => {
+    const few = parseCategoryFitness(categoryText).filter((c) => c.scope === 'all').slice(0, 2);
+    expect(buildGallery({ ...data, categories: few }, 'all').map((c) => c.id)).not.toContain('thin-categories');
+  });
+});
+
+describe('which checks flag the most products', () => {
+  const rows = table(ruleText).filter((r) => r.scope === 'all');
+
+  it('lists every rule that was checked, with the flagged share, the biggest first, and a hidden count has no bar', () => {
+    const chart = buildGallery(data, 'all').find((c) => c.id === 'rule-checks') as BarChartSpec;
+    expect(chart.rows).toHaveLength(rows.length);
+    const hidden = rows.filter((r) => r.n_products_flagged === '').map((r) => r.rule);
+    for (const id of hidden) expect(chart.rows.find((r) => r.id === id)?.value).toBeNull();
+    const known = chart.rows.filter((r) => r.value !== null).map((r) => r.value as number);
+    expect(known).toEqual([...known].sort((a, b) => b - a));
+  });
+
+  it('words it as flagged, never as wrong', () => {
+    const chart = buildGallery(data, 'all').find((c) => c.id === 'rule-checks') as BarChartSpec;
+    expect(chart.note).toContain('flag is not a verdict that the number is wrong');
+    expect(`${chart.title} ${chart.caption}`.toLowerCase()).not.toMatch(/\bwrong\b|\bincorrect\b/);
+  });
+
+  it('shows the flagged share from the real counts when none is hidden', () => {
+    const open = parseRuleChecks('scope,rule,n_products_checked,n_products_flagged\nall,salt-does-not-match-sodium,200,50\nall,value-over-105,100,10\n');
+    const chart = buildGallery({ ...data, rules: open }, 'all').find((c) => c.id === 'rule-checks') as BarChartSpec;
+    expect(chart.rows[0].id).toBe('salt-does-not-match-sodium');
+    expect(chart.rows[0].value).toBeCloseTo(25, 9);
+    expect(chart.rows[0].display).toBe('25% (50 of 200)');
+    expect(chart.caption).toContain('50 of the 200 products');
+  });
+});
+
+describe('where nutrition numbers come from', () => {
+  const rows = table(sourceText).filter((r) => r.scope === 'all');
+  const total = rows.reduce((s, r) => s + Number(r.n_sets), 0);
+
+  it('shows each source as a share of all the nutrition tables, the biggest first, with the pack, the maker and the estimate named in words', () => {
+    const chart = buildGallery(data, 'all').find((c) => c.id === 'nutrition-sources') as BarChartSpec;
+    expect(chart.rows).toHaveLength(rows.length);
+    const packaging = chart.rows.find((r) => r.id === 'packaging');
+    expect(packaging?.value).toBeCloseTo((Number(rows.find((r) => r.source === 'packaging')?.n_sets) / total) * 100, 9);
+    expect(packaging?.label).toBe('Printed on the pack');
+    expect(chart.rows.find((r) => r.id === 'estimate')?.label).toBe("Open Food Facts' own estimate");
+    const values = chart.rows.map((r) => r.value as number);
+    expect(values).toEqual([...values].sort((a, b) => b - a));
+    expect(chart.note).toContain(formatCount(total));
+  });
+
+  it('says how much is an estimate when the biggest source is something else', () => {
+    const chart = buildGallery(data, 'all').find((c) => c.id === 'nutrition-sources') as BarChartSpec;
+    expect(chart.caption).toMatch(/are Open Food Facts' own estimates/);
+  });
+});
+
+describe('the caption of the checks chart', () => {
+  it('quotes the name of the most flagged check once, with its closing full stop moved outside the quote', () => {
+    const chart = buildGallery(data, 'all').find((c) => c.id === 'rule-checks') as BarChartSpec;
+    expect(chart.caption).toMatch(/^The check that flags the most products is "[^"]+[^."]"\. It flags /);
   });
 });

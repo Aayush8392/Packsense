@@ -38,6 +38,8 @@ MODELS = {
     "fct_catalogue_quality_daily": ["fact_key"],
     "mart_brand_scorecard": ["scorecard_key"],
     "mart_category_fitness": ["category_fitness_key"],
+    "mart_rule_checks": ["rule_check_key"],
+    "mart_nutrition_sources": ["nutrition_source_key"],
     "mart_india_release": ["code"],
 }
 

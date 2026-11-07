@@ -8,7 +8,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { resetCards } from './data/cards';
 import { release } from './data/release';
 import { showcase } from './data/showcase';
-import { brandScorecard, changeDaily, offOpenFlags, offWeekly, pipelineHealth, qualityDaily, siteStatus } from './data/siteData';
+import { brandScorecard, categoryFitness, changeDaily, nutritionSources, offOpenFlags, offWeekly, pipelineHealth, qualityDaily, ruleChecks, siteStatus } from './data/siteData';
 import { withSpread } from './data/fixtures/withSpread';
 import { getBotState, resetBot, startBot, type BotAnswer, type BotApi } from './lookup/botStore';
 import { getChat, resetChat } from './lookup/chatState';
@@ -47,7 +47,7 @@ afterEach(() => {
   resetBot();
   resetChat();
   resetTrail();
-  for (const resource of [siteStatus, changeDaily, pipelineHealth, qualityDaily, brandScorecard, offWeekly, offOpenFlags, showcase, release]) resource.reset();
+  for (const resource of [siteStatus, changeDaily, pipelineHealth, qualityDaily, brandScorecard, offWeekly, offOpenFlags, categoryFitness, ruleChecks, nutritionSources, showcase, release]) resource.reset();
 });
 
 describe('page 02 end to end', () => {
@@ -236,7 +236,7 @@ describe('home with the published files', () => {
   });
 });
 
-const OFF_FILES = { 'off_weekly.csv': fixture('off_weekly.real.csv'), 'off_open_flags.csv': fixture('off_open_flags.real.csv') };
+const OFF_FILES = { 'off_weekly.csv': fixture('off_weekly.real.csv'), 'off_open_flags.csv': fixture('off_open_flags.real.csv'), 'category_fitness.csv': fixture('category_fitness.real.csv'), 'rule_checks.csv': fixture('rule_checks.real.csv'), 'nutrition_sources.csv': fixture('nutrition_sources.real.csv') };
 const DATA_FILES = { ...ALL_FILES, 'quality_daily.csv': fixture('quality_daily.sample.csv'), ...OFF_FILES };
 
 describe('data quality over time', () => {
@@ -1544,5 +1544,23 @@ describe('across all of Open Food Facts: the ranked kinds', () => {
     const bars = section.querySelector('.bar-card') as HTMLElement;
     expect(bars.querySelectorAll('.bar-chart li')).toHaveLength(8);
     expect(bars.querySelector('.chart-card__caption')?.textContent).toMatch(/^The largest kind of flag has 4,722,416 open flags: "/);
+  });
+});
+
+describe('the chart gallery on the daily changes page', () => {
+  it('shows ten charts when every file is there', async () => {
+    serveFiles({ ...DATA_FILES, 'brand_scorecard.csv': fixture('brand_scorecard.sample.csv') });
+    renderAt('/explore/changes');
+    const catalogue = await screen.findByRole('list', { name: 'All the charts' });
+    expect(within(catalogue).getAllByRole('button')).toHaveLength(10);
+  });
+
+  it('still shows the seven charts of the first files when the three later files are missing', async () => {
+    const later = ['category_fitness.csv', 'rule_checks.csv', 'nutrition_sources.csv'];
+    const without = Object.fromEntries(Object.entries(DATA_FILES).filter(([name]) => !later.includes(name)));
+    serveFiles({ ...without, 'brand_scorecard.csv': fixture('brand_scorecard.sample.csv') });
+    renderAt('/explore/changes');
+    const catalogue = await screen.findByRole('list', { name: 'All the charts' });
+    expect(within(catalogue).getAllByRole('button')).toHaveLength(7);
   });
 });

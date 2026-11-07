@@ -254,3 +254,65 @@ export function parseOffOpenFlags(text: string): OffOpenFlagRow[] {
 
 export const offWeekly = createResource(async () => parseOffWeekly(await fetchText('off_weekly.csv')));
 export const offOpenFlags = createResource(async () => parseOffOpenFlags(await fetchText('off_open_flags.csv')));
+
+/** One top-level category with at least 200 products, as PackSense holds them: how many of its products fill each of four things. */
+export interface CategoryRow {
+  scope: string;
+  /** An Open Food Facts category tag such as 'en:biscuits'. */
+  category: string;
+  asOf: string;
+  products: number;
+  fiveNutrients: number | null;
+  ingredients: number | null;
+  quantity: number | null;
+}
+
+/** How many products one of OFF's arithmetic checks could be decided for, and how many of those it flags. Null when the count was 1 to 4. */
+export interface RuleCheckRow {
+  scope: string;
+  /** The family of the flag the check matches, such as 'salt-does-not-match-sodium'. */
+  rule: string;
+  checked: number | null;
+  flagged: number | null;
+}
+
+/** How many nutrition tables (sets) and products come from one source. Null when the count was 1 to 4. */
+export interface NutritionSourceRow {
+  scope: string;
+  source: string;
+  sets: number | null;
+  products: number | null;
+}
+
+export function parseCategoryFitness(text: string): CategoryRow[] {
+  const file = 'category_fitness.csv';
+  const rows = parseCsv(text);
+  requireColumns(rows, file, ['scope', 'category', 'as_of_date', 'n_products', 'n_five_nutrients', 'n_with_ingredients', 'n_with_quantity']);
+  return rows.map((row) => ({
+    scope: row.scope,
+    category: row.category,
+    asOf: row.as_of_date,
+    products: numberOf(row.n_products, file),
+    fiveNutrients: countOrNull(row.n_five_nutrients, file),
+    ingredients: countOrNull(row.n_with_ingredients, file),
+    quantity: countOrNull(row.n_with_quantity, file),
+  }));
+}
+
+export function parseRuleChecks(text: string): RuleCheckRow[] {
+  const file = 'rule_checks.csv';
+  const rows = parseCsv(text);
+  requireColumns(rows, file, ['scope', 'rule', 'n_products_checked', 'n_products_flagged']);
+  return rows.map((row) => ({ scope: row.scope, rule: row.rule, checked: countOrNull(row.n_products_checked, file), flagged: countOrNull(row.n_products_flagged, file) }));
+}
+
+export function parseNutritionSources(text: string): NutritionSourceRow[] {
+  const file = 'nutrition_sources.csv';
+  const rows = parseCsv(text);
+  requireColumns(rows, file, ['scope', 'source', 'n_sets', 'n_products']);
+  return rows.map((row) => ({ scope: row.scope, source: row.source, sets: countOrNull(row.n_sets, file), products: countOrNull(row.n_products, file) }));
+}
+
+export const categoryFitness = createResource(async () => parseCategoryFitness(await fetchText('category_fitness.csv')));
+export const ruleChecks = createResource(async () => parseRuleChecks(await fetchText('rule_checks.csv')));
+export const nutritionSources = createResource(async () => parseNutritionSources(await fetchText('nutrition_sources.csv')));

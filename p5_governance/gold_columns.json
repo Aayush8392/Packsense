@@ -224,6 +224,13 @@
    "existence_status",
    "last_modified_t"
   ],
+  "mart_nutrition_sources": [
+   "nutrition_source_key",
+   "scope",
+   "source",
+   "n_sets",
+   "n_products"
+  ],
   "mart_product_card": [
    "code",
    "existence_status",
@@ -249,6 +256,13 @@
    "first_version_edited_t",
    "first_period_from_seed",
    "in_india"
+  ],
+  "mart_rule_checks": [
+   "rule_check_key",
+   "scope",
+   "rule",
+   "n_products_checked",
+   "n_products_flagged"
   ],
   "product_flag_spans": [
    "flag_id",

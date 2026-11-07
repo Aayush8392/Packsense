@@ -46,6 +46,29 @@ datasets:
     text_columns: [subject, detail]
     count_columns: []
     order_by: [metric_date, subject, metric]
+  category_fitness:
+    # Where the data is thin (chart gallery): per scope and top-level category with at least 200 products (the dbt var category_min_products), how many fill the core
+    # nutrients, ingredients and quantity. n_changed_28d and n_stale_365d are not exported (the first is an artefact outside India).
+    table: mart_category_fitness
+    where: "is_ranked = 1"
+    columns: [scope, category, as_of_date, n_products, n_five_nutrients, n_with_ingredients, n_with_quantity]
+    text_columns: [category]        # an OFF category tag such as en:biscuits, passed through the exit function
+    count_columns: [n_products, n_five_nutrients, n_with_ingredients, n_with_quantity]
+    order_by: [scope, category]
+  rule_checks:
+    # Which of OFF's 11 arithmetic checks flag the most products (chart gallery): products checked and products flagged per rule. 'Flagged' is not 'wrong'.
+    table: mart_rule_checks
+    columns: [scope, rule, n_products_checked, n_products_flagged]
+    text_columns: [rule]
+    count_columns: [n_products_checked, n_products_flagged]
+    order_by: [scope, rule]
+  nutrition_sources:
+    # Where the nutrition numbers come from (chart gallery): input sets and products per source (packaging, manufacturer, estimate, ...).
+    table: mart_nutrition_sources
+    columns: [scope, source, n_sets, n_products]
+    text_columns: [source]
+    count_columns: [n_sets, n_products]
+    order_by: [scope, source]
   off_weekly:
     # Whole-OFF weekly counts ('Across all of OFF'): products held, added, removed and edited per week, and flags that appeared or ended, from OFF's own weekly
     # snapshots. Written at the end of every run of the weekly `events` task (workspace.packsense_snapshots); counts only, no product, no contributor.

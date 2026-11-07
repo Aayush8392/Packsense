@@ -5314,6 +5314,418 @@
 "scope": "all"
 }
 ],
+"category_fitness": [
+{
+"as_of_date": "2026-10-15",
+"category": "ro:Mezeluri",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:breakfasts",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:condiments",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 2,
+"n_with_ingredients": 2,
+"n_with_quantity": 2,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:desserts",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:buscuit",
+"is_ranked": 0,
+"n_five_nutrients": 0,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:dairies",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:meats-and-their-products",
+"is_ranked": 0,
+"n_five_nutrients": 8,
+"n_products": 8,
+"n_with_ingredients": 7,
+"n_with_quantity": 7,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:oil",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:plant-based-foods-and-beverages",
+"is_ranked": 0,
+"n_five_nutrients": 8,
+"n_products": 13,
+"n_with_ingredients": 7,
+"n_with_quantity": 7,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:fats",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 0,
+"n_with_quantity": 0,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "(no category)",
+"is_ranked": 0,
+"n_five_nutrients": 39,
+"n_products": 68,
+"n_with_ingredients": 14,
+"n_with_quantity": 16,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:Lácteos",
+"is_ranked": 0,
+"n_five_nutrients": 3,
+"n_products": 3,
+"n_with_ingredients": 2,
+"n_with_quantity": 3,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:beverages-and-beverages-preparations",
+"is_ranked": 0,
+"n_five_nutrients": 8,
+"n_products": 8,
+"n_with_ingredients": 5,
+"n_with_quantity": 3,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:dietary-supplements",
+"is_ranked": 0,
+"n_five_nutrients": 0,
+"n_products": 1,
+"n_with_ingredients": 0,
+"n_with_quantity": 1,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:frozen-foods",
+"is_ranked": 0,
+"n_five_nutrients": 4,
+"n_products": 4,
+"n_with_ingredients": 4,
+"n_with_quantity": 4,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "uk:Гірчиця",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:beverages-and-beverages-preparations",
+"is_ranked": 0,
+"n_five_nutrients": 17,
+"n_products": 18,
+"n_with_ingredients": 14,
+"n_with_quantity": 11,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:dietary-supplements",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 2,
+"n_with_ingredients": 1,
+"n_with_quantity": 2,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:meat-alternatives",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:dairies",
+"is_ranked": 0,
+"n_five_nutrients": 13,
+"n_products": 15,
+"n_with_ingredients": 13,
+"n_with_quantity": 11,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:condiments",
+"is_ranked": 0,
+"n_five_nutrients": 5,
+"n_products": 6,
+"n_with_ingredients": 6,
+"n_with_quantity": 6,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:eggs-and-their-products",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 0,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:buscuit",
+"is_ranked": 0,
+"n_five_nutrients": 0,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:desserts",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:vegan-products",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "(no category)",
+"is_ranked": 0,
+"n_five_nutrients": 10,
+"n_products": 21,
+"n_with_ingredients": 4,
+"n_with_quantity": 6,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:plant-based-foods-and-beverages",
+"is_ranked": 0,
+"n_five_nutrients": 36,
+"n_products": 44,
+"n_with_ingredients": 35,
+"n_with_quantity": 31,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:fats",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 0,
+"n_with_quantity": 0,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:sandwiches",
+"is_ranked": 0,
+"n_five_nutrients": 3,
+"n_products": 3,
+"n_with_ingredients": 3,
+"n_with_quantity": 3,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:sweeteners",
+"is_ranked": 0,
+"n_five_nutrients": 0,
+"n_products": 1,
+"n_with_ingredients": 0,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:oil",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:meats-and-their-products",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 0,
+"n_with_quantity": 0,
+"scope": "india"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:Kaas",
+"is_ranked": 0,
+"n_five_nutrients": 0,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 0,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:meals",
+"is_ranked": 0,
+"n_five_nutrients": 5,
+"n_products": 6,
+"n_with_ingredients": 4,
+"n_with_quantity": 4,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:snacks",
+"is_ranked": 0,
+"n_five_nutrients": 33,
+"n_products": 36,
+"n_with_ingredients": 32,
+"n_with_quantity": 28,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:canned-foods",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:Bebidas",
+"is_ranked": 0,
+"n_five_nutrients": 3,
+"n_products": 3,
+"n_with_ingredients": 3,
+"n_with_quantity": 3,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:fresh-foods",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "zh:puffed",
+"is_ranked": 0,
+"n_five_nutrients": 1,
+"n_products": 1,
+"n_with_ingredients": 1,
+"n_with_quantity": 1,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:seafood",
+"is_ranked": 0,
+"n_five_nutrients": 2,
+"n_products": 2,
+"n_with_ingredients": 2,
+"n_with_quantity": 2,
+"scope": "all"
+},
+{
+"as_of_date": "2026-10-15",
+"category": "en:snacks",
+"is_ranked": 0,
+"n_five_nutrients": 6,
+"n_products": 8,
+"n_with_ingredients": 6,
+"n_with_quantity": 4,
+"scope": "india"
+}
+],
 "change_daily": [
 {
 "change_date": "2026-10-01",
@@ -6619,6 +7031,38 @@
 "opened_by_seed": 0,
 "scope": "india",
 "unseen_edits": 1
+}
+],
+"nutrition_sources": [
+{
+"n_products": 34,
+"n_sets": 40,
+"scope": "india",
+"source": "packaging"
+},
+{
+"n_products": 21,
+"n_sets": 21,
+"scope": "india",
+"source": "estimate"
+},
+{
+"n_products": 190,
+"n_sets": 236,
+"scope": "all",
+"source": "packaging"
+},
+{
+"n_products": 146,
+"n_sets": 146,
+"scope": "all",
+"source": "estimate"
+},
+{
+"n_products": 26,
+"n_sets": 41,
+"scope": "all",
+"source": "manufacturer"
 }
 ],
 "quality_daily": [
@@ -12726,6 +13170,140 @@
 "severity": "warning",
 "snapshot_date": "2026-10-15",
 "vanished": 1
+}
+],
+"rule_checks": [
+{
+"n_products_checked": 147,
+"n_products_flagged": 1,
+"rule": "saturated-fat-greater-than-fat",
+"scope": "all"
+},
+{
+"n_products_checked": 23,
+"n_products_flagged": 0,
+"rule": "sugars-plus-starch-greater-than-carbohydrates",
+"scope": "india"
+},
+{
+"n_products_checked": 4,
+"n_products_flagged": 0,
+"rule": "energy-value-in-kcal-and-kj-are-reversed",
+"scope": "india"
+},
+{
+"n_products_checked": 21,
+"n_products_flagged": 0,
+"rule": "energy-value-in-kcal-does-not-match-value-computed-from-other-nutrients",
+"scope": "india"
+},
+{
+"n_products_checked": 22,
+"n_products_flagged": 0,
+"rule": "saturated-fat-greater-than-fat",
+"scope": "india"
+},
+{
+"n_products_checked": 4,
+"n_products_flagged": 1,
+"rule": "energy-value-in-kcal-does-not-match-value-in-kj",
+"scope": "india"
+},
+{
+"n_products_checked": 4,
+"n_products_flagged": 0,
+"rule": "energy-value-in-kj-does-not-match-value-computed-from-other-nutrients",
+"scope": "india"
+},
+{
+"n_products_checked": 5,
+"n_products_flagged": 0,
+"rule": "value-over-3911-energy",
+"scope": "india"
+},
+{
+"n_products_checked": 64,
+"n_products_flagged": 3,
+"rule": "energy-value-in-kcal-does-not-match-value-in-kj",
+"scope": "all"
+},
+{
+"n_products_checked": 64,
+"n_products_flagged": 3,
+"rule": "energy-value-in-kj-does-not-match-value-computed-from-other-nutrients",
+"scope": "all"
+},
+{
+"n_products_checked": 67,
+"n_products_flagged": 0,
+"rule": "value-over-3911-energy",
+"scope": "all"
+},
+{
+"n_products_checked": 147,
+"n_products_flagged": 10,
+"rule": "energy-value-in-kcal-does-not-match-value-computed-from-other-nutrients",
+"scope": "all"
+},
+{
+"n_products_checked": 64,
+"n_products_flagged": 0,
+"rule": "energy-value-in-kcal-greater-than-in-kj",
+"scope": "all"
+},
+{
+"n_products_checked": 83,
+"n_products_flagged": 4,
+"rule": "salt-does-not-match-sodium",
+"scope": "all"
+},
+{
+"n_products_checked": 27,
+"n_products_flagged": 1,
+"rule": "value-over-105",
+"scope": "india"
+},
+{
+"n_products_checked": 26,
+"n_products_flagged": 0,
+"rule": "value-total-over-105",
+"scope": "india"
+},
+{
+"n_products_checked": 64,
+"n_products_flagged": 0,
+"rule": "energy-value-in-kcal-and-kj-are-reversed",
+"scope": "all"
+},
+{
+"n_products_checked": 150,
+"n_products_flagged": 2,
+"rule": "sugars-plus-starch-greater-than-carbohydrates",
+"scope": "all"
+},
+{
+"n_products_checked": 164,
+"n_products_flagged": 1,
+"rule": "value-over-105",
+"scope": "all"
+},
+{
+"n_products_checked": 158,
+"n_products_flagged": 0,
+"rule": "value-total-over-105",
+"scope": "all"
+},
+{
+"n_products_checked": 4,
+"n_products_flagged": 0,
+"rule": "energy-value-in-kcal-greater-than-in-kj",
+"scope": "india"
+},
+{
+"n_products_checked": 8,
+"n_products_flagged": 0,
+"rule": "salt-does-not-match-sodium",
+"scope": "india"
 }
 ]
 }

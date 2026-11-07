@@ -14,9 +14,9 @@ to upload when the licence gate finds anything; the Pages workflow verifies ever
 
 ## What is exported (`export_spec.yml`)
 
-Exactly three gold tables and three other small tables, a listed set of columns each, nothing else (a column that is not listed cannot leave; a test fails if a listed column is classified personal
+Exactly six gold tables and three other small tables, a listed set of columns each, nothing else (a column that is not listed cannot leave; a test fails if a listed column is classified personal
 or internal): `brand_scorecard` (ranked brands only, no per-brand error counts), `quality_daily`, `change_daily`, and `pipeline_health` (90 days of job runs, durations and
-whether each outside service answered, written daily by the admin-owned job `packsense-health`; a dataset with a `schema` key is read from that schema instead of gold), `off_weekly` and `off_open_flags` (whole-OFF counts per week and open flags per snapshot, severity and kind, written at the end of every run of the weekly `events` task into `workspace.packsense_snapshots`; counts only, the 40 largest kinds named and the rest added into one row), plus one `site_status` row and `ATTRIBUTION.md`.
+whether each outside service answered, written daily by the admin-owned job `packsense-health`; a dataset with a `schema` key is read from that schema instead of gold), `category_fitness` (ranked top-level categories: products and how many carry the core nutrients, ingredients and quantity), `rule_checks` (products checked and flagged per arithmetic rule) and `nutrition_sources` (nutrition tables and products per source), `off_weekly` and `off_open_flags` (whole-OFF counts per week and open flags per snapshot, severity and kind, written at the end of every run of the weekly `events` task into `workspace.packsense_snapshots`; counts only, the 40 largest kinds named and the rest added into one row), plus one `site_status` row and `ATTRIBUTION.md`.
 Counts of 1 to 4 in the listed count columns are blanked (small numbers). Limit, stated on the site: a blanked cell can sometimes be recovered from a total beside it.
 `export_lib.py` does the work (pure Python, tested on real rows of the DuckDB fixture); `notebooks/publish_site_data.py` reads the tables and uploads.
 
