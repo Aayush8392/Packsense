@@ -194,6 +194,14 @@ what each product with an open flag looked like at one weekly snapshot of OFF's 
 
 per-snapshot bookkeeping of the open-flag read (counts, bytes read, run id). 12 columns: 0 public, 0 personal, 12 internal.
 
+### `workspace.packsense_snapshots.public_off_weekly`: public
+
+whole-OFF counts per week (products held, added, removed and edited; flags that appeared or ended) added up from OFF's own weekly snapshots; no product, no contributor. 11 columns: 11 public, 0 personal, 0 internal.
+
+### `workspace.packsense_snapshots.public_off_open_flags`: public
+
+how many flags of each kind were open over the whole of OFF at each weekly snapshot (counts and OFF's own flag kinds); no product, no contributor. 4 columns: 4 public, 0 personal, 0 internal.
+
 ### `workspace.packsense_silver.silver_existence_check`: public
 
 whether each product we hold is still in OFF's food database (a barcode and a status; from a snapshot of OFF's public dataset and from OFF's public API). 7 columns: 4 public, 0 personal, 3 internal.

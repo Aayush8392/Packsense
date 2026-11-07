@@ -1688,3 +1688,12 @@
     grid-row: 2;
   }
 }
+.chart-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.chart-stack > .chart-card {
+  flex: 1;
+}

@@ -150,6 +150,7 @@ GRANT USE SCHEMA ON SCHEMA workspace.packsense_dev_silver TO `packsense-gold-dev
 GRANT SELECT ON SCHEMA workspace.packsense_dev_silver TO `admin`;
 GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_snapshots TO `packsense-deployer`;
 GRANT SELECT ON SCHEMA workspace.packsense_snapshots TO `admin`;
+GRANT USE SCHEMA ON SCHEMA workspace.packsense_snapshots TO `packsense-publish`;
 GRANT USE SCHEMA, CREATE TABLE, SELECT, MODIFY ON SCHEMA workspace.packsense_dev_snapshots TO `packsense-deployer-dev`;
 GRANT SELECT ON SCHEMA workspace.packsense_dev_snapshots TO `admin`;
 GRANT READ VOLUME ON VOLUME workspace.packsense_snapshots.models TO `packsense-deployer`;
@@ -169,6 +170,8 @@ GRANT SELECT ON TABLE workspace.packsense_gold.fct_product_change_daily TO `pack
 GRANT SELECT ON TABLE workspace.packsense_gold.mart_product_card TO `packsense-publish`;
 GRANT USE SCHEMA ON SCHEMA workspace.packsense_health TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_health.health_metric_daily TO `packsense-publish`;
+GRANT SELECT ON TABLE workspace.packsense_snapshots.public_off_weekly TO `packsense-publish`;
+GRANT SELECT ON TABLE workspace.packsense_snapshots.public_off_open_flags TO `packsense-publish`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_product_versions TO `packsense-gold`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_manifest TO `packsense-gold`;
 GRANT SELECT ON TABLE workspace.packsense_silver.silver_taxonomy_tag TO `packsense-gold`;

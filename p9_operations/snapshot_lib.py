@@ -43,7 +43,12 @@ RETENTION_MONTHS = 13           # flag events older than this (by the newer snap
 
 DEFAULT_SCHEMA = "workspace.packsense_snapshots"
 TABLES = ("snapshot_flag_events", "snapshot_open_counts", "snapshot_presence_events", "snapshot_manifest",
-          "snapshot_open_flags", "snapshot_features", "snapshot_open_flags_manifest")
+          "snapshot_open_flags", "snapshot_features", "snapshot_open_flags_manifest", "public_off_weekly", "public_off_open_flags")
+
+# The two small tables the public site reads for 'Across all of OFF' (written at the end of every run of the `events` task, see `public_summary_sql`):
+# only counts per week; no barcode, no contributor field, no text except OFF's own flag kinds.
+PUBLIC_TOP_KINDS = 40                      # kinds of flag kept by name in `public_off_open_flags`; every other kind of a severity is added into one row
+PUBLIC_OTHER_KIND = "(all other kinds)"
 
 # The open flags kept per product for the triage model (roadmap item 17, agreed 2026-10-26): every error flag, and the warning flags of the
 # nutrition-number families the labelling gate covers. Measured 2026-10-18: 259,679 error and 647,429 such warning flags open in one snapshot,
@@ -302,6 +307,54 @@ def ddl(schema: str) -> dict[str, str]:
             pair_id STRING, snapshot_from STRING, snapshot_to STRING, date_from DATE, date_to DATE, rows_from BIGINT, rows_to BIGINT,
             in_both BIGINT, left_count BIGINT, entered_count BIGINT, edited_count BIGINT, flag_events BIGINT,
             rx_mb BIGINT, seconds DOUBLE, job_run_id STRING, finished_at TIMESTAMP) USING DELTA""",
+        "public_off_weekly": f"""CREATE TABLE IF NOT EXISTS {schema}.public_off_weekly (
+            week_end DATE, products_held BIGINT, products_added BIGINT, products_removed BIGINT, products_edited BIGINT,
+            flags_ended_error BIGINT, flags_ended_warning BIGINT, flags_ended_info BIGINT,
+            flags_appeared_error BIGINT, flags_appeared_warning BIGINT, flags_appeared_info BIGINT) USING DELTA""",
+        "public_off_open_flags": f"""CREATE TABLE IF NOT EXISTS {schema}.public_off_open_flags (
+            snapshot_date DATE, severity STRING, kind STRING, open_flags BIGINT) USING DELTA""",
+    }
+
+
+def public_summary_sql(schema: str, top_kinds: int = PUBLIC_TOP_KINDS) -> dict[str, dict[str, str]]:
+    """For each public table: the `source` count query, the `delete` and the `insert`. Plain SQL that runs on Spark (Delta) and on DuckDB, so a test
+    can run it on real rows. The weekly table has one row per snapshot pair (the week ending on the newer snapshot's date): products held, entered,
+    left and edited, and the flags that appeared or ended on products present in both snapshots; a flag ENDED when it disappeared and the product
+    carries no other flag of the same family (a rename is not an end). The open-flags table has, per snapshot, severity and kind of flag, the number
+    of open flags (products carrying each tag, added up over the tags of one kind); a kind is the family with the category tail cut off, only the
+    `top_kinds` largest kinds are named and the rest of a severity are added into one row, so the file stays small however many kinds OFF adds."""
+    def ended(severity: str, event: str) -> str:
+        return (f"sum(case when event = '{event}' and not family_remains and severity = '{severity}' then 1 else 0 end)")
+
+    weekly_select = f"""select m.date_to as week_end, m.rows_to as products_held, m.entered_count as products_added, m.left_count as products_removed,
+        m.edited_count as products_edited,
+        coalesce(e.ended_error, 0) as flags_ended_error, coalesce(e.ended_warning, 0) as flags_ended_warning, coalesce(e.ended_info, 0) as flags_ended_info,
+        coalesce(e.appeared_error, 0) as flags_appeared_error, coalesce(e.appeared_warning, 0) as flags_appeared_warning,
+        coalesce(e.appeared_info, 0) as flags_appeared_info
+      from {schema}.snapshot_manifest m
+      left join (select pair_id,
+          {ended('error', 'disappeared')} as ended_error, {ended('warning', 'disappeared')} as ended_warning, {ended('info', 'disappeared')} as ended_info,
+          {ended('error', 'appeared')} as appeared_error, {ended('warning', 'appeared')} as appeared_warning, {ended('info', 'appeared')} as appeared_info
+        from {schema}.snapshot_flag_events group by pair_id) e on e.pair_id = m.pair_id"""
+
+    open_select = f"""with kinds as (
+        select snapshot_date, severity, regexp_replace(family, '-for-category-.*$', '-for-category') as kind, sum(open_pairs) as open_flags
+        from {schema}.snapshot_open_counts group by 1, 2, 3),
+      ranked as (
+        select severity, kind, row_number() over (order by max_open desc, severity, kind) as place
+        from (select severity, kind, max(open_flags) as max_open from kinds group by 1, 2) t),
+      named as (
+        select k.snapshot_date, k.severity, case when r.place <= {int(top_kinds)} then k.kind else '{PUBLIC_OTHER_KIND}' end as kind, k.open_flags
+        from kinds k join ranked r on r.severity = k.severity and r.kind = k.kind)
+      select snapshot_date, severity, kind, sum(open_flags) as open_flags from named group by 1, 2, 3"""
+
+    return {
+        "public_off_weekly": {"source": weekly_select,
+                              "delete": f"delete from {schema}.public_off_weekly",
+                              "insert": f"insert into {schema}.public_off_weekly {weekly_select}"},
+        "public_off_open_flags": {"source": open_select,
+                                  "delete": f"delete from {schema}.public_off_open_flags",
+                                  "insert": f"insert into {schema}.public_off_open_flags {open_select}"},
     }
 
 

@@ -31,6 +31,8 @@ REQUIRED = (
     "change_daily.csv",
     "pipeline_health.csv",
     "quality_daily.csv",
+    "off_weekly.csv",
+    "off_open_flags.csv",
     "site_status.csv",
     "cards/splits.json",
     "release/release_manifest.json",

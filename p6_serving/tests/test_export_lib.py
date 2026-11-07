@@ -2,6 +2,7 @@
 small-number suppression, deterministic files, and the licence gate as the last step."""
 import copy
 import csv
+import datetime as dt
 import json
 import re
 import sys
@@ -16,9 +17,20 @@ import export_lib as ex  # noqa: E402
 
 ROWS = json.loads((HERE / "fixtures" / "gold_rows.json").read_text(encoding="utf-8"))
 HEALTH = json.loads((ROOT / "p9_operations" / "tests" / "fixtures" / "health_real.json").read_text(encoding="utf-8"))["rows"]   # real collector output
+OFF = json.loads((HERE / "fixtures" / "off_weekly_real.json").read_text(encoding="utf-8"))   # the two whole-OFF tables as production built them (counts only)
 SPEC = ex.load_spec()
 STATUS = {"built_at_utc": "2026-10-21T08:30:00", "first_complete_day": "2026-10-01",
           "last_complete_day": "2026-10-15", "products_held_all": 233, "products_held_india": 60}
+
+
+def off_rows(name):
+    """The real rows of one whole-OFF table with their types back (Spark hands the SDK strings): dates as dates, the severity and kind as text, the rest as integers."""
+    table = OFF[name]
+    out = []
+    for row in table["rows"]:
+        rec = dict(zip(table["columns"], row))
+        out.append({k: (dt.date.fromisoformat(v) if k in ("week_end", "snapshot_date") else v if k in ("severity", "kind") else int(v)) for k, v in rec.items()})
+    return out
 
 
 def datasets(rank_all_named=True):
@@ -31,6 +43,8 @@ def datasets(rank_all_named=True):
         out[name] = [{k: r[k] for k in cols} for r in keep]
     cols = SPEC["datasets"]["pipeline_health"]["columns"]
     out["pipeline_health"] = [{k: r[k] for k in cols} for r in HEALTH]
+    for name, table in (("off_weekly", "public_off_weekly"), ("off_open_flags", "public_off_open_flags")):
+        out[name] = [{k: r[k] for k in SPEC["datasets"][name]["columns"]} for r in off_rows(table)]
     return out
 
 
@@ -94,7 +108,7 @@ def test_the_release_folder_passes_the_gate_and_the_files_are_deterministic(tmp_
     m2 = ex.build_release(tmp_path / "b", datasets(), STATUS)
     assert [f["sha256"] for f in m1["files"]] == [f["sha256"] for f in m2["files"]]
     names = sorted(f["path"] for f in m1["files"])
-    assert names == ["ATTRIBUTION.md", "brand_scorecard.csv", "change_daily.csv", "pipeline_health.csv", "quality_daily.csv", "site_status.csv"]
+    assert names == ["ATTRIBUTION.md", "brand_scorecard.csv", "change_daily.csv", "off_open_flags.csv", "off_weekly.csv", "pipeline_health.csv", "quality_daily.csv", "site_status.csv"]
     with open(tmp_path / "a" / "brand_scorecard.csv", encoding="utf-8", newline="") as f:
         header = next(csv.reader(f))
     assert header == SPEC["datasets"]["brand_scorecard"]["columns"]
@@ -129,3 +143,48 @@ def test_no_exported_text_matches_a_scrub_pattern(tmp_path):
     ex.build_release(tmp_path / "ok", datasets(), STATUS)
     text = "\n".join(p.read_text(encoding="utf-8") for p in (tmp_path / "ok").glob("*.csv"))
     assert not re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", text)
+
+
+# --- the two whole-OFF datasets ('Across all of OFF'), on the rows production built (tests/fixtures/off_weekly_real.json) -----------------------------
+
+def test_the_whole_off_tables_are_exactly_what_the_snapshot_library_defines():
+    sys.path.insert(0, str(ROOT / "p9_operations"))
+    import snapshot_lib as lib
+    d = lib.ddl("workspace.packsense_snapshots")
+    for dataset, table in (("off_weekly", "public_off_weekly"), ("off_open_flags", "public_off_open_flags")):
+        assert SPEC["datasets"][dataset]["schema"] == "workspace.packsense_snapshots" and SPEC["datasets"][dataset]["table"] == table
+        assert SPEC["datasets"][dataset]["columns"] == lib.ddl_columns(d[table])          # every column, in the table's order
+        assert OFF[table]["columns"] == lib.ddl_columns(d[table])
+
+
+def test_the_whole_off_files_hold_counts_only_and_lose_nothing_to_blanking():
+    for dataset, table in (("off_weekly", "public_off_weekly"), ("off_open_flags", "public_off_open_flags")):
+        rows = [{k: r[k] for k in SPEC["datasets"][dataset]["columns"]} for r in off_rows(table)]
+        out, rep = ex.build_dataset(dataset, rows, SPEC)
+        assert len(out) == len(rows) and rep["suppressed_cells"] == 0         # every real cell is far above the blanking floor
+        assert not any("@" in str(r.get("kind", "")) for r in out)
+
+
+def test_the_open_flags_of_the_newest_snapshot_equal_the_flags_the_triage_scoring_recorded_for_it():
+    rows = off_rows("public_off_open_flags")
+    newest = max(r["snapshot_date"] for r in rows)
+    assert newest == dt.date(2026, 11, 1)
+    errors = sum(r["open_flags"] for r in rows if r["snapshot_date"] == newest and r["severity"] == "error")
+    assert errors == 261_383                                                      # the scoring wrote 261,383 error flags for this snapshot (item 20)
+
+
+def test_the_open_flags_file_stays_small_whatever_kinds_OFF_adds():
+    rows = off_rows("public_off_open_flags")
+    per_day = {}
+    for r in rows:
+        per_day.setdefault(r["snapshot_date"], set()).add((r["severity"], r["kind"]))
+    assert len(per_day) == 33 and max(len(v) for v in per_day.values()) <= 40 + 3
+    assert {r["severity"] for r in rows} == {"error", "warning", "info"}
+    assert len(rows) == 1419
+
+
+def test_the_weekly_file_has_one_row_per_week_ending_on_a_snapshot():
+    rows = off_rows("public_off_weekly")
+    ends = sorted(r["week_end"] for r in rows)
+    assert len(set(ends)) == 32 and ends[0] == dt.date(2026, 3, 29) and ends[-1] == dt.date(2026, 11, 1)
+    assert all(6 <= (b - a).days <= 8 for a, b in zip(ends, ends[1:]))           # weekly, but OFF's snapshots are not always exactly 7 days apart (6 and 8 days in July)

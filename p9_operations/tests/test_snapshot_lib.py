@@ -898,3 +898,111 @@ def test_the_open_flags_notebook_keeps_spark_alive_around_the_worker_and_passes_
     assert i_ka < i_run                                                                  # the ping is running when the worker process is started
     assert 'dbutils.widgets.text("stall_seconds"' in text and '"stall_seconds": STALL_SECONDS' in text
     assert "spark.sql(\"select 1\")" in text
+
+
+# --- the two small tables of 'Across all of OFF' ---------------------------------------------------------------------------------------------
+
+def _make_public_tables(con):
+    for name in ("public_off_weekly", "public_off_open_flags"):
+        con.execute(lib.ddl("s")[name].replace("CREATE TABLE IF NOT EXISTS", "CREATE TABLE").replace(" USING DELTA", ""))
+
+
+def _public_con():
+    """The real slice pair run through the comparison and the open counts, loaded as the three tables the summary reads (schema `s`)."""
+    con = duckdb.connect()
+    con.execute("create schema s")
+    con.execute("create table s.snapshot_manifest (pair_id varchar, date_to date, rows_to bigint, entered_count bigint, left_count bigint, edited_count bigint)")
+    con.execute("create table s.snapshot_flag_events (pair_id varchar, severity varchar, family varchar, event varchar, family_remains boolean)")
+    _make_public_tables(con)
+    con.execute("create table s.snapshot_open_counts (snapshot_date date, severity varchar, family varchar, open_pairs bigint)")
+    res = lib.compute_pair(RESULT_CON)
+    st = res["stats"]
+    con.execute("insert into s.snapshot_manifest values ('pair1', DATE '2026-10-19', ?, ?, ?, ?)", [st["rows_to"], st["entered_count"], st["left_count"], st["edited_count"]])
+    for e in res["events"]:
+        con.execute("insert into s.snapshot_flag_events values ('pair1', ?, ?, ?, ?)", [e["severity"], e["family"], e["event"], e["family_remains"]])
+    for day, table in (("2026-10-12", "p"), ("2026-10-19", "n")):
+        for sev, tag, n in lib.open_counts(RESULT_CON, table):
+            con.execute("insert into s.snapshot_open_counts values (CAST(? AS DATE), ?, ?, ?)", [day, sev, lib.family_key(tag), n])
+    return con, res
+
+
+def _run(con, top_kinds=lib.PUBLIC_TOP_KINDS):
+    out = {}
+    for name, stmt in lib.public_summary_sql("s", top_kinds).items():
+        con.execute(stmt["delete"])
+        con.execute(stmt["insert"])
+        out[name] = sorted(con.execute(f"select * from s.{name}").fetchall())
+    return out
+
+
+def test_the_weekly_table_counts_products_and_flag_ends_as_an_independent_calculation_does():
+    con, res = _public_con()
+    (row,) = _run(con)["public_off_weekly"]
+    st = res["stats"]
+    assert row[:5] == (dt.date(2026, 10, 19), st["rows_to"], st["entered_count"], st["left_count"], st["edited_count"])
+    ref = _reference()
+    for i, (event, sev) in enumerate((("disappeared", "error"), ("disappeared", "warning"), ("disappeared", "info"),
+                                      ("appeared", "error"), ("appeared", "warning"), ("appeared", "info"))):
+        expected = sum(1 for (_code, s, _tag, e, remains, _ed) in ref if s == sev and e == event and not remains)
+        assert row[5 + i] == expected, (event, sev)
+    assert sum(row[5:]) > 0                                                  # the real rows do contain ends and appearances
+
+
+def test_a_rename_is_not_an_end_and_not_a_new_flag():
+    con, _res = _public_con()
+    (row,) = _run(con)["public_off_weekly"]
+    all_events = con.execute("select count(*) from s.snapshot_flag_events").fetchone()[0]
+    renames = con.execute("select count(*) from s.snapshot_flag_events where family_remains").fetchone()[0]
+    assert renames > 0 and sum(row[5:]) == all_events - renames
+
+
+def test_the_open_flags_table_loses_no_flag_when_the_small_kinds_are_added_into_one_row():
+    con, _res = _public_con()
+    full = _run(con, top_kinds=10_000)["public_off_open_flags"]
+    small = _run(con, top_kinds=3)["public_off_open_flags"]
+    total = lambda rows: sorted((d, s, sum(n for (dd, ss, _k, n) in rows if (dd, ss) == (d, s))) for (d, s) in {(r[0], r[1]) for r in rows})  # noqa: E731
+    assert total(full) == total(small)
+    raw = con.execute("select snapshot_date, severity, sum(open_pairs) from s.snapshot_open_counts group by 1, 2 order by 1, 2").fetchall()
+    assert [(d, s, int(n)) for d, s, n in total(small)] == [(d, s, int(n)) for d, s, n in raw]
+    named = {(s, k) for (_d, s, k, _n) in small if k != lib.PUBLIC_OTHER_KIND}
+    assert len(named) <= 3 and any(k == lib.PUBLIC_OTHER_KIND for (_d, _s, k, _n) in small)
+
+
+def test_a_category_tail_is_cut_off_a_kind_and_only_there():
+    con = duckdb.connect()
+    con.execute("create schema s")
+    con.execute("create table s.snapshot_manifest (pair_id varchar, date_to date, rows_to bigint, entered_count bigint, left_count bigint, edited_count bigint)")
+    con.execute("create table s.snapshot_flag_events (pair_id varchar, severity varchar, family varchar, event varchar, family_remains boolean)")
+    _make_public_tables(con)
+    con.execute("create table s.snapshot_open_counts (snapshot_date date, severity varchar, family varchar, open_pairs bigint)")
+    fams = sorted({lib.family_key(t["tag"]) for t in TAGS})
+    with_tail = [f for f in fams if "-for-category-" in f]
+    assert with_tail                                          # the real tag list has such families
+    for i, f in enumerate(fams):
+        con.execute("insert into s.snapshot_open_counts values (DATE '2026-10-19', 'warning', ?, ?)", [f, i + 1])
+    rows = _run(con, top_kinds=10_000)["public_off_open_flags"]
+    kinds = {k for (_d, _s, k, _n) in rows}
+    assert not any("-for-category-" in k for k in kinds) and any(k.endswith("-for-category") for k in kinds)
+    assert len(kinds) == len({f.split("-for-category-")[0] + "-for-category" if "-for-category-" in f else f for f in fams})
+    assert sum(n for (_d, _s, _k, n) in rows) == sum(range(1, len(fams) + 1))
+
+
+def test_a_second_refresh_gives_the_same_tables_not_doubled_ones():
+    con, _res = _public_con()
+    first = _run(con)
+    assert _run(con) == first
+
+
+def test_the_summary_columns_are_the_columns_of_the_table_definitions():
+    con, _res = _public_con()
+    d = lib.ddl("s")
+    for name, stmt in lib.public_summary_sql("s").items():
+        cols = [c[0] for c in con.execute(f"select * from ({stmt['source']}) limit 0").description]
+        assert cols == lib.ddl_columns(d[name])
+
+
+def test_the_notebook_refreshes_the_public_tables_after_every_run_and_never_empties_one_from_an_empty_source():
+    text = (HERE.parent / "notebooks" / "snapshot_events.py").read_text(encoding="utf-8")
+    assert text.count("refresh_public()") >= 3                  # the definition, the no-new-pair return and the end of a full run
+    assert "public_summary_sql" in text and "the table is left as it is" in text
+    assert text.index("if rows == 0") < text.index('stmt["delete"]')

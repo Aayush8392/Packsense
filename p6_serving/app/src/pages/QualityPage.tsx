@@ -1,12 +1,16 @@
 import { ChartCard } from '../charts/ChartCard';
 import type { LineSeries } from '../charts/LineChart';
 import { Headline, LoadState, MarketSwitch, PageTitle, Panels, TextPanel, pageSections, useMarket } from '../components/pageParts';
+import { OffSection } from '../components/OffSection';
 import { flagName } from '../data/flagNames';
 import { useResource } from '../data/resource';
 import { JumpLink } from '../nav/JumpLink';
 import { SEVERITIES, flagsPerProduct, productsHeld, qualityDays, topFamilies, type Scope } from '../data/series';
 import { qualityDaily, type QualityRow } from '../data/siteData';
 import { formatCount, formatDay, formatPerProduct as perProduct } from '../format';
+
+/** The section of the page text that introduces the whole-OFF charts: it is shown above them, not as a panel at the foot of the page. */
+const OFF_SECTION_TITLE = 'Across all of Open Food Facts';
 
 /** How each severity is drawn: its own marker and line style as well as its own colour. */
 const SEVERITY_STYLE: Record<string, Pick<LineSeries, 'marker' | 'dash' | 'color'>> = {
@@ -128,7 +132,9 @@ function Charts({ rows, market }: { rows: QualityRow[]; market: Scope }) {
 export function QualityPage() {
   const loaded = useResource(qualityDaily);
   const [market, setMarket] = useMarket();
-  const { intro, sections } = pageSections('quality-over-time');
+  const { intro, sections: allSections } = pageSections('quality-over-time');
+  const offText = allSections.find((s) => s.title === OFF_SECTION_TITLE) ?? null;
+  const sections = allSections.filter((s) => s !== offText);
 
   return (
     <div className="data-page">
@@ -136,6 +142,7 @@ export function QualityPage() {
       <div className="prose" dangerouslySetInnerHTML={{ __html: intro }} />
       <MarketSwitch market={market} onChange={setMarket} />
       {loaded.phase === 'ready' ? <Charts rows={loaded.data} market={market} /> : <LoadState loaded={[loaded]} />}
+      <OffSection introHtml={offText ? offText.html : null} />
       <Panels>
         {sections.map((section, i) => (
           <TextPanel key={section.title} id={`quality-panel-${i}`} title={section.title} html={section.html} />

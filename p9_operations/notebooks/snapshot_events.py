@@ -122,6 +122,24 @@ def append(table, rows, schema, batch=20000):
         spark.createDataFrame(rows[i:i + batch], schema).write.mode("append").saveAsTable(f"{SCHEMA}.{table}")
 
 
+def refresh_public():
+    """Rewrite the two small tables of 'Across all of OFF' (counts per week) from the tables this task keeps. Runs at the end of every run, also one
+    that found no new pair, so the first run after this code is deployed fills them. A table is never emptied when its source query returns nothing
+    (a failed or partial read must not publish an empty chart); the delete and the insert are two steps, and the daily publish is hours away."""
+    out = {}
+    for name, stmt in lib.public_summary_sql(SCHEMA).items():
+        rows = spark.sql(f"select count(*) from ({stmt['source']})").collect()[0][0]
+        if rows == 0:
+            print(f"public table {name}: the source query returned no rows, the table is left as it is")
+            out[name] = None
+            continue
+        spark.sql(stmt["delete"])
+        spark.sql(stmt["insert"])
+        out[name] = spark.sql(f"select count(*) from {SCHEMA}.{name}").collect()[0][0]
+        print(f"public table {name}: {out[name]} rows")
+    return out
+
+
 def run():
     for name, sql in lib.ddl(SCHEMA).items():
         spark.sql(sql)
@@ -135,7 +153,8 @@ def run():
     for a, b in todo:
         print(f"  {a.date.date()} {a.sha[:8]} -> {b.date.date()} {b.sha[:8]}")
     if DRY or not todo:
-        return {"snapshots": len(snaps), "done": len(done), "todo": len(todo), "dry_run": DRY, "pairs_run": 0}
+        public = None if DRY else refresh_public()
+        return {"snapshots": len(snaps), "done": len(done), "todo": len(todo), "dry_run": DRY, "pairs_run": 0, "public_rows": public}
 
     total_mb = lib.mem_total_mb()
     work = tempfile.mkdtemp(prefix="packsense_snapshots_")                       # local disk: cached snapshots, worker specs and results
@@ -208,8 +227,9 @@ def run():
         spark.sql(f"delete from {SCHEMA}.{table} where date_to < DATE'{cutoff}'")
     spark.sql(f"delete from {SCHEMA}.snapshot_open_counts where snapshot_date < DATE'{cutoff}'")
     print(f"retention: rows with a newer-snapshot date before {cutoff} deleted")
+    public = refresh_public()
     return {"snapshots": len(snaps), "done": len(done), "todo": len(todo), "dry_run": False, "pairs_run": pairs_run, "rx_mb": round(total_rx / 1e6),
-            "stopped_early": stopped or None, "seconds_per_pair": [round(x) for x in seconds_history]}
+            "stopped_early": stopped or None, "seconds_per_pair": [round(x) for x in seconds_history], "public_rows": public}
 
 
 ping("/start")

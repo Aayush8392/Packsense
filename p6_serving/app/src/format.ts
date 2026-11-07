@@ -56,3 +56,12 @@ export function describeMoment(moment: Date, now: Date): string {
 }
 
 export { addDays };
+
+/** A large count in short form for a chart axis: 950, 12k, 261k, 4.89M, 22.5M. Tables keep the full number. */
+export function formatCompact(value: number): string {
+  const abs = Math.abs(value);
+  if (abs < 1000) return String(Math.round(value));
+  if (abs < 10_000) return `${(value / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  if (abs < 1_000_000) return `${Math.round(value / 1000)}k`;
+  return `${(value / 1_000_000).toFixed(abs >= 10_000_000 ? 1 : 2).replace(/\.?0+$/, '')}M`;
+}

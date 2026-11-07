@@ -8,7 +8,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { resetCards } from './data/cards';
 import { release } from './data/release';
 import { showcase } from './data/showcase';
-import { brandScorecard, changeDaily, pipelineHealth, qualityDaily, siteStatus } from './data/siteData';
+import { brandScorecard, changeDaily, offOpenFlags, offWeekly, pipelineHealth, qualityDaily, siteStatus } from './data/siteData';
 import { withSpread } from './data/fixtures/withSpread';
 import { getBotState, resetBot, startBot, type BotAnswer, type BotApi } from './lookup/botStore';
 import { getChat, resetChat } from './lookup/chatState';
@@ -47,7 +47,7 @@ afterEach(() => {
   resetBot();
   resetChat();
   resetTrail();
-  for (const resource of [siteStatus, changeDaily, pipelineHealth, qualityDaily, brandScorecard, showcase, release]) resource.reset();
+  for (const resource of [siteStatus, changeDaily, pipelineHealth, qualityDaily, brandScorecard, offWeekly, offOpenFlags, showcase, release]) resource.reset();
 });
 
 describe('page 02 end to end', () => {
@@ -236,7 +236,8 @@ describe('home with the published files', () => {
   });
 });
 
-const DATA_FILES = { ...ALL_FILES, 'quality_daily.csv': fixture('quality_daily.sample.csv') };
+const OFF_FILES = { 'off_weekly.csv': fixture('off_weekly.real.csv'), 'off_open_flags.csv': fixture('off_open_flags.real.csv') };
+const DATA_FILES = { ...ALL_FILES, 'quality_daily.csv': fixture('quality_daily.sample.csv'), ...OFF_FILES };
 
 describe('data quality over time', () => {
   it('shows the headline facts, five charts, the kinds of flag and the two text panels, from the real rows', async () => {
@@ -248,7 +249,7 @@ describe('data quality over time', () => {
     expect(headline.textContent).toContain('1 Oct 2026 to 15 Oct 2026, 15 whole days');
     expect(within(headline).getAllByText('9.4')).toHaveLength(2);
     expect(within(headline).getByText('233')).toBeTruthy();
-    expect(document.querySelectorAll('.chart-card')).toHaveLength(5);
+    expect(document.querySelectorAll('.chart-card')).toHaveLength(5 + 7);       // five of the products PackSense holds, seven across the whole of OFF
     expect(screen.getByRole('heading', { level: 2, name: 'How to read it' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'What this page can and cannot tell you' })).toBeTruthy();
   });
@@ -285,7 +286,7 @@ describe('data quality over time', () => {
 
   it('says plainly when the figures could not be loaded, and keeps the text of the page', async () => {
     renderAt('/explore/quality');
-    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/could not be loaded just now/));
+    await waitFor(() => expect(screen.getAllByRole('status').map((s) => s.textContent).join(' ')).toMatch(/could not be loaded just now/));
     expect(screen.getByRole('heading', { level: 2, name: 'How to read it' })).toBeTruthy();
   });
 
@@ -1473,5 +1474,75 @@ describe('the question tool keeps its conversation', () => {
     act(() => resetBot(api()));
     fireEvent.click(screen.getByRole('button', { name: 'Ask a question' }));
     expect(screen.queryByText('What is this?')).toBeNull();
+  });
+});
+
+describe('across all of Open Food Facts', () => {
+  it('shows seven charts on the Quality page from the real weekly files, under its own heading, with the page text above them', async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/quality');
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Across all of Open Food Facts' });
+    const section = heading.closest('section') as HTMLElement;
+    await waitFor(() => expect(section.querySelectorAll('.chart-card')).toHaveLength(7));
+    expect(section.textContent).toContain('each point is one week, not one day');
+    // the text is shown above the charts and not again as a panel at the foot of the page
+    expect(screen.getAllByRole('heading', { level: 2, name: 'Across all of Open Food Facts' })).toHaveLength(1);
+    const titles = [...section.querySelectorAll('.chart-card h3')].map((h) => h.textContent);
+    expect(titles).toContain('Products in Open Food Facts');
+    expect(titles).toContain('Open error flags across Open Food Facts');
+  });
+
+  it('writes its captions from the real numbers', async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/quality');
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Across all of Open Food Facts' })).closest('section') as HTMLElement;
+    await waitFor(() => expect(section.querySelectorAll('.chart-card')).toHaveLength(7));
+    expect(section.textContent).toContain('4,887,851 products on 1 Nov 2026, against 4,379,600 on 29 Mar 2026');
+    expect(section.textContent).toContain('261,383 open error flags on 1 Nov 2026, against 241,024 on 22 Mar 2026');
+    expect(section.textContent).toContain('The busiest week was the one ending 29 Mar 2026, with 1,230,916');
+  });
+
+  it("can leave out the first weeks, which hold OFF's very large changes of March and early April, so the later weeks can be read", async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/quality');
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Across all of Open Food Facts' })).closest('section') as HTMLElement;
+    await waitFor(() => expect(section.querySelectorAll('.chart-card')).toHaveLength(7));
+    expect(section.textContent).toContain('ending 29 Mar 2026, with 1,230,916');
+    fireEvent.click(within(section).getByRole('radio', { name: 'From 19 April' }));
+    expect(section.textContent).not.toContain('1,230,916');
+    expect(section.textContent).toContain('The busiest week was the one ending');
+    // the chart of all products and the two open-flag charts keep every week
+    expect(section.textContent).toContain('against 4,379,600 on 29 Mar 2026');
+  });
+
+  it('switches the flag chart to errors only without leaving the page', async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/quality');
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Across all of Open Food Facts' })).closest('section') as HTMLElement;
+    await waitFor(() => expect(section.querySelectorAll('.chart-card')).toHaveLength(7));
+    expect(section.textContent).toContain('Every severity added up.');
+    fireEvent.click(within(section).getByRole('radio', { name: 'Errors only' }));
+    expect(section.textContent).toContain('Error flags only.');
+  });
+
+  it('says plainly when its files are missing and leaves the rest of the page alone', async () => {
+    serveFiles({ ...ALL_FILES, 'quality_daily.csv': fixture('quality_daily.sample.csv') });
+    renderAt('/explore/quality');
+    await screen.findByRole('region', { name: 'Headline' });
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Across all of Open Food Facts' })).closest('section') as HTMLElement;
+    await waitFor(() => expect(within(section).getByRole('status').textContent).toMatch(/could not be loaded just now/));
+    expect(document.querySelectorAll('.chart-card')).toHaveLength(5);
+  });
+});
+
+describe('across all of Open Food Facts: the ranked kinds', () => {
+  it('names the largest kind from the newest snapshot, with its count, and lists eight', async () => {
+    serveFiles(DATA_FILES);
+    renderAt('/explore/quality');
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Across all of Open Food Facts' })).closest('section') as HTMLElement;
+    await waitFor(() => expect(section.querySelectorAll('.chart-card')).toHaveLength(7));
+    const bars = section.querySelector('.bar-card') as HTMLElement;
+    expect(bars.querySelectorAll('.bar-chart li')).toHaveLength(8);
+    expect(bars.querySelector('.chart-card__caption')?.textContent).toMatch(/^The largest kind of flag has 4,722,416 open flags: "/);
   });
 });

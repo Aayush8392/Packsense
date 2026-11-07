@@ -46,6 +46,25 @@ datasets:
     text_columns: [subject, detail]
     count_columns: []
     order_by: [metric_date, subject, metric]
+  off_weekly:
+    # Whole-OFF weekly counts ('Across all of OFF'): products held, added, removed and edited per week, and flags that appeared or ended, from OFF's own weekly
+    # snapshots. Written at the end of every run of the weekly `events` task (workspace.packsense_snapshots); counts only, no product, no contributor.
+    schema: workspace.packsense_snapshots
+    table: public_off_weekly
+    columns: [week_end, products_held, products_added, products_removed, products_edited, flags_ended_error, flags_ended_warning, flags_ended_info,
+              flags_appeared_error, flags_appeared_warning, flags_appeared_info]
+    text_columns: []
+    count_columns: [products_added, products_removed, products_edited, flags_ended_error, flags_ended_warning, flags_ended_info,
+                    flags_appeared_error, flags_appeared_warning, flags_appeared_info]
+    order_by: [week_end]
+  off_open_flags:
+    # Open flags over the whole of OFF, per weekly snapshot, severity and kind of flag (the 40 largest kinds by name, the rest added into one row per severity).
+    schema: workspace.packsense_snapshots
+    table: public_off_open_flags
+    columns: [snapshot_date, severity, kind, open_flags]
+    text_columns: [kind]            # an OFF flag family such as 'value-total-over-105', passed through the exit function
+    count_columns: [open_flags]
+    order_by: [snapshot_date, severity, kind]
 
 # The product cards behind the barcode lookup (roadmap Phase B item 12; gold mart_product_card): one small file per barcode prefix, fetched by the browser.
 # Derived facts only: no product text, no image, no contributor data; every value is an enumerated code or a small count or a time (the licence gate checks the

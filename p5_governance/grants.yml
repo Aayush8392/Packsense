@@ -52,7 +52,7 @@ securables:
   # Snapshot flag events (P9 operations, Phase A): written by the deployer of that environment from OFF's weekly Hugging Face snapshots; only
   # barcodes, flag tags and edit times, no contributor field. Created by the admin; nothing reads it yet (gold will, with its own grant).
   - {type: schema, name: workspace.packsense_snapshots, grants: {
-      packsense-deployer: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
+      packsense-deployer: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT], packsense-publish: [USE_SCHEMA]}}
   - {type: schema, name: workspace.packsense_dev_snapshots, grants: {
       packsense-deployer-dev: [USE_SCHEMA, CREATE_TABLE, SELECT, MODIFY], admin: [SELECT]}}
 
@@ -86,6 +86,11 @@ securables:
   # for the public pipeline-health page (p6_serving/export_spec.yml).
   - {type: schema, name: workspace.packsense_health, grants: {packsense-publish: [USE_SCHEMA]}}
   - {type: table, name: workspace.packsense_health.health_metric_daily, grants: {packsense-publish: [SELECT]}}
+
+  # The two small whole-OFF tables the publish job reads (Phase E, 'Across all of OFF'; written by the weekly `events` task as the deployer): counts per week only.
+  # The publish principal gets USE_SCHEMA on the snapshots schema and SELECT on exactly these two tables, nothing else in it.
+  - {type: table, name: workspace.packsense_snapshots.public_off_weekly, grants: {packsense-publish: [SELECT]}}
+  - {type: table, name: workspace.packsense_snapshots.public_off_open_flags, grants: {packsense-publish: [SELECT]}}
 
   # The silver tables gold reads (three until 2026-10-21, four since). A table-level grant is lost when the table is renamed or dropped: re-run apply_grants after a swap.
   - {type: table, name: workspace.packsense_silver.silver_product_versions, grants: {packsense-gold: [SELECT]}}

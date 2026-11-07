@@ -49,7 +49,7 @@ def test_the_principal_reads_exactly_the_spec_tables_and_one_scope():
     got = {s["name"] for s in GRANTS["securables"] if s["type"] == "table" and "packsense-publish" in s["grants"]}
     assert got == wanted
     others = [s["name"] for s in GRANTS["securables"] if s["type"] != "table" and "packsense-publish" in s["grants"]]
-    assert sorted(others) == ["workspace", "workspace.packsense_gold", "workspace.packsense_health"]
+    assert sorted(others) == ["workspace", "workspace.packsense_gold", "workspace.packsense_health", "workspace.packsense_snapshots"]
     for s in GRANTS["securables"]:
         if "packsense-publish" in s["grants"]:
             assert set(s["grants"]["packsense-publish"]) <= {"USE_CATALOG", "USE_SCHEMA", "SELECT"}

@@ -80,6 +80,12 @@ tables:
   - name: workspace.packsense_snapshots.snapshot_open_flags_manifest
     class: internal
     why: per-snapshot bookkeeping of the open-flag read (counts, bytes read, run id)
+  - name: workspace.packsense_snapshots.public_off_weekly
+    class: public
+    why: whole-OFF counts per week (products held, added, removed and edited; flags that appeared or ended) added up from OFF's own weekly snapshots; no product, no contributor
+  - name: workspace.packsense_snapshots.public_off_open_flags
+    class: public
+    why: how many flags of each kind were open over the whole of OFF at each weekly snapshot (counts and OFF's own flag kinds); no product, no contributor
   - name: workspace.packsense_silver.silver_existence_check
     class: public
     why: whether each product we hold is still in OFF's food database (a barcode and a status; from a snapshot of OFF's public dataset and from OFF's public API)

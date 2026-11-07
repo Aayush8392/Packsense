@@ -196,3 +196,61 @@ export const changeDaily = createResource(async () => parseChangeDaily(await fet
 export const qualityDaily = createResource(async () => parseQualityDaily(await fetchText('quality_daily.csv')));
 export const pipelineHealth = createResource(async () => parsePipelineHealth(await fetchText('pipeline_health.csv')));
 export const brandScorecard = createResource(async () => parseBrandScorecard(await fetchText('brand_scorecard.csv')));
+
+/** One week of the whole of Open Food Facts (not only the products PackSense holds), from OFF's own weekly snapshots. Counts of 1 to 4 are null. */
+export interface OffWeeklyRow {
+  /** The date of the newer of the two snapshots the week compares. */
+  weekEnd: string;
+  productsHeld: number;
+  productsAdded: number | null;
+  productsRemoved: number | null;
+  productsEdited: number | null;
+  /** Flags that ended on products present in both snapshots (a flag renamed to another of the same family is not an end), by severity. */
+  endedError: number | null;
+  endedWarning: number | null;
+  endedInfo: number | null;
+  appearedError: number | null;
+  appearedWarning: number | null;
+  appearedInfo: number | null;
+}
+
+/** Open flags over the whole of OFF at one weekly snapshot, for one severity and kind of flag. */
+export interface OffOpenFlagRow {
+  day: string;
+  severity: string;
+  /** An OFF flag family such as 'value-total-over-105', or the one row that adds up every kind outside the largest forty. */
+  kind: string;
+  openFlags: number | null;
+}
+
+export const OFF_OTHER_KIND = '(all other kinds)';
+
+export function parseOffWeekly(text: string): OffWeeklyRow[] {
+  const file = 'off_weekly.csv';
+  const rows = parseCsv(text);
+  requireColumns(rows, file, ['week_end', 'products_held', 'products_added', 'products_removed', 'products_edited', 'flags_ended_error', 'flags_ended_warning',
+    'flags_ended_info', 'flags_appeared_error', 'flags_appeared_warning', 'flags_appeared_info']);
+  return rows.map((row) => ({
+    weekEnd: row.week_end,
+    productsHeld: numberOf(row.products_held, file),
+    productsAdded: countOrNull(row.products_added, file),
+    productsRemoved: countOrNull(row.products_removed, file),
+    productsEdited: countOrNull(row.products_edited, file),
+    endedError: countOrNull(row.flags_ended_error, file),
+    endedWarning: countOrNull(row.flags_ended_warning, file),
+    endedInfo: countOrNull(row.flags_ended_info, file),
+    appearedError: countOrNull(row.flags_appeared_error, file),
+    appearedWarning: countOrNull(row.flags_appeared_warning, file),
+    appearedInfo: countOrNull(row.flags_appeared_info, file),
+  }));
+}
+
+export function parseOffOpenFlags(text: string): OffOpenFlagRow[] {
+  const file = 'off_open_flags.csv';
+  const rows = parseCsv(text);
+  requireColumns(rows, file, ['snapshot_date', 'severity', 'kind', 'open_flags']);
+  return rows.map((row) => ({ day: row.snapshot_date, severity: row.severity, kind: row.kind, openFlags: countOrNull(row.open_flags, file) }));
+}
+
+export const offWeekly = createResource(async () => parseOffWeekly(await fetchText('off_weekly.csv')));
+export const offOpenFlags = createResource(async () => parseOffOpenFlags(await fetchText('off_open_flags.csv')));

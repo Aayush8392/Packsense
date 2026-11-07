@@ -15,13 +15,19 @@ export interface ChartCardProps {
   headingLevel?: 2 | 3 | 4;
   /** A sentence written by code from the numbers, shown under the chart. */
   caption?: string;
+  /** A shorter way to write a number on the chart itself (axis, hover, screen-reader text); the table keeps `format`. */
+  axisFormat?: (value: number) => string;
+  /** The first column of the table: "Day" for daily data, "Week ending" for weekly data. */
+  rowHeading?: string;
+  /** What the table pages count: "days" or "weeks". */
+  pagerNoun?: string;
 }
 
 /**
- * A chart in a card, with a button that shows the very same numbers as a table. The table lists the newest day first, ten days to a
+ * A chart in a card, with a button that shows the very same numbers as a table. The table lists the newest first, ten rows to a
  * page, so it stays short however many days the data grows to. Each card opens and closes on its own.
  */
-export function ChartCard({ title, note, series, format, unknownText, compact = false, headingLevel = 3, caption }: ChartCardProps) {
+export function ChartCard({ title, note, series, format, unknownText, compact = false, headingLevel = 3, caption, axisFormat, rowHeading = 'Day', pagerNoun = 'days' }: ChartCardProps) {
   const id = useId();
   const [asTable, setAsTable] = useState(false);
   const [page, setPage] = useState(0);
@@ -41,7 +47,7 @@ export function ChartCard({ title, note, series, format, unknownText, compact = 
         <Heading>{title}</Heading>
         {note && <p className="chart-card__note">{note}</p>}
       </figcaption>
-      <LineChart series={series} format={format} label={title} compact={compact} />
+      <LineChart series={series} format={axisFormat ?? format} label={title} compact={compact} />
       {caption && <p className="chart-card__caption">{caption}</p>}
       <button type="button" className="button button--quiet" aria-expanded={asTable} aria-controls={`${id}-table`} onClick={toggle}>
         {asTable ? 'Hide the table' : 'Show as a table'}
@@ -54,7 +60,7 @@ export function ChartCard({ title, note, series, format, unknownText, compact = 
                 <caption className="visually-hidden">{title}, newest day first</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Day</th>
+                    <th scope="col">{rowHeading}</th>
                     {series.map((s) => <th key={s.id} scope="col">{s.label}</th>)}
                   </tr>
                 </thead>
@@ -71,7 +77,7 @@ export function ChartCard({ title, note, series, format, unknownText, compact = 
                 </tbody>
               </table>
             </div>
-            <Pager total={newestFirst.length} page={page} onPage={setPage} noun="days" />
+            <Pager total={newestFirst.length} page={page} onPage={setPage} noun={pagerNoun} />
           </>
         )}
       </div>
