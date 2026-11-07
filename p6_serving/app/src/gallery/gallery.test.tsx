@@ -312,7 +312,7 @@ describe('categories where the data is thin', () => {
   });
 });
 
-describe('which checks flag the most products', () => {
+describe('which checks flag the largest share of products', () => {
   const rows = table(ruleText).filter((r) => r.scope === 'all');
 
   it('lists every rule that was checked, with the flagged share, the biggest first, and a hidden count has no bar', () => {
@@ -365,6 +365,6 @@ describe('where nutrition numbers come from', () => {
 describe('the caption of the checks chart', () => {
   it('quotes the name of the most flagged check once, with its closing full stop moved outside the quote', () => {
     const chart = buildGallery(data, 'all').find((c) => c.id === 'rule-checks') as BarChartSpec;
-    expect(chart.caption).toMatch(/^The check that flags the most products is "[^"]+[^."]"\. It flags /);
+    expect(chart.caption).toMatch(/^The largest share of flagged products is for the check "[^"]+[^."]"\. It flags /);
   });
 });

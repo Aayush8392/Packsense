@@ -429,10 +429,10 @@ function ruleChecks(rules: RuleCheckRow[] | undefined, scope: Scope): BarChartSp
   return {
     kind: 'bars',
     id: 'rule-checks',
-    title: 'Which checks flag the most products',
+    title: 'Which checks flag the largest share of products',
     note: "Open Food Facts' own arithmetic checks on the nutrition tables, run by PackSense. A product is flagged when at least one of its tables breaks the check; a flag is not a verdict that the number is wrong. A count of 1 to 4 is not shown.",
     caption: hasKnown
-      ? `The check that flags the most products is "${ruleName(top.r.rule).replace(/\.$/, '')}". It flags ${formatCount(top.r.flagged as number)} of the ${formatCount(top.r.checked as number)} products it could be decided for (${percent(top.share as number)}).`
+      ? `The largest share of flagged products is for the check "${ruleName(top.r.rule).replace(/\.$/, '')}". It flags ${formatCount(top.r.flagged as number)} of the ${formatCount(top.r.checked as number)} products it could be decided for (${percent(top.share as number)}).`
       : 'Too few products are flagged to show.',
     valueHeading: 'Products flagged',
     rows: rows.map(({ r, share }) => ({
