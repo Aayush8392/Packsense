@@ -1,6 +1,6 @@
 # Failure modes: what was tried, what happened, how to recover
 
-One row per failure that was actually made to happen. Rows marked "not run" say so. Dates are the day the drill ran.
+One row per failure that was actually made to happen. Dates are the day the drill ran.
 
 ## Drills that were run
 
@@ -14,17 +14,12 @@ One row per failure that was actually made to happen. Rows marked "not run" say 
 | Principal secrets expire or leak | The four principal OAuth secrets were rotated by one command and the jobs kept running. | `docs/runbook-secret-rotation.md` | A1, run live 2026-10-19 |
 | Processing stops for 3 days while capture keeps landing files | One catch-up pass over the 3 landed days gave exactly what 3 daily runs gave (19,581 bronze rows, 19,581 silver rows, 0 quarantine, manifest counts equal). A second pass loaded 0 files and changed nothing. Production unchanged; no scratch left. | Run bronze and silver once; no special step. | `p2_lakehouse/bootstrap/outage_drill.py run --days 3`, 2026-11-07. Notebook time 296 s over 6 runs. |
 | Processing stops for 10 days | Same result over 69,232 rows (silver 69,232, quarantine 0). Second pass loaded 0 files. | Same. | `outage_drill.py run --days 10`, 2026-11-07. Notebook time 463 s over 6 runs. |
+| Processing stops for 20 days | Same result over 148,031 bronze rows (silver 148,030, quarantine 1 `Q_BAD_CODE`, manifest counts equal to production). Second pass loaded 0 files. Production unchanged; no scratch left. | Same. | `outage_drill.py run --days 20`, 2026-11-08. Notebook time 736 s over 6 runs (forecast from the 3- and 10-day runs: about 720 s). |
 | Landing lost: the oldest days exist only in the Hugging Face archive | The 8 days that production had loaded but landing no longer held (the oldest, 8.0 days, no gaps) were fetched from the archive; all 8 matched in sha256 three ways (restored copy, archive manifest, the hash the capture recorded). One pass of the real bronze and silver gave 55,877 bronze rows, 55,876 silver rows and 1 quarantine row, identical to production. A second pass loaded 0 files. Production unchanged; no scratch left. | Fetch the files from the archive into landing, then run bronze and silver once; no special step. | `p2_lakehouse/bootstrap/rebuild_drill.py run`, 2026-11-07. Notebook time 444 s over 6 runs (fetch 105 s). Not covered: the seed load (from the dump repo), and days still in landing. |
 | Archive job cancelled while archiving | Scratch repo, 6 files, one file per batch. Four earlier cancels missed the archiving loop (it is about 15 s of a 66 s run and a cancel takes 19 to 34 s to take effect): they landed before the first batch or after the last manifest write, and both were handled correctly (re-run archived all 6, or 0). The fifth landed between batches: manifest recorded 5, repo stored the same 5, every hash equal to the real archive. The re-run archived exactly the 1 missing file (19.4 MB) and ended green. Real archive only read. | Re-run the job: only files without a manifest row are archived again. | `p1_intake/bootstrap/archive_kill_drill.py run`, 2026-11-07. One cancel landed mid-run; the window between an upload and its manifest write (a few seconds) was not hit. |
+| Terraform state lost or damaged (`infra/terraform/github`) | Run on a scratch state key; the production state object was only read and `apply` never ran. A: with an empty state the plan imported all 3 live objects (two rulesets, the deploy key) with nothing to add, change or destroy. B: with an earlier version of the production state (the bucket is versioned) copied into the scratch key, the plan reported no changes. | Lost state: `terraform plan`/`apply` rebuilds it from the import blocks. Damaged state: restore an earlier version of the state object from the bucket's versions. | `.github/workflows/terraform-state-drill.yml`, 2026-11-08, run #1, 27 s, PASS on the first run. Not covered: the `b2/` root (it needs the temporary B2 admin key); whether the scratch key was deleted afterwards was not read from the log. |
 
-Cost of the drills, measured from `system.billing.usage` for the drills' own notebook runs (the SQL warehouse is a separate item and was not counted): 3-day outage 1.532 DBU (296 s), 10-day outage 1.807 DBU (463 s). Cost barely grows with rows: most of it is the fixed cost of six serverless runs. Rebuild and archive-kill DBU: not read yet (billing lags by hours).
-
-## Drills not run
-
-| Failure mode | Status |
-|---|---|
-| Processing stops for 20 days | Not run, by decision (2026-11-07). The 3-day and 10-day runs prove the property; a 20-day run uses the same code on more rows. Forecast from the two measured points: about 12 minutes of notebook time, worst case about an hour. |
-| Terraform state lost or damaged | Planned, not run. |
+Cost of the drills, measured from `system.billing.usage` for the drills' own notebook runs (the SQL warehouse is a separate item and was not counted): 3-day outage 1.532 DBU (296 s), 10-day outage 1.807 DBU (463 s); rebuild from the archive (8 days, 444 s) 1.625 DBU; 20-day outage (736 s): DBU not read yet. Cost barely grows with rows: most of it is the fixed cost of six serverless runs. Archive kill: 0.055 DBU, but only for the last invocation (one cancel trial and its re-run); the state file is overwritten by each run, so the earlier attempts' DBU was not recorded.
 
 ## What the outage drills do not cover
 
