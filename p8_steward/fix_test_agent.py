@@ -81,11 +81,11 @@ def run(which: str, model: str, limit: int, env_file: str) -> None:
             print(code, "STOP", e.kind, str(e)[:400], e.retry_after)
             break
         new += 1
-        done[code] = {"answer": res["text"], "reading": dr.read_json(res["text"]), "tokens": res["provenance"]["total_tokens"], "finish": res["finish_reason"]}
+        done[code] = {"answer": res["text"], "reading": dr.read_json(res["text"]), "tokens": res["provenance"]["total_tokens"], "finish": res["finish_reason"], "model": res["provenance"]["model"]}
         time.sleep(PAUSE)
         second = dr.retry_if_needed(gateway, messages, done[code], text)
         if second:
-            done[code] = {**second, "first": {"answer": done[code]["answer"], "reading": done[code]["reading"]}, "tokens": done[code]["tokens"] + second["tokens"]}
+            done[code] = {**second, "first": {"answer": done[code]["answer"], "reading": done[code]["reading"]}, "tokens": done[code]["tokens"] + second["tokens"], "model": done[code]["model"]}
         out_file.write_text(json.dumps(done, ensure_ascii=False, indent=1), encoding="utf-8")
         print(code, "ok", done[code]["tokens"], "tokens", flush=True)
         time.sleep(PAUSE)

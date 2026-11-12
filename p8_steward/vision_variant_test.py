@@ -58,7 +58,7 @@ def call(key: str, photo: Path) -> dict:
     messages = [{"role": "system", "content": vision_system()},
                 {"role": "user", "content": [{"type": "text", "text": "Read the nutrition table in this photo."}, {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + b64}}]}]
     data = gw.http_transport(ENDPOINT, key, {"model": MODEL, "messages": messages, "max_completion_tokens": 700, "temperature": 0.2}, timeout=120)
-    return {"answer": data["choices"][0]["message"].get("content") or "", "tokens": data["usage"]["total_tokens"], "finish": data["choices"][0].get("finish_reason")}
+    return {"answer": data["choices"][0]["message"].get("content") or "", "tokens": data["usage"]["total_tokens"], "finish": data["choices"][0].get("finish_reason"), "model": data.get("model")}
 
 
 def run(photos: Path, limit: int, env_file: str) -> None:
