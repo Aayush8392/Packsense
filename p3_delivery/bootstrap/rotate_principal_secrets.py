@@ -3,7 +3,8 @@
   python p3_delivery/bootstrap/rotate_principal_secrets.py plan   --env-file .env [--principal NAME ... | --all]
   python p3_delivery/bootstrap/rotate_principal_secrets.py rotate --env-file .env [--principal NAME ... | --all] [--lifetime-days 90] [--keep-old]
   python p3_delivery/bootstrap/rotate_principal_secrets.py show-expiry --env-file .env
-  python p3_delivery/bootstrap/rotate_principal_secrets.py set-expiry NAME YYYY-MM-DD|null --env-file .env
+  python p3_delivery/bootstrap/rotate_principal_secrets.py set-expiry NAME YYYY-MM-DD|null --env-file .env     (the entry must exist)
+  python p3_delivery/bootstrap/rotate_principal_secrets.py add-expiry NAME YYYY-MM-DD|null --env-file .env     (a NEW entry; a listed name is refused)
 
 Per principal, in this order (the OLD secret stays valid until the last step, so any failure leaves a working system):
   1 create a new OAuth secret (a principal may hold up to five, so the two overlap and nothing goes down)
@@ -87,6 +88,15 @@ def update_expiry_list(raw_json: str, name: str, expires: dt.date | None) -> str
             item["expires"] = expires.isoformat() if expires else None
             return json.dumps(data)
     raise ValueError(f"no entry named {name!r} in {EXPIRY_VARIABLE}")
+
+
+def add_expiry_entry(raw_json: str, name: str, expires: dt.date | None) -> str:
+    """The variable's JSON with one NEW entry appended (a name already listed is refused, so a typo cannot create a second entry for a secret)."""
+    data = json.loads(raw_json)
+    if any(item["name"] == name for item in data):
+        raise ValueError(f"{name!r} is already in {EXPIRY_VARIABLE}: use set-expiry to change its date")
+    data.append({"name": name, "expires": expires.isoformat() if expires else None})
+    return json.dumps(data)
 
 
 # ---- GitHub and Databricks adapters (thin; the tests replace them) -------------------------------------------------------------
@@ -243,8 +253,8 @@ def need(name: str) -> str:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["plan", "rotate", "show-expiry", "set-expiry"])
-    ap.add_argument("args", nargs="*", help="set-expiry: NAME and YYYY-MM-DD or null")
+    ap.add_argument("command", choices=["plan", "rotate", "show-expiry", "set-expiry", "add-expiry"])
+    ap.add_argument("args", nargs="*", help="set-expiry / add-expiry: NAME and YYYY-MM-DD or null")
     ap.add_argument("--env-file")
     ap.add_argument("--principal", action="append", choices=list(PRINCIPALS), default=[])
     ap.add_argument("--all", action="store_true")
@@ -262,11 +272,12 @@ def main(argv=None) -> int:
         for e in json.loads(gh.variable()):
             print(f"{e['name']}: {e.get('expires')}")
         return 0
-    if a.command == "set-expiry":
+    if a.command in ("set-expiry", "add-expiry"):
         if len(a.args) != 2:
-            sys.exit("usage: set-expiry NAME YYYY-MM-DD|null")
+            sys.exit(f"usage: {a.command} NAME YYYY-MM-DD|null")
         when = None if a.args[1] == "null" else dt.date.fromisoformat(a.args[1])
-        gh.set_variable(update_expiry_list(gh.variable(), a.args[0], when))
+        change = add_expiry_entry if a.command == "add-expiry" else update_expiry_list
+        gh.set_variable(change(gh.variable(), a.args[0], when))
         print(f"{a.args[0]}: {when}")
         return 0
 

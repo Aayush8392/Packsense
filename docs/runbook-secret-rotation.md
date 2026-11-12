@@ -7,7 +7,7 @@ Four Databricks service principals sign in with an OAuth secret: `packsense-depl
 the repository variable `SECRET_EXPIRY_LIST`).
 
 ## What it does not rotate
-`GH_TF_TOKEN` and the rotation token itself (GitHub has no API to create a personal access token), the admin and pipeline Databricks tokens,
+`GH_TF_TOKEN` and the rotation token itself (GitHub has no API to create a personal access token), the admin, pipeline and analyst Databricks tokens (steps in "Renewing the three Databricks personal tokens" below),
 the Hugging Face tokens, the B2 keys and the deploy key. Their expiry (or lack of it) is tracked in `SECRET_EXPIRY_LIST`; a soft reminder
 date can be set with `set-expiry`.
 
@@ -44,3 +44,27 @@ After a rotation nobody holds a principal's secret, and none is needed: a bundle
 `python p3_delivery/bootstrap/run_job.py --match <part of the job name> [--only TASK ...] --env-file .env` (admin token; proven on the dev gold
 job, the dev bronze job's `drift` task and, earlier, the production gold and archive jobs). Deploys go through the manual **Run workflow** buttons of
 `deploy.yml` and `deploy-gold.yml`. Do not run the dev bronze job's `capture` task: it would back-fill every file OFF lists into dev landing.
+
+## Renewing the three Databricks personal tokens (admin, pipeline, analyst)
+The script above does not touch these: Databricks gives no way to create a personal token for another user, so each is made by hand while signed in
+as its own user, with a **60 to 90-day lifetime** (the analyst token of 12 Nov 2026 has 60 days, so it ends with the other two on 11 to 13 Jan 2027), and each has an entry in `SECRET_EXPIRY_LIST` (the alarm warns 10 days ahead). The entry is added the
+day the token is made, never later: the analyst token had none, expired on or about 12 Nov 2026, and the nightly policy job went red on three
+tasks (`analyst` with "Invalid access token", then `grants_drift` and `policies_drift`, which skip an analyst they cannot resolve).
+
+| Token | Made as | `SECRET_EXPIRY_LIST` entry | Where its value lives |
+|---|---|---|---|
+| admin | the admin user, comment `packsense-admin` | `packsense-admin token` | `.env` `DATABRICKS_TOKEN` |
+| pipeline | the pipeline user, comment `packsense-pipeline` | `DATABRICKS_PIPELINE_TOKEN` | `.env` `DATABRICKS_PIPELINE_TOKEN`; scope `packsense_policy` key `pipeline_user_token`; GitHub repository secret `DATABRICKS_PIPELINE_TOKEN` (used by `capture.yml` and `freshness.yml`) |
+| analyst | the analyst user, comment `packsense-analyst` | `DATABRICKS_ANALYST_TOKEN` | `.env` `DATABRICKS_ANALYST_TOKEN`; scope `packsense_policy` key `analyst_token` |
+
+Steps, in this order (the old token stays valid until the end, so a failure leaves a working system; never paste a token into a chat or a file in the repository):
+1. Sign in to Databricks as that user, Settings, Developer, Access tokens, Generate new token: the comment from the table, lifetime 60 to 90 days.
+2. Put the value in `.env` under the name in the table.
+3. Pipeline and analyst: `python p5_governance/bootstrap/policy_scope.py put-secret --name pipeline_user_token|analyst_token --env-file .env` (a hidden prompt).
+4. Pipeline only: replace the GitHub repository secret `DATABRICKS_PIPELINE_TOKEN` (Settings, Secrets and variables, Actions).
+5. Read the exact expiry from the token list (admin token: `WorkspaceClient.token_management.list()`, names and dates only) and run
+   `python p3_delivery/bootstrap/rotate_principal_secrets.py set-expiry NAME YYYY-MM-DD --env-file .env` for a renewal (the entry exists), or `add-expiry NAME YYYY-MM-DD`
+   for a token that has no entry yet; `show-expiry` must list it.
+6. Prove it: `python p3_delivery/bootstrap/run_job.py --match packsense-policy --exact --env-file .env` must end SUCCESS (the analyst and pipeline tasks use their
+   own tokens); for the pipeline token also start `capture.yml` by hand ("Run workflow").
+7. Delete the old token in Databricks if it is still listed (an expired one disappears by itself).

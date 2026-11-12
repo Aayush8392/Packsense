@@ -140,6 +140,14 @@ def test_updating_the_expiry_list_changes_one_entry_and_keeps_the_rest():
         rot.update_expiry_list(json.dumps(ENTRIES), "nope", None)
 
 
+def test_adding_an_expiry_entry_appends_one_new_name_and_refuses_a_listed_one():
+    new = json.loads(rot.add_expiry_entry(json.dumps(ENTRIES), "DATABRICKS_ANALYST_TOKEN", dt.date(2027, 1, 11)))
+    assert new[:-1] == ENTRIES and new[-1] == {"name": "DATABRICKS_ANALYST_TOKEN", "expires": "2027-01-11"}
+    assert json.loads(rot.add_expiry_entry(json.dumps(ENTRIES), "NEW_KEY", None))[-1]["expires"] is None
+    with pytest.raises(ValueError, match="already in"):
+        rot.add_expiry_entry(json.dumps(ENTRIES), "GH_TF_TOKEN", dt.date(2027, 1, 1))
+
+
 def test_the_four_principals_are_distinct_dev_first_and_only_gold_has_a_scope():
     assert list(rot.PRINCIPALS)[:2] == ["packsense-deployer-dev", "packsense-gold-dev"]
     cfgs = rot.PRINCIPALS.values()
