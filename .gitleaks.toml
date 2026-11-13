@@ -40,3 +40,14 @@ targetRules = ["generic-api-key"]
 paths = ['''p8_steward/nightly/freeze\.json''']
 regexTarget = "line"
 regexes = ['''^\s*"p8_steward/[A-Za-z0-9_./-]+":\s*"[0-9a-f]{64}",?\s*$''']
+
+# tools/locks.py (SECURITY_FIX, added 2026-11-13) maps a package name to the public advisory id that justified a lock newer than the cutoff: `"opentelemetry-api": "GHSA-mf5v-w3w3-f6cg",`. The
+# generic-api-key rule reads a name containing 'api' followed by a high-entropy value as a credential (entropy 3.68). An advisory id is public data, not a secret. Both conditions must hold
+# (condition = "AND"): the file AND a whole line that is a quoted package name and a quoted GHSA, PYSEC or CVE id, so a real secret of any other shape, or in any other file, still fails the scan.
+[[allowlists]]
+description = "public advisory ids in the lock tooling"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = ['''tools/locks\.py''']
+regexTarget = "line"
+regexes = ['''^\s*"[a-z0-9._-]+":\s*"(?:GHSA-[0-9a-z-]+|PYSEC-[0-9-]+|CVE-[0-9-]+)",\s*#.*$''']
