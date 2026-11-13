@@ -41,13 +41,14 @@ LOCKS = {                                         # lock file -> its input files
     "requirements-dev.lock": ["requirements-dev.txt"],
     "p1_intake/requirements.lock": ["p1_intake/requirements.txt"],
     "p4_modelling/requirements.lock": ["p4_modelling/requirements.txt", "p4_modelling/requirements-duckdb.txt"],
+    "p8_steward/nightly/requirements.lock": ["p8_steward/nightly/requirements.txt"],
     ".github/requirements/zizmor.lock": [".github/requirements/zizmor.txt"],
     ".github/requirements/pip-audit.lock": [".github/requirements/pip-audit.txt"],
     ".github/requirements/uv-tool.lock": [".github/requirements/uv-tool.txt"],
 }
 
 
-FROZEN_LOCKS = {"p1_intake/requirements.lock", "p4_modelling/requirements.lock", "requirements-dev.lock"}   # production code, plus the dev lock that pages.yml installs while it holds a secret
+FROZEN_LOCKS = {"p1_intake/requirements.lock", "p4_modelling/requirements.lock", "requirements-dev.lock", "p8_steward/nightly/requirements.lock"}   # production code (the nightly job holds the Gemini key and a write token), plus the dev lock that pages.yml installs while it holds a secret
 # every other lock (zizmor, pip-audit, uv-tool) is used only by workflows that hold no secret, and is moved by the weekly lock-refresh workflow
 
 
@@ -55,10 +56,17 @@ def cutoff_for(lock: str) -> str:
     return FROZEN_CUTOFF if lock in FROZEN_LOCKS else CUTOFF
 
 
-def compile_one(inputs: list[str], out: Path, cutoff: str = CUTOFF) -> None:
+# Per-lock exceptions (the global NEWER_OK would also move the other locks that contain the package). The nightly job decodes photos uploaded to Open Food Facts by anyone and holds the
+# Gemini key and a write token, and pip-audit found advisories on the versions the frozen cutoff allows (2026-11-13): Pillow 12.3.0 (42 advisories, fixed in 13.0.0, released 2026-10-16)
+# and filelock 4.0.12 (13 advisories, fixed in 4.2.1, released 2026-10-17). Each date is the fix's release day rounded up.
+LOCK_NEWER_OK = {"p8_steward/nightly/requirements.lock": {"pillow": "2026-10-17T00:00:00Z", "filelock": "2026-10-18T00:00:00Z"}}
+
+
+def compile_one(inputs: list[str], out: Path, cutoff: str = CUTOFF, newer_ok: dict | None = None) -> None:
     out.unlink(missing_ok=True)                   # uv prefers the versions in an existing output file; a lock is always resolved from scratch, as `check` does
+    newer = {**NEWER_OK, **(newer_ok or {})}
     cmd = ["uv", "pip", "compile", "--generate-hashes", "--universal", "--no-header", "--no-annotate", "--quiet", "--python-version", PYTHON,
-           "--exclude-newer", cutoff, *[a for pkg, d in NEWER_OK.items() for a in ("--exclude-newer-package", f"{pkg}={d}")],
+           "--exclude-newer", cutoff, *[a for pkg, d in newer.items() for a in ("--exclude-newer-package", f"{pkg}={d}")],
            *inputs, "-o", str(out)]
     subprocess.run(cmd, cwd=ROOT, check=True)
 
@@ -92,7 +100,7 @@ def main(argv: list[str]) -> int:
         return 0
     if argv[1] == "compile":
         for lock, inputs in LOCKS.items():
-            compile_one(inputs, ROOT / lock, cutoff_for(lock))
+            compile_one(inputs, ROOT / lock, cutoff_for(lock), LOCK_NEWER_OK.get(lock))
             print("wrote", lock)
         return 0
     tmp = Path(tempfile.mkdtemp())
@@ -100,7 +108,7 @@ def main(argv: list[str]) -> int:
         stale = []
         for lock, inputs in LOCKS.items():
             out = tmp / lock.replace("/", "_")
-            compile_one(inputs, out, cutoff_for(lock))
+            compile_one(inputs, out, cutoff_for(lock), LOCK_NEWER_OK.get(lock))
             committed = (ROOT / lock).read_text(encoding="utf-8").replace("\r\n", "\n") if (ROOT / lock).exists() else None
             if committed != out.read_text(encoding="utf-8").replace("\r\n", "\n"):
                 stale.append(lock)
