@@ -1,0 +1,43 @@
+{
+ "written_utc": "2026-11-13 11:27:17",
+ "record": {
+  "model": "gemini-3.5-flash-lite",
+  "prompts": {
+   "text": "57e6f32f56aab5e4c3a92b570fd6dbc9c0fd2b2e49175b02711955317c997ab1",
+   "photo": "7952b87e85a821e31fecfbd28536545d1e8f499bed18c8108927e0c2355b294e"
+  },
+  "files": {
+   "p8_steward/answer_key_lib.py": "b3efe312130b1ec2fc9b8b4a03d2603b9502c4a19cb3d63d13cf03c8a39c32bb",
+   "p8_steward/scan_layout.py": "7527886f52fb147fd829fa5f5e566db4852c6e61034d1d6d491086c2c8391f62",
+   "p8_steward/reader_decision.py": "abd1a68313ceb1ce80506738d18e9472eee406935f0a9b1b33d3c798e8f5553f",
+   "p8_steward/rule_evidence.py": "4b83c6201726c264d7b2645f8421882a71eb520b94a8cb47688e8309a1697511",
+   "p8_steward/fix_candidates.py": "33d2a99f80ed65e207dd2df483952a0ee7d89aba90b55aa6c06c279697a56588",
+   "p8_steward/bootstrap/dev_ocr_reader.py": "9917e90b2d4f9777f0861a0e8eeeebd2179b92a9b66e0e159a575db97f21241c",
+   "p8_steward/gateway.py": "23bd5bae5ec8ad6cfb656de2dc2e2f9f14587a75a51550afe4165b52a62c727e",
+   "p8_steward/gateway_config.json": "a8782335eaf68c04c2e1ed3c1c4045aeae458c76951deccf3f1804b45ecf4fec",
+   "p8_steward/fix_test_lib.py": "8c34b2ee57929a71d15880eb337a96de10964b1bfa67cb2e2380d5ac480f540d",
+   "p8_steward/fix_test_agent.py": "17f593540a7fed518abb9e257662b58fea67dfda1156ecd634c8b57fdd4a6961",
+   "p8_steward/history_key_scan_check.py": "5f6d2787a36cb1ce4c120c3a07ba8c9898ba162110e73b642989b6db838326b6",
+   "p8_steward/review_set_lib.py": "087ff351f44cb6167bbb3b7b959bc117b28cfe645c106c12a19b5a92468b85f1",
+   "p7_triage_ml/rules_lib.py": "5099b212469917210ddfee715c5f84c7574d5f53bb86b42f91c0222db456784a",
+   "p8_steward/photo_method.py": "e3b3ba40e27f4775aa98c8720d16ac9918fe60a3d871946fb42fcb543ae7a10b",
+   "p8_steward/vision_variant_test.py": "34d436d876253f8d8e29870a8b44c113b53417614af88709143c1cb7023e48cb",
+   "p8_steward/ocr_variant_test.py": "4eec84c00e12aec86c535fd3895a1443c650f89618a13152132a7dccf3c186dc",
+   "p8_steward/bootstrap/run_round2_readers.py": "ea7795605b4ff0a353195278c7044a1caa38cb8ca0a342038a9fb1f72f66cd13",
+   "p8_steward/guard_v2.py": "3ca650890168a813c95bc91050a46737ae95a7366eced78afa0a4195afa7c2e0",
+   "p8_steward/repair_record.py": "561a2cd8fd34fff02f960f6f5810015afa4e1334167513aea1832e15df36589b",
+   "p8_steward/nightly/budget.py": "0702d377123c0ba38e8065bc20a96ee49935ae1d0c3df42217f06ffa77985235",
+   "p8_steward/nightly/queue_lib.py": "e21c837b089bc9bcfb037c374bd7023984e4764c9b38ba26ce3a7bdbc61c8be4",
+   "p8_steward/nightly/line_record.py": "ab695f3b3792b387b5bbdc8a7f5911290356fcf6bbf4c9ef85fbddca2f63d5a3",
+   "p8_steward/nightly/canary.py": "6af4fb34814cb64b2cba97281dfe64bf56682b7a62ef0b28b3dfb0f1bfdda7db",
+   "p8_steward/nightly/night.py": "4406ac51bcd2b026263a201fa06910c6a2ac887b792f0892babb55f7062e1314",
+   "p8_steward/nightly/freeze_nightly.py": "61efe5df4e5ea1fcf26baec1e21db78db9c87fb7109f0722f0e9ff3b3de7fb01",
+   "p8_steward/nightly/store.py": "39faa4264b1a189f53f210cc801ea10a0c89659b711a79bf4d3b89d003c498a2",
+   "p8_steward/nightly/run_nightly.py": "bc205bef4b768f307159b5b61d914bd566be98083d78e19cb15dc90fc3cc348d",
+   "p8_steward/nightly/requirements.lock": "e7435c415fedcb0a523211645346e19894919bb725d6402c64f1aa5e42787af6",
+   "p8_steward/nightly/readers.py": "92589d9b53f1570cb03441e129fcb02f5740e62eb37e8d7752ec7fb72cd783a8",
+   "p8_steward/bootstrap/fetch_ocr_text.py": "5b9efabef5bd81c95b933a3812b69ca79a2388824379311d0a755e8dcb150a91",
+   "p8_steward/bootstrap/fetch_round2_photos.py": "1e4d8976149facef13a4e27bc9bc73a93cb10df161a2370d5646f26aa6383fc5"
+  }
+ }
+}
