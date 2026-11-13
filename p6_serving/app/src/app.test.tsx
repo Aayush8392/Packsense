@@ -1548,19 +1548,19 @@ describe('across all of Open Food Facts: the ranked kinds', () => {
 });
 
 describe('the chart gallery on the daily changes page', () => {
-  it('shows ten charts when every file is there', async () => {
+  it('shows twelve charts when every file is there', async () => {
     serveFiles({ ...DATA_FILES, 'brand_scorecard.csv': fixture('brand_scorecard.sample.csv') });
     renderAt('/explore/changes');
     const catalogue = await screen.findByRole('list', { name: 'All the charts' });
-    expect(within(catalogue).getAllByRole('button')).toHaveLength(10);
+    expect(within(catalogue).getAllByRole('button')).toHaveLength(12);
   });
 
-  it('still shows the seven charts of the first files when the three later files are missing', async () => {
+  it('still shows the nine charts of the first files when the three later files are missing', async () => {
     const later = ['category_fitness.csv', 'rule_checks.csv', 'nutrition_sources.csv'];
     const without = Object.fromEntries(Object.entries(DATA_FILES).filter(([name]) => !later.includes(name)));
     serveFiles({ ...without, 'brand_scorecard.csv': fixture('brand_scorecard.sample.csv') });
     renderAt('/explore/changes');
     const catalogue = await screen.findByRole('list', { name: 'All the charts' });
-    expect(within(catalogue).getAllByRole('button')).toHaveLength(7);
+    expect(within(catalogue).getAllByRole('button')).toHaveLength(9);
   });
 });

@@ -1,9 +1,11 @@
-import type { LineSeries } from '../charts/LineChart';
+import type { DumbbellRow } from '../charts/DumbbellCard';
+import type { ChartForm, LineSeries } from '../charts/LineChart';
+import type { WaterfallStep } from '../charts/WaterfallCard';
 import { ITEMS } from '../data/brands';
 import { flagName, readableTag } from '../data/flagNames';
-import { KINDS, changeDays, changeSeries, dayRange, qualityDays, type DayPoint, type Scope } from '../data/series';
+import { KINDS, changeDays, changeSeries, dayRange, flagWaterfall, qualityDays, type DayPoint, type FlagWaterfall, type Scope } from '../data/series';
 import type { BrandRow, CategoryRow, ChangeRow, NutritionSourceRow, QualityRow, RuleCheckRow } from '../data/siteData';
-import { formatCount, formatDay } from '../format';
+import { formatCompact, formatCount, formatDay } from '../format';
 
 /**
  * The chart gallery: every chart is a fixed template filled with numbers from the four published files, and every caption is written by code from
@@ -38,6 +40,32 @@ export interface LineChartSpec extends ChartBase {
   kind: 'line';
   series: LineSeries[];
   format: (value: number) => string;
+  /** How the points are drawn (default a line). */
+  form?: ChartForm;
+}
+
+export interface DumbbellChartSpec extends ChartBase {
+  kind: 'dumbbell';
+  rows: DumbbellRow[];
+  fromLabel: string;
+  toLabel: string;
+  valueHeading: string;
+  format: (value: number) => string;
+}
+
+export interface HeatmapChartSpec extends ChartBase {
+  kind: 'heatmap';
+  points: DayPoint[];
+  label: string;
+  format: (value: number) => string;
+}
+
+export interface WaterfallChartSpec extends ChartBase {
+  kind: 'waterfall';
+  steps: WaterfallStep[];
+  format: (value: number) => string;
+  short: (value: number) => string;
+  valueHeading: string;
 }
 
 export interface BarChartSpec extends ChartBase {
@@ -47,7 +75,7 @@ export interface BarChartSpec extends ChartBase {
   valueHeading: string;
 }
 
-export type GalleryChart = LineChartSpec | BarChartSpec;
+export type GalleryChart = LineChartSpec | BarChartSpec | DumbbellChartSpec | HeatmapChartSpec | WaterfallChartSpec;
 
 export interface GalleryData {
   quality: QualityRow[];
@@ -118,12 +146,13 @@ function flagFlow(quality: QualityRow[], scope: Scope): LineChartSpec | null {
     kind: 'line',
     id: 'flag-flow',
     title: 'Flags that appeared and flags that ended',
-    note: `Each day, flags that appeared on a product we already held and flags that ended. A flag that ended was fixed or its product left; the file does not say which. Counts of 1 to 4 are left out, so each day is "at least". The last ${days.length} days.`,
+    note: `Each day, flags that appeared on a product we already held (up) and flags that ended (down). A flag that ended was fixed or its product left; the file does not say which. Counts of 1 to 4 are left out, so each day is "at least". The last ${days.length} days.`,
     caption,
     series: [
-      { id: 'appeared', label: 'Appeared on known products', points: appeared, marker: 'circle', color: 'var(--primary)' },
-      { id: 'ended', label: 'Ended', points: ended, marker: 'triangle', dash: '6 4', color: 'var(--secondary)' },
+      { id: 'appeared', label: 'Appeared on known products', points: appeared, marker: 'circle', color: 'var(--primary)', rollup: 'sum' },
+      { id: 'ended', label: 'Ended', points: ended, marker: 'triangle', color: 'var(--series-2)', rollup: 'sum', below: true },
     ],
+    form: 'columns',
     format: formatCount,
   };
 }
@@ -140,10 +169,8 @@ function openByFamily(quality: QualityRow[], scope: Scope, day: string): Map<str
   return byFamily;
 }
 
-const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCount(Math.abs(value))}`;
-
 /** The kinds of flag whose number of open flags moved most between the newest day and 30 days before (or the first day we have). */
-function familyChange(quality: QualityRow[], scope: Scope): BarChartSpec | null {
+function familyChange(quality: QualityRow[], scope: Scope): DumbbellChartSpec | null {
   const days = qualityDays(quality, scope);
   if (days.length < 2) return null;
   const last = days[days.length - 1];
@@ -162,18 +189,21 @@ function familyChange(quality: QualityRow[], scope: Scope): BarChartSpec | null 
   const lead = top[0];
   const verb = lead.to >= lead.from ? 'rose' : 'fell';
   return {
-    kind: 'bars',
+    kind: 'dumbbell',
     id: 'family-change',
     title: 'Kinds of flag that changed most',
-    note: `The change in open flags of each kind between ${formatDay(first)} and ${formatDay(last)} (${span} days), the eight biggest moves. A kind with a hidden count at either end is left out.`,
+    note: `Open flags of each kind on ${formatDay(first)} (hollow dot) and on ${formatDay(last)} (filled dot): the eight biggest moves over ${span} days. A kind with a hidden count at either end is left out.`,
     caption: `${flagName(lead.family).name} ${verb} most: from ${formatCount(lead.from)} open flags to ${formatCount(lead.to)} over ${span} days.`,
-    valueHeading: `Change in open flags, ${span} days`,
+    fromLabel: formatDay(first),
+    toLabel: formatDay(last),
+    valueHeading: 'Open flags',
+    format: formatCompact,
     rows: top.map((m) => ({
       id: m.family,
       label: flagName(m.family).name,
-      value: m.to - m.from,
-      display: `${signed(m.to - m.from)} (${formatCount(m.from)} to ${formatCount(m.to)})`,
       small: m.family === 'unmapped' ? undefined : m.family,
+      from: m.from,
+      to: m.to,
     })),
   };
 }
@@ -481,17 +511,69 @@ function nutritionSources(sources: NutritionSourceRow[] | undefined, scope: Scop
  * Every chart of the gallery for one market, in a fixed order. A chart whose figures are missing or too few to draw is left out (never drawn
  * from a guess). India's share is a comparison of the two markets, so it is the same for either choice.
  */
+/** The steps of the waterfall: where the open flags began, what came in, what went out, what is not itemised, where they ended. */
+export function waterfallSteps(w: FlagWaterfall): WaterfallStep[] {
+  const steps: WaterfallStep[] = [
+    { id: 'start', label: 'Open flags', sub: formatDay(w.first), value: w.start, total: true, meaning: `The flags open on ${formatDay(w.first)}, the first day of the figures.` },
+    { id: 'carried', label: 'Came with new products', value: w.carriedIn, total: false, meaning: 'Flags on products that arrived already flagged: the flag was there on the first version of the product we saw.' },
+    { id: 'opened', label: 'Opened on held products', value: w.opened, total: false, meaning: 'Flags that appeared on a product we already held.' },
+    { id: 'vanished', label: 'Ended', value: -w.vanished, total: false, meaning: 'Flags that ended: fixed, or the product left. The file does not say which.' },
+  ];
+  if (w.rest !== 0) steps.push({ id: 'rest', label: 'Not itemised', value: w.rest, total: false, meaning: 'Counts of 1 to 4 are hidden on purpose, so the steps above can miss a few. This step makes the totals add up.' });
+  steps.push({ id: 'end', label: 'Open flags', sub: formatDay(w.last), value: w.end, total: true, meaning: `The flags open on ${formatDay(w.last)}, the newest day.` });
+  return steps;
+}
+
+/** How the open flags changed from the first day to the last, as a waterfall. */
+function flagWaterfallChart(quality: QualityRow[], scope: Scope): WaterfallChartSpec | null {
+  const w = flagWaterfall(quality, scope);
+  if (!w) return null;
+  return {
+    kind: 'waterfall',
+    id: 'flag-waterfall',
+    title: 'How the open flags changed',
+    note: `The flags open on ${formatDay(w.first)}, what came in and what went out, and the flags open on ${formatDay(w.last)}. The steps add up to the last total.`,
+    caption: `${formatCount(w.opened)} flags opened on products we already held and ${formatCount(w.vanished)} ended; ${formatCount(w.carriedIn)} more came with products that arrived already flagged.`,
+    steps: waterfallSteps(w),
+    format: formatCount,
+    short: formatCompact,
+    valueHeading: 'Open flags',
+  };
+}
+
+/** Products edited each day, as a calendar: one square a day. */
+function editCalendar(change: ChangeRow[], scope: Scope): HeatmapChartSpec | null {
+  const days = changeDays(change, scope);
+  if (days.length < 7) return null;
+  const points = changeSeries(change, scope, 'any', days);
+  const known = points.filter((p) => p.value !== null) as { day: string; value: number }[];
+  if (known.length === 0) return null;
+  const busiest = known.reduce((best, p) => (p.value > best.value ? p : best));
+  return {
+    kind: 'heatmap',
+    id: 'edit-calendar',
+    title: 'Products edited, day by day',
+    note: `One square a day from ${formatDay(days[0])} to ${formatDay(days[days.length - 1])}; a darker square is a day with more products edited. Each day is counted at least.`,
+    caption: `${formatDay(busiest.day)} was the busiest day, with at least ${formatCount(busiest.value)} products edited.`,
+    points,
+    label: 'Products edited',
+    format: formatCount,
+  };
+}
+
 export function buildGallery(data: GalleryData, scope: Scope): GalleryChart[] {
   const charts = [
     flagFlow(data.quality, scope),
-    familyChange(data.quality, scope),
-    kindShare(data.change, scope),
     weekdayEdits(data.change, scope),
-    indiaShare(data.change),
+    familyChange(data.quality, scope),
     emptyFields(data.brands, scope),
+    kindShare(data.change, scope),
     sizeBands(data.brands, scope),
+    editCalendar(data.change, scope),
     thinCategories(data.categories, scope),
+    flagWaterfallChart(data.quality, scope),
     ruleChecks(data.rules, scope),
+    indiaShare(data.change),
     nutritionSources(data.sources, scope),
   ];
   return charts.filter((c): c is GalleryChart => c !== null);

@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { BarCard } from '../charts/BarCard';
 import { ChartCard } from '../charts/ChartCard';
+import { DumbbellCard } from '../charts/DumbbellCard';
+import { HeatmapCard } from '../charts/HeatmapCard';
+import { WaterfallCard } from '../charts/WaterfallCard';
 import type { Scope } from '../data/series';
 import { buildGallery, startIndex, type GalleryChart, type GalleryData } from './charts';
 
@@ -8,7 +11,16 @@ const UNKNOWN = 'fewer than 5';
 
 function Slide({ chart }: { chart: GalleryChart }) {
   if (chart.kind === 'line') {
-    return <ChartCard title={chart.title} note={chart.note} caption={chart.caption} series={chart.series} format={chart.format} unknownText={UNKNOWN} headingLevel={3} />;
+    return <ChartCard title={chart.title} note={chart.note} caption={chart.caption} series={chart.series} format={chart.format} form={chart.form} unknownText={UNKNOWN} headingLevel={3} />;
+  }
+  if (chart.kind === 'dumbbell') {
+    return <DumbbellCard title={chart.title} note={chart.note} caption={chart.caption} rows={chart.rows} fromLabel={chart.fromLabel} toLabel={chart.toLabel} valueHeading={chart.valueHeading} format={chart.format} unknownText={UNKNOWN} headingLevel={3} />;
+  }
+  if (chart.kind === 'heatmap') {
+    return <HeatmapCard title={chart.title} note={chart.note} caption={chart.caption} points={chart.points} label={chart.label} format={chart.format} unknownText={UNKNOWN} headingLevel={3} />;
+  }
+  if (chart.kind === 'waterfall') {
+    return <WaterfallCard title={chart.title} note={chart.note} caption={chart.caption} steps={chart.steps} format={chart.format} short={chart.short} valueHeading={chart.valueHeading} headingLevel={3} />;
   }
   return <BarCard title={chart.title} note={chart.note} caption={chart.caption} rows={chart.rows} valueHeading={chart.valueHeading} unknownText={UNKNOWN} headingLevel={3} />;
 }

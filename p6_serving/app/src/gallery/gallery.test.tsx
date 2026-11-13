@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { parseBrandScorecard, parseCategoryFitness, parseChangeDaily, parseNutritionSources, parseQualityDaily, parseRuleChecks } from '../data/siteData';
 import { formatCount } from '../format';
 import { ChartGallery } from './ChartGallery';
-import { buildGallery, changeWords, dayNumber, median, percent, startIndex, weekOverWeek, weekdayOf, type BarChartSpec, type GalleryData, type LineChartSpec } from './charts';
+import { buildGallery, changeWords, dayNumber, median, percent, startIndex, weekOverWeek, weekdayOf, type BarChartSpec, type DumbbellChartSpec, type HeatmapChartSpec, type WaterfallChartSpec, type GalleryData, type LineChartSpec } from './charts';
 
 afterEach(cleanup);
 
@@ -35,11 +35,16 @@ const table = (text: string) => {
 const quality = table(qualityText);
 const change = table(changeText);
 const brands = table(brandText);
+const byId = (id: string) => buildGallery(data, 'all').find((c) => c.id === id);
 
 describe('buildGallery', () => {
-  it('builds all ten charts in a fixed order for each market', () => {
-    const ids = ['flag-flow', 'family-change', 'kind-share', 'weekday-edits', 'india-share', 'empty-fields', 'size-bands', 'thin-categories', 'rule-checks', 'nutrition-sources'];
-    expect(buildGallery(data, 'all').map((c) => c.id)).toEqual(ids);
+  it('builds all twelve charts in a fixed order for each market, so that no two neighbours are drawn the same way', () => {
+    const ids = ['flag-flow', 'weekday-edits', 'family-change', 'empty-fields', 'kind-share', 'size-bands', 'edit-calendar', 'thin-categories', 'flag-waterfall', 'rule-checks', 'india-share', 'nutrition-sources'];
+    const all = buildGallery(data, 'all');
+    expect(all.map((c) => c.id)).toEqual(ids);
+    const forms = all.map((c) => (c.kind === 'line' ? (c.form ?? 'line') : c.kind));
+    forms.forEach((form, i) => expect(form).not.toBe(forms[(i + 1) % forms.length]));
+    expect(new Set(forms).size).toBeGreaterThanOrEqual(6);
     // India's daily counts are small and often hidden (1 to 4), so a chart that needs a full run of known days can drop out; the order never changes.
     const india = buildGallery(data, 'india').map((c) => c.id);
     expect(india.length).toBeGreaterThanOrEqual(5);
@@ -56,7 +61,7 @@ describe('buildGallery', () => {
 });
 
 describe('flags that appeared and ended', () => {
-  const chart = buildGallery(data, 'all')[0] as LineChartSpec;
+  const chart = byId('flag-flow') as LineChartSpec;
   const perDay = (column: string, day: string) => quality.filter((r) => r.scope === 'all' && r.snapshot_date === day).reduce((s, r) => s + (r[column] === '' ? 0 : Number(r[column])), 0);
 
   it('adds every severity and kind for each day', () => {
@@ -100,7 +105,7 @@ describe('week against week', () => {
 });
 
 describe('kinds of flag that changed most', () => {
-  const chart = buildGallery(data, 'all')[1] as BarChartSpec;
+  const chart = byId('family-change') as DumbbellChartSpec;
   const open = (day: string) => {
     const byFamily = new Map<string, number>();
     for (const r of quality.filter((q) => q.scope === 'all' && q.snapshot_date === day)) byFamily.set(r.flag_family, (byFamily.get(r.flag_family) ?? 0) + (r.open_spans === '' ? NaN : Number(r.open_spans)));
@@ -115,14 +120,15 @@ describe('kinds of flag that changed most', () => {
       .filter((m) => !Number.isNaN(m.change))
       .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
     expect(chart.rows).toHaveLength(Math.min(8, moves.length));
-    expect(chart.rows[0].value).toBe(moves[0].change);
-    expect(chart.rows.map((r) => Math.abs(r.value as number))).toEqual([...chart.rows.map((r) => Math.abs(r.value as number))].sort((a, b) => b - a));
+    const moved = chart.rows.map((r) => (r.to as number) - (r.from as number));
+    expect(moved[0]).toBe(moves[0].change);
+    expect(moved.map(Math.abs)).toEqual([...moved.map(Math.abs)].sort((a, b) => b - a));
     expect(chart.caption).toContain('over 14 days');
   });
 });
 
 describe('what kind of edit products get', () => {
-  const chart = buildGallery(data, 'all')[2] as LineChartSpec;
+  const chart = byId('kind-share') as LineChartSpec;
 
   it('shows the four most common kinds as shares of the edited products, never more than 100% each', () => {
     expect(chart.series).toHaveLength(4);
@@ -143,7 +149,7 @@ describe('what kind of edit products get', () => {
 });
 
 describe('edits by day of the week', () => {
-  const chart = buildGallery(data, 'all')[3] as BarChartSpec;
+  const chart = byId('weekday-edits') as BarChartSpec;
 
   it('lists Monday to Sunday', () => {
     expect(chart.rows.map((r) => r.label)).toEqual(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']);
@@ -175,7 +181,7 @@ describe('edits by day of the week', () => {
 });
 
 describe("India's share of all edits", () => {
-  const chart = buildGallery(data, 'all')[4] as LineChartSpec;
+  const chart = byId('india-share') as LineChartSpec;
 
   it("is India's edited products over all edited products, per day", () => {
     const day = '2026-10-15';
@@ -191,7 +197,7 @@ describe("India's share of all edits", () => {
 });
 
 describe('the fields brands leave empty', () => {
-  const chart = buildGallery(data, 'all')[5] as BarChartSpec;
+  const chart = byId('empty-fields') as BarChartSpec;
   const own = brands.filter((b) => b.scope === 'all');
   const total = own.reduce((s, b) => s + Number(b.n_products), 0);
 
@@ -210,7 +216,7 @@ describe('the fields brands leave empty', () => {
 });
 
 describe('brand size and completeness', () => {
-  const chart = buildGallery(data, 'all')[6] as BarChartSpec;
+  const chart = byId('size-bands') as BarChartSpec;
 
   it('averages the points per product within each size band, each product counted once', () => {
     const band = (from: number, to: number) => brands.filter((b) => b.scope === 'all' && Number(b.n_products) >= from && Number(b.n_products) <= to);
@@ -240,10 +246,10 @@ describe('the opening chart rotates by day number', () => {
 
 describe('the carousel', () => {
   const now = new Date('2026-11-07T06:00:00Z');
-  const N = 10;                                             // seven charts of the first batch and the three that came with the later files
+  const N = 12;                                             // nine charts of the first files and the three that came with the later files
   const start = startIndex(now, N);
 
-  it('opens on the chart of the day and says which of the seven it is', () => {
+  it('opens on the chart of the day and says which of the twelve it is', () => {
     render(<ChartGallery data={data} market="all" now={now} />);
     expect(screen.getByText(`Chart ${start + 1} of ${N}`)).toBeTruthy();
     const slide = screen.getByRole('group', { name: new RegExp(`^${start + 1} of ${N}`) });
@@ -264,19 +270,19 @@ describe('the carousel', () => {
     const catalogue = screen.getByRole('list', { name: 'All the charts' });
     const tabs = within(catalogue).getAllByRole('button');
     expect(tabs).toHaveLength(N);
-    fireEvent.click(tabs[3]);
-    expect(screen.getByText(`Chart 4 of ${N}`)).toBeTruthy();
-    expect(tabs[3].getAttribute('aria-current')).toBe('true');
+    fireEvent.click(tabs[1]);
+    expect(screen.getByText(`Chart 2 of ${N}`)).toBeTruthy();
+    expect(tabs[1].getAttribute('aria-current')).toBe('true');
     expect(screen.getByRole('heading', { level: 3, name: 'Edits by day of the week' })).toBeTruthy();
   });
 
-  it('shows the very same numbers as a table, for a bar chart and for a line chart', () => {
+  it('shows the very same numbers as a table, for a bar chart and for a chart of days', () => {
     render(<ChartGallery data={data} market="all" now={now} />);
     const tabs = within(screen.getByRole('list', { name: 'All the charts' })).getAllByRole('button');
-    fireEvent.click(tabs[5]); // fields left empty: bars
+    fireEvent.click(tabs[3]); // fields left empty: bars
     fireEvent.click(screen.getByRole('button', { name: 'Show as a table' }));
     expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(8);
-    fireEvent.click(tabs[0]); // flags: lines
+    fireEvent.click(tabs[0]); // flags: columns
     fireEvent.click(screen.getByRole('button', { name: 'Show as a table' }));
     expect(screen.getByRole('table')).toBeTruthy();
   });
@@ -366,5 +372,23 @@ describe('the caption of the checks chart', () => {
   it('quotes the name of the most flagged check once, with its closing full stop moved outside the quote', () => {
     const chart = buildGallery(data, 'all').find((c) => c.id === 'rule-checks') as BarChartSpec;
     expect(chart.caption).toMatch(/^The largest share of flagged products is for the check "[^"]+[^."]"\. It flags /);
+  });
+});
+
+describe('the calendar and the waterfall of the gallery', () => {
+  it('draws one point a day for the calendar and names the busiest day', () => {
+    const chart = byId('edit-calendar') as HeatmapChartSpec;
+    expect(chart.points.length).toBeGreaterThanOrEqual(7);
+    const best = chart.points.filter((p) => p.value !== null).reduce((a, p) => ((p.value as number) > (a.value as number) ? p : a));
+    expect(chart.caption).toContain(formatCount(best.value as number));
+  });
+
+  it('adds up the waterfall from the first total to the last', () => {
+    const chart = byId('flag-waterfall') as WaterfallChartSpec;
+    const first = chart.steps[0];
+    const last = chart.steps[chart.steps.length - 1];
+    const sum = chart.steps.slice(1, -1).reduce((total, step) => total + step.value, first.value);
+    expect(first.total && last.total).toBe(true);
+    expect(sum).toBe(last.value);
   });
 });
