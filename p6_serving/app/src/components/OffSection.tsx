@@ -1,4 +1,4 @@
-import { BarCard } from '../charts/BarCard';
+import { DumbbellCard } from '../charts/DumbbellCard';
 import { ChartCard } from '../charts/ChartCard';
 import type { LineSeries } from '../charts/LineChart';
 import type { Rollup } from '../data/rollup';
@@ -142,18 +142,21 @@ function Charts({ weekly, open }: { weekly: OffWeeklyRow[]; open: OffOpenFlagRow
         caption={firstToLast(warnings, 'open warning flags')}
       />
       {kinds && (
-        <BarCard
+        <DumbbellCard
           title={`Kinds of flag with the most open flags, ${formatDay(kinds.newest)}`}
-          note={`The eight largest kinds, any severity. The second figure is the same kind on ${formatDay(kinds.oldest)}. Flags are counted, not products.`}
+          note={`The eight largest kinds, any severity, on ${formatDay(kinds.oldest)} (hollow dot) and on ${formatDay(kinds.newest)} (filled dot). Flags are counted, not products.`}
+          fromLabel={formatDay(kinds.oldest)}
+          toLabel={formatDay(kinds.newest)}
+          format={formatCompact}
           caption={kinds.kinds.length > 0 ? `The largest kind of flag has ${formatCount(kinds.kinds[0].now)} open flags: "${flagName(`en:${kinds.kinds[0].kind}`).name}"` : undefined}
           rows={kinds.kinds.map((k) => ({
             id: `${k.severity}-${k.kind}`,
             label: flagName(`en:${k.kind}`).name,
             small: `${k.severity === 'error' ? 'Error' : k.severity === 'warning' ? 'Warning' : 'Information'}`,
-            value: k.now,
-            display: `${formatCompact(k.now)} (was ${formatCompact(k.first)})`,
+            from: k.first,
+            to: k.now,
           }))}
-          valueHeading="Open flags (and on the oldest snapshot)"
+          valueHeading="Open flags"
           unknownText={HIDDEN}
         />
       )}

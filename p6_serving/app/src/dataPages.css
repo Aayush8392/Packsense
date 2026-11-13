@@ -1779,6 +1779,98 @@
   inline-size: 2px;
   background: var(--fg-muted);
 }
+.dumbbell-card {
+  grid-column: 1 / -1;
+}
+.dumbbell {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(8rem, 14rem) 1fr auto;
+  gap: var(--space-sm) var(--space-md);
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.dumbbell li {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  border-radius: var(--radius);
+}
+.dumbbell li:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.dumbbell__track {
+  position: relative;
+  display: block;
+  block-size: 1.25rem;
+}
+.dumbbell__track::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  border-top: 1px solid var(--border);
+}
+.dumbbell__link {
+  position: absolute;
+  top: 50%;
+  block-size: 3px;
+  margin-top: -1.5px;
+  background: var(--primary);
+  opacity: 0.45;
+}
+.dumbbell__dot,
+.dumbbell__key {
+  display: inline-block;
+  inline-size: 0.8rem;
+  block-size: 0.8rem;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+}
+.dumbbell__dot {
+  position: absolute;
+  top: 50%;
+  margin: -0.4rem 0 0 -0.4rem;
+  background: var(--card);
+}
+.dumbbell__dot--to,
+.dumbbell__key--to {
+  background: var(--primary);
+}
+.dumbbell__key--from {
+  background: var(--card);
+}
+.dumbbell__key {
+  vertical-align: -0.1rem;
+  margin-inline: 0.25rem;
+}
+.dumbbell__axis {
+  color: var(--fg-muted);
+  font-size: var(--text-label);
+}
+.dumbbell__ticks {
+  position: relative;
+  display: block;
+  block-size: 1.25rem;
+}
+.dumbbell__ticks span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@media (max-width: 40rem) {
+  .dumbbell {
+    grid-template-columns: 1fr auto;
+  }
+  .dumbbell__track,
+  .dumbbell__ticks {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
 .bar-chart__value {
   font-variant-numeric: tabular-nums lining-nums;
   font-size: var(--text-small);

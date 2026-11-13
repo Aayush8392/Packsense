@@ -1541,8 +1541,8 @@ describe('across all of Open Food Facts: the ranked kinds', () => {
     renderAt('/explore/quality');
     const section = (await screen.findByRole('heading', { level: 2, name: 'Across all of Open Food Facts' })).closest('section') as HTMLElement;
     await waitFor(() => expect(section.querySelectorAll('.chart-card')).toHaveLength(7));
-    const bars = section.querySelector('.bar-card') as HTMLElement;
-    expect(bars.querySelectorAll('.bar-chart li')).toHaveLength(8);
+    const bars = section.querySelector('.dumbbell-card') as HTMLElement;
+    expect(bars.querySelectorAll('.dumbbell li:not(.dumbbell__axis)')).toHaveLength(8);
     expect(bars.querySelector('.chart-card__caption')?.textContent).toMatch(/^The largest kind of flag has 4,722,416 open flags: "/);
   });
 });
