@@ -270,7 +270,34 @@
   font-size: var(--text-label);
 }
 .waterfall__labels li {
-  padding-inline: 0.35rem;
+  min-width: 0;
+  padding-inline: 0.1rem;
+  overflow-wrap: anywhere;
+}
+.waterfall__name {
+  display: none;
+}
+.waterfall__no {
+  font-weight: 600;
+}
+.waterfall__key {
+  margin: var(--space-xs) 0 0;
+  padding-inline-start: 1.5rem;
+  font-size: var(--text-small);
+}
+@media (min-width: 40rem) {
+  .waterfall__no {
+    display: none;
+  }
+  .waterfall__name {
+    display: block;
+  }
+  .waterfall__labels li {
+    padding-inline: 0.35rem;
+  }
+  .waterfall__key {
+    display: none;
+  }
 }
 .waterfall__labels small {
   display: block;

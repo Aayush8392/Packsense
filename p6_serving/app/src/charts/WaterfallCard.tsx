@@ -159,11 +159,22 @@ export function WaterfallCard({ title, note, caption, steps, format, short, valu
             })}
           </g>
         </svg>
-        <ol className="waterfall__labels" style={{ marginInlineStart: margin.left, marginInlineEnd: margin.right }}>
+        <ol className="waterfall__labels" style={{ marginInlineStart: margin.left, marginInlineEnd: margin.right, gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-hidden="true">
+          {steps.map((step, i) => (
+            <li key={step.id}>
+              <span className="waterfall__no">{i + 1}</span>
+              <span className="waterfall__name">
+                {step.label}
+                {step.sub && <small>{step.sub}</small>}
+              </span>
+            </li>
+          ))}
+        </ol>
+        <ol className="waterfall__key">
           {steps.map((step) => (
             <li key={step.id}>
               {step.label}
-              {step.sub && <small>{step.sub}</small>}
+              {step.sub ? `, ${step.sub}` : ''}
             </li>
           ))}
         </ol>
