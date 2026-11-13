@@ -36,6 +36,7 @@ JOB_NAMES = (
 # Jobs the bundles define that the panel deliberately leaves out (the per-principal policy sub-jobs run inside packsense-policy).
 JOB_NAMES_NOT_REPORTED = (
     "packsense-policy-gold", "packsense-policy-gold-dev", "packsense-policy-deployer", "packsense-policy-deployer-dev", "packsense-policy-publish",
+    "packsense-nightly-export",   # feeds the GitHub nightly photo-reading job (A123); watched by its own healthchecks check, not on the public panel
 )
 PIPELINE_SUBJECT = "pipeline"   # the subject of the 'right now' timestamps (not a job, so the jobs table filters it out by name)
 MANIFESTS_TO_READ = 5      # the newest capture manifests read for the arrival times (a day can hold two: Databricks and the GitHub second path)
