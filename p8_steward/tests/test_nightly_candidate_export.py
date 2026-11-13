@@ -96,10 +96,10 @@ ROOT = Path(__file__).resolve().parents[2]
 BUNDLE = ROOT / "p8_steward" / "nightly_export"
 
 
-def test_the_export_job_is_admin_owned_paused_first_and_points_at_a_real_notebook():
+def test_the_export_job_is_admin_owned_unpaused_and_points_at_a_real_notebook():
     bundle = yaml.safe_load((BUNDLE / "databricks.yml").read_text(encoding="utf-8"))
     job = yaml.safe_load((BUNDLE / "resources" / "export_job.yml").read_text(encoding="utf-8"))["resources"]["jobs"]["nightly_export"]
-    assert bundle["variables"]["export_pause"]["default"] == "PAUSED"           # un-paused only after the dry run and one real run were checked
+    assert bundle["variables"]["export_pause"]["default"] == "UNPAUSED"         # since 2026-11-13, after the dry run and one real run were checked
     assert bundle["variables"]["export_cron"]["default"] == "0 50 8 * * ?"       # after the 08:15 gold build and the 08:40 health job
     assert "run_as" not in job and job["max_concurrent_runs"] == 1
     assert len(job["tasks"]) == 1 and "retries" not in job["tasks"][0] and "max_retries" not in job["tasks"][0]

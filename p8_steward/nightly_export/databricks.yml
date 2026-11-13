@@ -24,8 +24,8 @@ variables:
     description: quartz cron (UTC); 08:50 is after the 08:15 gold build and the 08:40 health job; the nightly job accepts an export up to 2 days old
     default: "0 50 8 * * ?"
   export_pause:
-    description: deployed PAUSED; un-paused after the dry run and one real run were checked by the owner
-    default: PAUSED
+    description: UNPAUSED since 2026-11-13, after the dry run and one real run (491 products) were checked by the owner
+    default: UNPAUSED
   ping:
     description: whether the notebook pings healthchecks.io ("true" or "false")
     default: "true"
