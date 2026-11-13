@@ -1,4 +1,5 @@
 import { ChartCard } from '../charts/ChartCard';
+import { HeatmapCard } from '../charts/HeatmapCard';
 import type { LineSeries } from '../charts/LineChart';
 import { ExternalLink } from '../components/ExternalLink';
 import { Headline, LoadState, MarketSwitch, PageTitle, Panels, Segmented, TextPanel, pageSections, useChoice, useMarket } from '../components/pageParts';
@@ -39,7 +40,7 @@ function KindsBars({ rows, scope, day }: { rows: ChangeRow[]; scope: Scope; day:
 }
 
 function Main({ rows, market }: { rows: ChangeRow[]; market: Scope }) {
-  const [view, setView] = useChoice<'timeline' | 'kinds'>('view', ['timeline', 'kinds']);
+  const [view, setView] = useChoice<'timeline' | 'calendar' | 'kinds'>('view', ['timeline', 'calendar', 'kinds']);
   const days = changeDays(rows, market);
   if (days.length === 0) return <p className="data-problem" role="status">There are no figures for this choice yet.</p>;
   const first = days[0];
@@ -76,11 +77,22 @@ function Main({ rows, market }: { rows: ChangeRow[]; market: Scope }) {
             onChange={setView}
             options={[
               { id: 'timeline', label: 'Products edited and new' },
+              { id: 'calendar', label: 'Calendar' },
               { id: 'kinds', label: 'Work by kind' },
             ]}
           />
         </div>
-        {view === 'timeline' ? (
+        {view === 'calendar' ? (
+          <HeatmapCard
+            title="Products edited, day by day"
+            note="One square a day; a darker square is a day with more products edited. Each day is counted at least."
+            points={edited}
+            label="Products edited"
+            format={count}
+            unknownText={HIDDEN}
+            headingLevel={3}
+          />
+        ) : view === 'timeline' ? (
           <ChartCard
             title="Products edited, and how many were new"
             note="Each day is counted at least; new products are counted among the products edited."

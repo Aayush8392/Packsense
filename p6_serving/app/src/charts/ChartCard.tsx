@@ -1,10 +1,10 @@
-import { useId, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { GRAIN_WORDS, MIN_BUCKETS, grainsFrom, rollUp, type Grain } from '../data/rollup';
 import { Segmented } from '../components/pageParts';
 import { formatPeriod } from '../format';
 import { LineChart, type ChartForm, type LineSeries } from './LineChart';
 import { clampStart, windowSize } from './window';
-import { PadRows, Pager, padCount, pageWindow } from './Pager';
+import { SeriesTable } from './SeriesTable';
 
 export interface ChartCardProps {
   title: string;
@@ -39,9 +39,6 @@ export interface ChartCardProps {
  * page, so it stays short however many days the data grows to. Each card opens and closes on its own.
  */
 export function ChartCard({ title, note, series: own, format, unknownText, compact = false, headingLevel = 3, caption, axisFormat, rowHeading, pagerNoun, nativeGrain = 'day', zeroBase = true, rollNote, form = 'line' }: ChartCardProps) {
-  const id = useId();
-  const [asTable, setAsTable] = useState(false);
-  const [page, setPage] = useState(0);
   const [chosen, setChosen] = useState<Grain>(nativeGrain);
   const [from, setFrom] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -76,16 +73,8 @@ export function ChartCard({ title, note, series: own, format, unknownText, compa
     setChosen(next);
     setFrom(null);
     setShowAll(false);
-    setPage(0);
   };
   const pan = (by: number) => setFrom(clampStart(first + by, days.length, size));
-  const newestFirst = days.map((_, i) => days.length - 1 - i);
-  const { start, end } = pageWindow(newestFirst.length, page);
-
-  const toggle = () => {
-    setPage(0);
-    setAsTable((open) => !open);
-  };
 
   return (
     <figure className={`chart-card${compact ? ' chart-card--compact' : ''}`}>
@@ -135,38 +124,7 @@ export function ChartCard({ title, note, series: own, format, unknownText, compa
       <LineChart series={series} format={axisFormat ?? format} label={title} compact={compact} grain={grain} size={size} start={first} onStart={setFrom} zeroBase={zeroBase} form={form} />
       {hasPartial && <p className="chart-card__window">A hollow point covers only part of its {word.one}.</p>}
       {caption && <p className="chart-card__caption">{caption}</p>}
-      <button type="button" className="button button--quiet" aria-expanded={asTable} aria-controls={`${id}-table`} onClick={toggle}>
-        {asTable ? 'Hide the table' : 'Show as a table'}
-      </button>
-      <div id={`${id}-table`} hidden={!asTable}>
-        {asTable && (
-          <>
-            <div className="table-card table-card--plain table-card--paged">
-              <table>
-                <caption className="visually-hidden">{title}, newest {word.one} first</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">{heading}</th>
-                    {series.map((s) => <th key={s.id} scope="col">{s.label}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {newestFirst.slice(start, end).map((i) => (
-                    <tr key={days[i]}>
-                      <th scope="row">{formatPeriod(days[i], grain)}{series[0].points[i].partial ? ' (part)' : ''}</th>
-                      {series.map((s) => (
-                        <td key={s.id} data-label={s.label}>{s.points[i].value === null ? unknownText : format(s.points[i].value as number)}</td>
-                      ))}
-                    </tr>
-                  ))}
-                  <PadRows count={padCount(newestFirst.length, end - start)} columns={series.length + 1} />
-                </tbody>
-              </table>
-            </div>
-            <Pager total={newestFirst.length} page={page} onPage={setPage} noun={noun} />
-          </>
-        )}
-      </div>
+      <SeriesTable key={grain} title={title} series={series} format={format} unknownText={unknownText} grain={grain} heading={heading} noun={noun} />
     </figure>
   );
 }

@@ -216,6 +216,21 @@
   font-size: var(--text-label);
   font-family: var(--font-body);
 }
+.heatmap__cell rect {
+  transition: stroke 0.1s;
+}
+.heatmap__cell--active rect {
+  stroke: var(--fg);
+  stroke-width: 2;
+}
+.heatmap__number {
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums lining-nums;
+  pointer-events: none;
+}
+.heatmap__legend {
+  margin-top: var(--space-sm);
+}
 .chart__zero {
   stroke: var(--fg-muted);
   stroke-width: 1;

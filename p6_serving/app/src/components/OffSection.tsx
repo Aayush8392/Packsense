@@ -94,7 +94,7 @@ function Charts({ weekly, open }: { weekly: OffWeeklyRow[]; open: OffOpenFlagRow
         form="columns"
         title="Products added and removed each week"
         note="Products that appear in one snapshot and not the one before (up), and products that disappear (down). A product that was moved or merged can show as removed."
-        series={[series('added', 'Added', added, LINE_A, 'sum'), { ...series('removed', 'Removed', removed, LINE_B, 'sum'), below: true, color: 'var(--accent)' }]}
+        series={[series('added', 'Added', added, LINE_A, 'sum'), { ...series('removed', 'Removed', removed, LINE_B, 'sum'), below: true, color: 'var(--series-2)' }]}
         caption={`${lastWeekWords(added, 'products were added')} ${lastWeekWords(removed, 'were removed').replace(/^In the week ending [^,]+, /, 'In the same week, ')}`}
       />
       <ChartCard
@@ -138,7 +138,7 @@ function Charts({ weekly, open }: { weekly: OffWeeklyRow[]; open: OffOpenFlagRow
         form="area"
         title="Open warning and information flags"
         note="Warnings (bottom) and information flags (on top, stacked), open at each snapshot, so the top edge is the two together. Most of them are about data that Open Food Facts works out itself. Errors have their own chart above."
-        series={[series('warnings', 'Warnings', warnings, LINE_A, 'last'), { ...series('info', 'Information', info, LINE_B, 'last'), color: 'var(--accent)' }]}
+        series={[series('warnings', 'Warnings', warnings, LINE_A, 'last'), { ...series('info', 'Information', info, LINE_B, 'last'), color: 'var(--series-2)' }]}
         caption={firstToLast(warnings, 'open warning flags')}
       />
       {kinds && (
