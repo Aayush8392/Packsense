@@ -5,6 +5,7 @@ import { ChatWidget } from '../lookup/ChatWidget';
 import { getTrail, popStep, startFreshView } from '../nav/jumpStore';
 import { AskToggle } from './AskToggle';
 import { BackButton } from './BackButton';
+import { ScrollTopButton } from './ScrollTopButton';
 import { Footer } from './Footer';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -176,6 +177,7 @@ export function Shell() {
       </main>
       <Footer />
       <BackButton />
+      <ScrollTopButton />
       <ChatWidget />
     </div>
   );
