@@ -28,8 +28,9 @@ SECURITY_FIX = {                                  # packages locked newer than t
     "uv": "GHSA-hq85-5cpj-mr62",                 # 0.13.4 (2026-10-20): uv before it trusted an emSign root with compromised intermediate keys
     "pyasn1": "GHSA-2qm8-x737-gmw5",             # 0.6.5 (2026-10-27): four quadratic-time denial-of-service flaws in its decoders (this id, GHSA-9m75-vc3g-4x39, GHSA-fm9c-5rcf-2q5p,
                                                  # GHSA-mm57-4v3p-rchx; CVE-2026-119194 to -119197), found 2026-11-04; reached only through other libraries, we decode no untrusted ASN.1
+    "opentelemetry-api": "GHSA-mf5v-w3w3-f6cg",  # 1.45.2 (2026-10-29): quadratic-time regex in traceparent parsing (CVE-2026-126360), found 2026-11-13; reached only through dbt, we parse no trace headers
 }
-SECURITY_FIX_FROM = {"pyasn1": "2026-10-28T00:00:00Z"}   # the release date of the fix, rounded up; the date used for the others is the day the first exceptions were found
+SECURITY_FIX_FROM = {"pyasn1": "2026-10-28T00:00:00Z", "opentelemetry-api": "2026-10-30T00:00:00Z"}   # the release date of the fix, rounded up; the date used for the others is the day the first exceptions were found
 NEWER_OK = {"databricks-sdk": "2026-10-21T00:00:00Z", **{pkg: SECURITY_FIX_FROM.get(pkg, "2026-10-21T00:00:00Z") for pkg in SECURITY_FIX}}   # databricks-sdk: pinned on purpose before it was two weeks old
 # Not fixable here, so accepted in .github/workflows/security.yml (`--ignore-vuln`, p4 lock only): PYSEC-2026-4114, oauthlib 3.3.1 (fixed in 4.0.0). dbt-databricks 1.12.6 caps
 # databricks-sql-connector at 4.4.0, which needs oauthlib < 4. It is a timing flaw in the server-side PKCE check of an OAuth provider; we run client flows only.
