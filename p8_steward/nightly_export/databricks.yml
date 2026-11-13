@@ -1,0 +1,35 @@
+# PackSense nightly candidate-export bundle (session 49): the job that writes `input/candidates.json` for the GitHub nightly photo-reading job.
+#
+# Deployed BY THE ADMIN from the laptop (there is no Databricks admin credential in CI, by decision): from this folder, `databricks bundle deploy` /
+# `bundle run nightly_export`. The job is owned by the admin and has no run_as; it reads silver and uploads one file to the private Hugging Face dataset
+# `Anonymous8392/packsense-nightly` with the token in the admin-only scope `packsense_nightly`. GitHub holds no Databricks credential and Databricks holds no Gemini key.
+bundle:
+  name: packsense-nightly-export
+
+include:
+  - resources/*.yml
+
+sync:
+  paths:
+    - ../../p8_steward/nightly
+    - ../../p8_steward/notebooks/export_nightly_candidates.py
+  exclude:
+    - "**/tests/**"
+    - "**/__pycache__/**"
+    - "**/*.lock"
+    - "**/freeze.json"
+
+variables:
+  export_cron:
+    description: quartz cron (UTC); 08:50 is after the 08:15 gold build and the 08:40 health job; the nightly job accepts an export up to 2 days old
+    default: "0 50 8 * * ?"
+  export_pause:
+    description: deployed PAUSED; un-paused after the dry run and one real run were checked by the owner
+    default: PAUSED
+  ping:
+    description: whether the notebook pings healthchecks.io ("true" or "false")
+    default: "true"
+
+targets:
+  prod:
+    default: true

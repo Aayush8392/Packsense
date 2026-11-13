@@ -1,0 +1,20 @@
+# The job `packsense-nightly-export`: daily, write the candidates of the nightly photo-reading job (p8_steward/notebooks/export_nightly_candidates.py).
+# Owned by the admin who deploys it (no run_as, see databricks.yml). Not retried automatically: a refused export (empty or shrunk) would only repeat itself.
+resources:
+  jobs:
+    nightly_export:
+      name: packsense-nightly-export
+      max_concurrent_runs: 1
+      timeout_seconds: 1800
+      schedule:
+        quartz_cron_expression: ${var.export_cron}
+        timezone_id: UTC
+        pause_status: ${var.export_pause}
+      tasks:
+        - task_key: export
+          disable_auto_optimization: true
+          notebook_task:
+            notebook_path: ../../notebooks/export_nightly_candidates.py
+            base_parameters:
+              run_id: "{{job.run_id}}"
+              ping_healthchecks: ${var.ping}
