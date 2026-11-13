@@ -50,7 +50,7 @@ jobs:
       - name: Tell healthchecks.io the night started
         env:
           MODE: ${{ inputs.mode || 'real' }}
-          HEALTHCHECKS_NIGHTLY_PING_URL: ${{ secrets.HEALTHCHECK_NIGHTLY_URL }}
+          HEALTHCHECKS_NIGHTLY_PING_URL: ${{ secrets.HEALTHCHECKS_NIGHTLY_PING_URL }}
         run: '[ "$MODE" = "real" ] && [ -n "$HEALTHCHECKS_NIGHTLY_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_NIGHTLY_PING_URL/start" || true'
       - name: Run the night (counts only in the log)
         env:
@@ -68,11 +68,11 @@ jobs:
         if: success()
         env:
           MODE: ${{ inputs.mode || 'real' }}
-          HEALTHCHECKS_NIGHTLY_PING_URL: ${{ secrets.HEALTHCHECK_NIGHTLY_URL }}
+          HEALTHCHECKS_NIGHTLY_PING_URL: ${{ secrets.HEALTHCHECKS_NIGHTLY_PING_URL }}
         run: '[ "$MODE" = "real" ] && [ -n "$HEALTHCHECKS_NIGHTLY_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_NIGHTLY_PING_URL" || true'
       - name: Ping healthchecks.io (failure)
         if: failure()
         env:
           MODE: ${{ inputs.mode || 'real' }}
-          HEALTHCHECKS_NIGHTLY_PING_URL: ${{ secrets.HEALTHCHECK_NIGHTLY_URL }}
+          HEALTHCHECKS_NIGHTLY_PING_URL: ${{ secrets.HEALTHCHECKS_NIGHTLY_PING_URL }}
         run: '[ "$MODE" = "real" ] && [ -n "$HEALTHCHECKS_NIGHTLY_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_NIGHTLY_PING_URL/fail" || true'
