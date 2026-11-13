@@ -71,7 +71,10 @@ def test_the_url_asks_only_for_the_fields_the_check_needs():
 # --- which products to ask about (DuckDB, real products) -------------------------------------------------------------------------------------
 
 duckdb = pytest.importorskip("duckdb")
-NOW = int(dt.datetime(2026, 10, 20, 12, 0, tzinfo=UTC).timestamp())
+sys.path.insert(0, str(HERE))
+from duck_rows import insert_rows as _insert_rows  # noqa: E402
+
+NOW =int(dt.datetime(2026, 10, 20, 12, 0, tzinfo=UTC).timestamp())
 MAX_LM = max(r["lm_c"] for r in SLICE["pairs"])
 LEFT = [r["code"] for r in SLICE["only_a"]]
 
@@ -81,15 +84,9 @@ def _con(checks=(), lm_override=None):
     con.execute("create table silver (code varchar, lm bigint)")
     con.execute("create table snap (code varchar)")
     con.execute("create table checked (code varchar, status varchar, checked_at bigint)")
-    for r in SLICE["pairs"]:
-        con.execute("insert into silver values (?, ?)", [r["code"], r["lm_c"]])
-        con.execute("insert into snap values (?)", [r["code"]])
-    for r in SLICE["only_a"]:
-        con.execute("insert into silver values (?, ?)", [r["code"], (lm_override or {}).get(r["code"], r["lm"])])
-    for r in SLICE["only_c"]:
-        con.execute("insert into snap values (?)", [r["code"]])
-    for c in checks:
-        con.execute("insert into checked values (?, ?, ?)", list(c))
+    _insert_rows(con, "silver", [[r["code"], r["lm_c"]] for r in SLICE["pairs"]] + [[r["code"], (lm_override or {}).get(r["code"], r["lm"])] for r in SLICE["only_a"]])
+    _insert_rows(con, "snap", [[r["code"]] for r in SLICE["pairs"]] + [[r["code"]] for r in SLICE["only_c"]])
+    _insert_rows(con, "checked", [list(c) for c in checks])
     return con
 
 

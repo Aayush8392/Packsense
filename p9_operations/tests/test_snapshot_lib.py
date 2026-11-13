@@ -230,17 +230,19 @@ duckdb = pytest.importorskip("duckdb")
 SLICE = json.loads((HERE / "fixtures" / "pair_slice.json").read_text(encoding="utf-8"))
 
 
+sys.path.insert(0, str(HERE))
+from duck_rows import Raw as _Raw  # noqa: E402
+from duck_rows import insert_rows as _insert_rows  # noqa: E402
+
+
 def _con():
     con = duckdb.connect()
     for t in ("p", "n"):
         con.execute(f"create table {t} (code varchar, lm bigint, e varchar[], w varchar[], i varchar[])")
-    for r in SLICE["pairs"]:
-        con.execute("insert into p values (?,?,?,?,?)", [r["code"], r["lm_a"], r["e_a"], r["w_a"], r["i_a"]])
-        con.execute("insert into n values (?,?,?,?,?)", [r["code"], r["lm_c"], r["e_c"], r["w_c"], r["i_c"]])
-    for r in SLICE["only_a"]:
-        con.execute("insert into p values (?,?,?,?,?)", [r["code"], r["lm"], r["e"], r["w"], r["i"]])
-    for r in SLICE["only_c"]:
-        con.execute("insert into n values (?,?,?,?,?)", [r["code"], r["lm"], r["e"], r["w"], r["i"]])
+    p = [[r["code"], r["lm_a"], r["e_a"], r["w_a"], r["i_a"]] for r in SLICE["pairs"]] + [[r["code"], r["lm"], r["e"], r["w"], r["i"]] for r in SLICE["only_a"]]
+    n = [[r["code"], r["lm_c"], r["e_c"], r["w_c"], r["i_c"]] for r in SLICE["pairs"]] + [[r["code"], r["lm"], r["e"], r["w"], r["i"]] for r in SLICE["only_c"]]
+    _insert_rows(con, "p", p)
+    _insert_rows(con, "n", n)
     return con
 
 
@@ -918,11 +920,9 @@ def _public_con():
     res = lib.compute_pair(RESULT_CON)
     st = res["stats"]
     con.execute("insert into s.snapshot_manifest values ('pair1', DATE '2026-10-19', ?, ?, ?, ?)", [st["rows_to"], st["entered_count"], st["left_count"], st["edited_count"]])
-    for e in res["events"]:
-        con.execute("insert into s.snapshot_flag_events values ('pair1', ?, ?, ?, ?)", [e["severity"], e["family"], e["event"], e["family_remains"]])
-    for day, table in (("2026-10-12", "p"), ("2026-10-19", "n")):
-        for sev, tag, n in lib.open_counts(RESULT_CON, table):
-            con.execute("insert into s.snapshot_open_counts values (CAST(? AS DATE), ?, ?, ?)", [day, sev, lib.family_key(tag), n])
+    _insert_rows(con, "s.snapshot_flag_events", [["pair1", e["severity"], e["family"], e["event"], e["family_remains"]] for e in res["events"]])
+    _insert_rows(con, "s.snapshot_open_counts", [[_Raw(f"CAST('{day}' AS DATE)"), sev, lib.family_key(tag), n]
+                                                  for day, table in (("2026-10-12", "p"), ("2026-10-19", "n")) for sev, tag, n in lib.open_counts(RESULT_CON, table)])
     return con, res
 
 
@@ -978,8 +978,7 @@ def test_a_category_tail_is_cut_off_a_kind_and_only_there():
     fams = sorted({lib.family_key(t["tag"]) for t in TAGS})
     with_tail = [f for f in fams if "-for-category-" in f]
     assert with_tail                                          # the real tag list has such families
-    for i, f in enumerate(fams):
-        con.execute("insert into s.snapshot_open_counts values (DATE '2026-10-19', 'warning', ?, ?)", [f, i + 1])
+    _insert_rows(con, "s.snapshot_open_counts", [[_Raw("DATE '2026-10-19'"), "warning", f, i + 1] for i, f in enumerate(fams)])
     rows = _run(con, top_kinds=10_000)["public_off_open_flags"]
     kinds = {k for (_d, _s, k, _n) in rows}
     assert not any("-for-category-" in k for k in kinds) and any(k.endswith("-for-category") for k in kinds)
