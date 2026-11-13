@@ -66,6 +66,20 @@ def test_a_complete_input_assembles(tmp_path):
         assert (out / n).is_file()
 
 
+def test_the_committed_showcase_file_is_copied_into_the_app_data_folder(tmp_path):
+    """The page 'How PackSense works' reads data/showcase.json. It is committed, not on Hugging Face, so the build has to copy it (it did not, and the live page showed no tables)."""
+    site, out = site_folder(tmp_path / "s"), tmp_path / "o"
+    aa.assemble(site, out, "o/r", fake_release(india_files()))
+    assert (out / "showcase.json").read_bytes() == aa.SHOWCASE.read_bytes()
+    assert b"x" != (out / "showcase.json").read_bytes()  # not the stand-in 'x' that site_folder writes
+
+
+def test_a_missing_committed_showcase_file_stops_the_build(tmp_path):
+    site = site_folder(tmp_path / "s")
+    with pytest.raises(aa.AssembleError, match="showcase"):
+        aa.assemble(site, tmp_path / "o", "o/r", fake_release(india_files()), showcase=tmp_path / "none.json")
+
+
 def test_the_sample_is_the_header_and_ten_whole_records(tmp_path):
     site, out = site_folder(tmp_path / "s"), tmp_path / "o"
     aa.assemble(site, out, "o/r", fake_release(india_files()))
@@ -111,7 +125,7 @@ def test_every_data_file_the_app_names_is_in_the_required_list():
         if ".test." in p.name or "fixtures" in p.parts:
             continue
         named |= set(re.findall(r"['\"]([a-z_]+\.csv)['\"]", p.read_text(encoding="utf-8")))
-        named |= set(re.findall(r"(?:dataUrl|fetchRequired|fetchOptional)\(\s*['\"]([\w./-]+\.(?:csv|json|md))['\"]", p.read_text(encoding="utf-8")))
+        named |= set(re.findall(r"(?:dataUrl|fetchRequired|fetchOptional|fetchText)\(\s*['\"]([\w./-]+\.(?:csv|json|md))['\"]", p.read_text(encoding="utf-8")))
     assert named, "the pattern found no file names: the test needs updating"
     assert named <= set(aa.REQUIRED), sorted(named - set(aa.REQUIRED))
 

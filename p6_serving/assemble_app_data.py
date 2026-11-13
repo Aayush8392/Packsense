@@ -5,7 +5,9 @@
 <site_release_folder> is what fetch_site_data.py produced (the CSVs, ATTRIBUTION.md, release_manifest.json, cards/ and bot/). The India release files come from the PUBLIC
 dataset (no token): its manifest, the data card and the changelog are fetched and checked against the manifest, and `release/india_sample.csv` is the header and the first 10 rows of
 `india_products.csv` (the whole file is downloaded and its sha256 checked, then only the sample is kept). The result is checked against ONE list of required files
-(REQUIRED, BOT_REQUIRED): a missing file stops the build, so a site is never published without a part the app needs. Standard library only.
+(REQUIRED, BOT_REQUIRED): a missing file stops the build, so a site is never published without a part the app needs. The four-product walk-through of the page
+"How PackSense works" (`p6_serving/showcase/showcase.json`) is the one file that does not come from Hugging Face: it is committed (and licence-gated by the Pages workflow
+before this runs) and is copied into the app data folder here. Standard library only.
 """
 import csv
 import hashlib
@@ -22,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fetch_site_data as fs  # noqa: E402
 
 RELEASE_REPO = "PackSense/packsense-india"
+SHOWCASE = Path(__file__).resolve().parent / "showcase" / "showcase.json"
 SAMPLE_ROWS = 10
 # What the app reads from its own data/ folder. A file the app starts to read must be added here (a test fails if the app names one that is not).
 REQUIRED = (
@@ -37,6 +40,7 @@ REQUIRED = (
     "off_weekly.csv",
     "off_open_flags.csv",
     "site_status.csv",
+    "showcase.json",
     "cards/splits.json",
     "release/release_manifest.json",
     "release/CHANGELOG.md",
@@ -113,11 +117,14 @@ def check_required(data: Path) -> None:
                 raise AssembleError(f"the bot chunk {c['path']} is missing")
 
 
-def assemble(site_release: Path, data: Path, release_repo: str = RELEASE_REPO, opener=urllib.request.urlopen) -> None:
+def assemble(site_release: Path, data: Path, release_repo: str = RELEASE_REPO, opener=urllib.request.urlopen, showcase: Path = SHOWCASE) -> None:
     if not site_release.is_dir():
         raise AssembleError(f"{site_release} is not a folder")
+    if not showcase.is_file():
+        raise AssembleError(f"the committed showcase file is missing: {showcase}")
     data.mkdir(parents=True, exist_ok=True)
     shutil.copytree(site_release, data, dirs_exist_ok=True)
+    shutil.copyfile(showcase, data / "showcase.json")
     fetch_release(release_repo, data / "release", opener)
     check_required(data)
 
