@@ -83,6 +83,48 @@ export function flagsPerProductParts(rows: QualityRow[], scope: Scope, severity:
   };
 }
 
+export interface FlagWaterfall {
+  first: string;
+  last: string;
+  start: number;
+  /** Flags on products that arrived already flagged, summed over the days after the first. */
+  carriedIn: number;
+  /** Flags that appeared on products already held. */
+  opened: number;
+  /** Flags that ended (fixed, or the product left). */
+  vanished: number;
+  end: number;
+  /** What the three flows above miss: counts of 1 to 4 are blanked on purpose, so this is small; it makes the totals add up exactly. */
+  rest: number;
+}
+
+/**
+ * How the open flags changed from the first day to the last: the flags open on the first day, plus those that came with new products, plus those
+ * that opened on held products, minus those that ended, plus what is not itemised, equals the flags open on the last day. A blanked count counts as zero.
+ */
+export function flagWaterfall(rows: QualityRow[], scope: Scope): FlagWaterfall | null {
+  const days = qualityDays(rows, scope);
+  if (days.length < 2) return null;
+  const first = days[0];
+  const last = days[days.length - 1];
+  let start = 0;
+  let end = 0;
+  let carriedIn = 0;
+  let opened = 0;
+  let vanished = 0;
+  for (const row of rows) {
+    if (row.scope !== scope) continue;
+    if (row.day === first) start += row.openFlags ?? 0;
+    if (row.day === last) end += row.openFlags ?? 0;
+    if (row.day !== first) {
+      carriedIn += row.carriedIn ?? 0;
+      opened += row.appeared ?? 0;
+      vanished += row.ended ?? 0;
+    }
+  }
+  return { first, last, start, carriedIn, opened, vanished, end, rest: end - (start + carriedIn + opened - vanished) };
+}
+
 export interface FamilyRow {
   family: string;
   /** The severities this kind of flag has on the day, in order error, warning, information. */

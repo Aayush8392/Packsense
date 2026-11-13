@@ -1,13 +1,14 @@
 import { ChartCard } from '../charts/ChartCard';
+import { WaterfallCard, type WaterfallStep } from '../charts/WaterfallCard';
 import type { LineSeries } from '../charts/LineChart';
 import { Headline, LoadState, MarketSwitch, PageTitle, Panels, TextPanel, pageSections, useMarket } from '../components/pageParts';
 import { OffSection } from '../components/OffSection';
 import { flagName } from '../data/flagNames';
 import { useResource } from '../data/resource';
 import { JumpLink } from '../nav/JumpLink';
-import { SEVERITIES, flagsPerProduct, flagsPerProductParts, productsHeld, qualityDays, topFamilies, type Scope } from '../data/series';
+import { SEVERITIES, flagWaterfall, flagsPerProduct, flagsPerProductParts, productsHeld, qualityDays, topFamilies, type FlagWaterfall, type Scope } from '../data/series';
 import { qualityDaily, type QualityRow } from '../data/siteData';
-import { formatCount, formatDay, formatPerProduct as perProduct } from '../format';
+import { formatCompact, formatCount, formatDay, formatPerProduct as perProduct } from '../format';
 
 /** The section of the page text that introduces the whole-OFF charts: it is shown above them, not as a panel at the foot of the page. */
 const OFF_SECTION_TITLE = 'Across all of Open Food Facts';
@@ -19,11 +20,25 @@ const SEVERITY_STYLE: Record<string, Pick<LineSeries, 'marker' | 'dash' | 'color
   info: { marker: 'circle', dash: '2 4', color: 'var(--fg-muted)' },
 };
 
+/** The steps of the waterfall: where the open flags began, what came in, what went out, what is not itemised, where they ended. */
+export function waterfallSteps(w: FlagWaterfall): WaterfallStep[] {
+  const steps: WaterfallStep[] = [
+    { id: 'start', label: 'Open flags', sub: formatDay(w.first), value: w.start, total: true, meaning: `The flags open on ${formatDay(w.first)}, the first day of the figures.` },
+    { id: 'carried', label: 'Came with new products', value: w.carriedIn, total: false, meaning: 'Flags on products that arrived already flagged: the flag was there on the first version of the product we saw.' },
+    { id: 'opened', label: 'Opened on held products', value: w.opened, total: false, meaning: 'Flags that appeared on a product we already held.' },
+    { id: 'vanished', label: 'Ended', value: -w.vanished, total: false, meaning: 'Flags that ended: fixed, or the product left. The file does not say which.' },
+  ];
+  if (w.rest !== 0) steps.push({ id: 'rest', label: 'Not itemised', value: w.rest, total: false, meaning: 'Counts of 1 to 4 are hidden on purpose, so the steps above can miss a few. This step makes the totals add up.' });
+  steps.push({ id: 'end', label: 'Open flags', sub: formatDay(w.last), value: w.end, total: true, meaning: `The flags open on ${formatDay(w.last)}, the newest day.` });
+  return steps;
+}
+
 function Charts({ rows, market }: { rows: QualityRow[]; market: Scope }) {
   const days = qualityDays(rows, market);
   if (days.length === 0) return <p className="data-problem" role="status">There are no figures for this choice yet.</p>;
   const first = days[0];
   const last = days[days.length - 1];
+  const waterfall = flagWaterfall(rows, market);
 
   const total = flagsPerProduct(rows, market, 'all');
   const totalParts = flagsPerProductParts(rows, market, 'all');
@@ -75,6 +90,23 @@ function Charts({ rows, market }: { rows: QualityRow[]; market: Scope }) {
           />
         </div>
       </section>
+
+      {waterfall && (
+        <section className="chart-section" aria-labelledby="how-flags-changed">
+          <h2 id="how-flags-changed">How the open flags changed</h2>
+          <div className="chart-grid">
+            <WaterfallCard
+              title={`Open flags, ${formatDay(waterfall.first)} to ${formatDay(waterfall.last)}`}
+              note="Where the open flags began, what came in and what went out, and where they ended. The steps add up to the last total."
+              steps={waterfallSteps(waterfall)}
+              format={formatCount}
+              short={formatCompact}
+              valueHeading="Open flags"
+              caption={`${formatCount(waterfall.opened)} flags opened on products we already held and ${formatCount(waterfall.vanished)} ended; ${formatCount(waterfall.carriedIn)} more came with products that arrived already flagged.`}
+            />
+          </div>
+        </section>
+      )}
 
       <section className="chart-section" aria-labelledby="by-severity">
         <h2 id="by-severity">By how serious the flag is</h2>

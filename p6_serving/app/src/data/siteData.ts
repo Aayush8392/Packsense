@@ -46,6 +46,8 @@ export interface QualityRow {
   appeared: number | null;
   /** Flags that ended that day: fixed, or the product left (the file does not tell the two apart); null when blanked. */
   ended: number | null;
+  /** Flags on a product's first version we saw: the product arrived already flagged. Null when blanked, or when the file has no such column. */
+  carriedIn: number | null;
 }
 
 /** One brand's row of the scorecard: how many of its products fill each of the seven things, on the day the file was made. */
@@ -122,6 +124,7 @@ export function parseQualityDaily(text: string): QualityRow[] {
     productsHeld: numberOf(row.n_products_held, 'quality_daily.csv'),
     appeared: countOrNull(row.opened_on_known_product, 'quality_daily.csv'),
     ended: countOrNull(row.vanished, 'quality_daily.csv'),
+    carriedIn: row.carried_in === undefined ? null : countOrNull(row.carried_in, 'quality_daily.csv'),
   }));
 }
 

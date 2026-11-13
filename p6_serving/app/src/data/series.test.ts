@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { flagName, readableTag } from './flagNames';
-import { KINDS, changeSeries, dayRange, flagsPerProduct, kindsOnDay, productsHeld, qualityDays, topFamilies } from './series';
+import { KINDS, changeSeries, dayRange, flagWaterfall, flagsPerProduct, kindsOnDay, productsHeld, qualityDays, topFamilies } from './series';
 import { parseChangeDaily, parseQualityDaily, type QualityRow } from './siteData';
 
 // Real rows of the published files (1 to 15 Oct 2026), taken from the gold fixture the export tests use.
@@ -33,8 +33,8 @@ describe('quality figures', () => {
 
   it('adds nothing for a hidden count, so a figure is "at least"', () => {
     const rows: QualityRow[] = [
-      { day: '2026-10-01', scope: 'all', severity: 'warning', family: 'a', openFlags: null, productsHeld: 10, appeared: null, ended: null },
-      { day: '2026-10-01', scope: 'all', severity: 'warning', family: 'b', openFlags: 20, productsHeld: 10, appeared: 0, ended: 0 },
+      { day: '2026-10-01', scope: 'all', severity: 'warning', family: 'a', openFlags: null, productsHeld: 10, appeared: null, ended: null, carriedIn: null },
+      { day: '2026-10-01', scope: 'all', severity: 'warning', family: 'b', openFlags: 20, productsHeld: 10, appeared: 0, ended: 0, carriedIn: 0 },
     ];
     expect(flagsPerProduct(rows, 'all', 'all')[0].value).toBe(2);
   });
@@ -93,5 +93,33 @@ describe('days and names', () => {
     expect(readableTag('en:food-groups-warnings')).toBe('Food groups warnings');
     expect(flagName('en:food-groups-warnings')).toEqual({ name: 'Food groups warnings', plain: false });
     expect(flagName('unmapped').plain).toBe(true);
+  });
+});
+
+describe('flagWaterfall', () => {
+  const row = (day: string, openFlags: number | null, appeared: number | null, carriedIn: number | null, ended: number | null): QualityRow => ({ day, scope: 'all', severity: 'warning', family: 'a', openFlags, productsHeld: 10, appeared, ended, carriedIn });
+
+  it('adds up: the first total plus what came in and opened, minus what ended, is the last total', () => {
+    const rows = [row('2026-10-01', 100, 0, 0, 0), row('2026-10-02', 130, 5, 30, 5), row('2026-10-03', 150, 10, 20, 10)];
+    expect(flagWaterfall(rows, 'all')).toEqual({ first: '2026-10-01', last: '2026-10-03', start: 100, carriedIn: 50, opened: 15, vanished: 15, end: 150, rest: 0 });
+  });
+
+  it('leaves the first day out of the flows, because its flags are the start', () => {
+    const rows = [row('2026-10-01', 100, 999, 999, 999), row('2026-10-02', 100, 0, 0, 0)];
+    const w = flagWaterfall(rows, 'all');
+    expect(w?.carriedIn).toBe(0);
+    expect(w?.opened).toBe(0);
+  });
+
+  it('puts what the hidden counts leave out in "rest", so the totals still add up', () => {
+    const rows = [row('2026-10-01', 100, null, null, null), row('2026-10-02', 112, null, 10, 0)];
+    const w = flagWaterfall(rows, 'all');
+    expect(w?.rest).toBe(2);
+    expect((w?.start ?? 0) + (w?.carriedIn ?? 0) + (w?.opened ?? 0) - (w?.vanished ?? 0) + (w?.rest ?? 0)).toBe(w?.end);
+  });
+
+  it('is not drawn for fewer than two days or for a market with no rows', () => {
+    expect(flagWaterfall([row('2026-10-01', 1, 0, 0, 0)], 'all')).toBeNull();
+    expect(flagWaterfall([row('2026-10-01', 1, 0, 0, 0), row('2026-10-02', 1, 0, 0, 0)], 'india')).toBeNull();
   });
 });

@@ -240,7 +240,7 @@ const OFF_FILES = { 'off_weekly.csv': fixture('off_weekly.real.csv'), 'off_open_
 const DATA_FILES = { ...ALL_FILES, 'quality_daily.csv': fixture('quality_daily.sample.csv'), ...OFF_FILES };
 
 describe('data quality over time', () => {
-  it('shows the headline facts, five charts, the kinds of flag and the two text panels, from the real rows', async () => {
+  it('shows the headline facts, five charts, the waterfall, the kinds of flag and the two text panels, from the real rows', async () => {
     serveFiles(DATA_FILES);
     renderAt('/explore/quality');
     await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
@@ -249,7 +249,7 @@ describe('data quality over time', () => {
     expect(headline.textContent).toContain('1 Oct 2026 to 15 Oct 2026, 15 whole days');
     expect(within(headline).getAllByText('9.4')).toHaveLength(2);
     expect(within(headline).getByText('233')).toBeTruthy();
-    expect(document.querySelectorAll('.chart-card')).toHaveLength(5 + 7);       // five of the products PackSense holds, seven across the whole of OFF
+    expect(document.querySelectorAll('.chart-card')).toHaveLength(5 + 1 + 7); // five of the products PackSense holds, the waterfall of the open flags, seven across the whole of OFF
     expect(screen.getByRole('heading', { level: 2, name: 'How to read it' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'What this page can and cannot tell you' })).toBeTruthy();
   });
@@ -1531,7 +1531,7 @@ describe('across all of Open Food Facts', () => {
     await screen.findByRole('region', { name: 'Headline' });
     const section = (await screen.findByRole('heading', { level: 2, name: 'Across all of Open Food Facts' })).closest('section') as HTMLElement;
     await waitFor(() => expect(within(section).getByRole('status').textContent).toMatch(/could not be loaded just now/));
-    expect(document.querySelectorAll('.chart-card')).toHaveLength(5);
+    expect(document.querySelectorAll('.chart-card')).toHaveLength(5 + 1);
   });
 });
 

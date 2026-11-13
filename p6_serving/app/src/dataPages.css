@@ -231,6 +231,51 @@
 .heatmap__legend {
   margin-top: var(--space-sm);
 }
+.waterfall-card {
+  grid-column: 1 / -1;
+}
+.waterfall__bar--total {
+  fill: var(--fg-muted);
+}
+.waterfall__bar--up {
+  fill: var(--primary);
+}
+.waterfall__bar--down {
+  fill: var(--series-2);
+}
+.waterfall__link {
+  stroke: var(--fg-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.waterfall__break {
+  stroke: var(--fg-muted);
+  stroke-width: 1.5;
+}
+.waterfall__step--active .waterfall__bar {
+  stroke: var(--fg);
+  stroke-width: 2;
+}
+.waterfall__value {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.waterfall__labels {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  margin-block: 0;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+  font-size: var(--text-label);
+}
+.waterfall__labels li {
+  padding-inline: 0.35rem;
+}
+.waterfall__labels small {
+  display: block;
+  color: var(--fg-muted);
+}
 .chart__zero {
   stroke: var(--fg-muted);
   stroke-width: 1;
