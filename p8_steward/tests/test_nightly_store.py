@@ -178,10 +178,10 @@ class FakeApi:
 def test_the_real_backend_retries_a_failed_commit_and_gives_up_with_a_clear_error():
     waits = []
     ok = FakeApi(2)
-    st.HfBackend("o/r", "t", api=ok, sleep=waits.append).commit({"a.json": b"{}"}, "m")
-    assert ok.calls == 3 and waits == [5, 20] and ok.kw["repo_type"] == "dataset" and ok.kw["commit_message"] == "m"
+    st.HfBackend("o/r", "t", api=ok, sleep=waits.append, make_op=lambda p, b: (p, b)).commit({"a.json": b"{}"}, "m")
+    assert ok.calls == 3 and waits == [5, 20] and ok.kw["repo_type"] == "dataset" and ok.kw["commit_message"] == "m" and ok.kw["operations"] == [("a.json", b"{}")]
     waits.clear()
     dead = FakeApi(99)
     with pytest.raises(st.StoreError, match=r"failed after 3 tries \(ConnectionError\)") as e:
-        st.HfBackend("o/r", "t", api=dead, sleep=waits.append).commit({"a.json": b"{}"}, "m")
+        st.HfBackend("o/r", "t", api=dead, sleep=waits.append, make_op=lambda p, b: (p, b)).commit({"a.json": b"{}"}, "m")
     assert dead.calls == 3 and waits == [5, 20] and "hub down" not in str(e.value)

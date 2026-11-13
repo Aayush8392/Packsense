@@ -33,14 +33,19 @@ class StoreError(Exception):
     pass
 
 
+def _hf_op(path: str, data: bytes):
+    from huggingface_hub import CommitOperationAdd
+    return CommitOperationAdd(path_in_repo=path, path_or_fileobj=data)
+
+
 class HfBackend:
     """The real backend: one private dataset repo. Reads bypass the local cache, and a commit is one create_commit call (atomic on the Hub)."""
 
-    def __init__(self, repo: str, token: str, api=None, sleep=time.sleep):
+    def __init__(self, repo: str, token: str, api=None, sleep=time.sleep, make_op=None):
         if api is None:
             from huggingface_hub import HfApi
             api = HfApi(token=token)
-        self.api, self.repo, self.token, self.sleep = api, repo, token, sleep
+        self.api, self.repo, self.token, self.sleep, self.make_op = api, repo, token, sleep, make_op or _hf_op
 
     def read(self, path: str) -> bytes | None:
         import tempfile
@@ -56,8 +61,7 @@ class HfBackend:
 
     def commit(self, files: dict[str, bytes], message: str) -> None:
         """One create_commit call, tried up to SAVE_TRIES times (waits SAVE_WAITS between); a last failure is a StoreError that names only the error type."""
-        from huggingface_hub import CommitOperationAdd
-        ops = [CommitOperationAdd(path_in_repo=p, path_or_fileobj=b) for p, b in sorted(files.items())]
+        ops = [self.make_op(p, b) for p, b in sorted(files.items())]
         last: Exception | None = None
         for i in range(SAVE_TRIES):
             try:
