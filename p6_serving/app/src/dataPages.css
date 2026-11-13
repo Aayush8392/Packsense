@@ -1687,11 +1687,11 @@
   margin-inline-start: var(--space-sm);
   opacity: 1;
 }
-/* The "Back to the top" button: a round arrow at the bottom right, just above the question button. */
+/* The "Back to the top" button: a round arrow in the bottom right corner, one step higher (above the question button) when that button is on. */
 .scroll-top {
   position: fixed;
-  inset-block-end: calc(var(--space-lg) + 3.75rem + var(--space-md));
-  inset-inline-end: calc(var(--space-lg) + 0.375rem);
+  inset-block-end: var(--space-lg);
+  inset-inline-end: var(--space-lg);
   z-index: 40;
   display: inline-flex;
   align-items: center;
@@ -1706,6 +1706,10 @@
   cursor: pointer;
   box-shadow: 0 6px 18px -4px rgb(0 0 0 / 0.35);
   transition: transform 0.2s ease, background 0.2s ease;
+}
+.scroll-top--above-chat {
+  inset-block-end: calc(var(--space-lg) + 3.75rem + var(--space-md));
+  inset-inline-end: calc(var(--space-lg) + 0.375rem);
 }
 .scroll-top:hover {
   background: var(--soft);

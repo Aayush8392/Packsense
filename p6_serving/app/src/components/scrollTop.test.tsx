@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetChat, setChatOpen, showChat } from '../lookup/chatState';
 import { ScrollTopButton, pastShare } from './ScrollTopButton';
 
 describe('pastShare', () => {
@@ -34,7 +35,10 @@ describe('ScrollTopButton', () => {
     window.matchMedia = ((query: string) => ({ matches: false, media: query, addEventListener: () => undefined, removeEventListener: () => undefined })) as unknown as typeof window.matchMedia;
     scrollTo.mockClear();
   });
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    resetChat();
+  });
 
   it('is not there at the top, appears 5% of the way down and goes again at the top', () => {
     render(<ScrollTopButton />);
@@ -64,5 +68,25 @@ describe('ScrollTopButton', () => {
     scrollTopTo(1000);
     fireEvent.click(screen.getByRole('button', { name: 'Back to the top of the page' }));
     expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+  });
+
+  it('is not drawn while the question panel is open, because the panel stands where it would be', () => {
+    showChat(false);
+    render(<ScrollTopButton />);
+    scrollTopTo(1000);
+    expect(screen.getByRole('button', { name: 'Back to the top of the page' })).toBeTruthy();
+    act(() => setChatOpen(true));
+    expect(screen.queryByRole('button', { name: 'Back to the top of the page' })).toBeNull();
+    act(() => setChatOpen(false));
+    expect(screen.getByRole('button', { name: 'Back to the top of the page' })).toBeTruthy();
+  });
+
+  it('sits in the corner when the question button is off, and above it when the question button is on', () => {
+    render(<ScrollTopButton />);
+    scrollTopTo(1000);
+    const button = screen.getByRole('button', { name: 'Back to the top of the page' });
+    expect(button.classList.contains('scroll-top--above-chat')).toBe(false);
+    act(() => showChat(false));
+    expect(screen.getByRole('button', { name: 'Back to the top of the page' }).classList.contains('scroll-top--above-chat')).toBe(true);
   });
 });
