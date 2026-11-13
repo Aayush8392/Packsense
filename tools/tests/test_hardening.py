@@ -178,7 +178,7 @@ def test_the_refresh_workflow_stages_only_the_moving_locks_and_the_promote_job_c
     add_line = next(line for line in text.splitlines() if line.strip().startswith("git add "))
     for frozen in locks.FROZEN_LOCKS:
         assert frozen not in add_line, frozen
-    assert "git diff --quiet -- p1_intake/requirements.lock p4_modelling/requirements.lock requirements-dev.lock" in text
+    assert "git diff --quiet -- p1_intake/requirements.lock p4_modelling/requirements.lock requirements-dev.lock p8_steward/nightly/requirements.lock" in text
     promote = text[text.index("  promote:"):]
     assert "KEEPALIVE_DEPLOY_KEY" in promote and "KEEPALIVE_DEPLOY_KEY" not in text[:text.index("  promote:")]   # the key is read by the promote job only
     assert "pip " not in promote and "python" not in promote and "uv " not in promote     # no package install or run in the job that holds the key

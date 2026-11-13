@@ -58,7 +58,7 @@ jobs:
           python tools/locks.py compile
       - name: Frozen locks must not have moved
         run: |
-          if ! git diff --quiet -- p1_intake/requirements.lock p4_modelling/requirements.lock requirements-dev.lock; then
+          if ! git diff --quiet -- p1_intake/requirements.lock p4_modelling/requirements.lock requirements-dev.lock p8_steward/nightly/requirements.lock; then
             echo "A frozen lock changed. They are frozen by decision (FROZEN_CUTOFF in tools/locks.py); stopping." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
