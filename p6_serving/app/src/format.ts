@@ -16,6 +16,13 @@ export function formatDay(iso: string): string {
   return `${day} ${MONTHS[month - 1]} ${year}`;
 }
 
+/** "2026-10-31" is "31 Oct 2026" for a day or a week ending that day, and "Oct 2026" for a month. */
+export function formatPeriod(iso: string, grain: 'day' | 'week' | 'month'): string {
+  if (grain !== 'month') return formatDay(iso);
+  const [year, month] = iso.slice(0, 10).split('-').map(Number);
+  return `${MONTHS[month - 1]} ${year}`;
+}
+
 /** The UTC calendar day of a moment, as "2026-10-27". */
 export function utcDay(moment: Date): string {
   return moment.toISOString().slice(0, 10);

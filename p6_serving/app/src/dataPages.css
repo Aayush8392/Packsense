@@ -199,6 +199,38 @@
 .chart__legend span {
   color: var(--fg);
 }
+.chart-card__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+.chart-card .chart-card__controls .button {
+  margin-top: 0;
+}
+.chart-card__window {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--text-small);
+  color: var(--fg-muted);
+}
+.chart__svg--pan .chart__hit {
+  cursor: grab;
+  touch-action: pan-y;
+}
+.chart__svg--pan .chart__hit:active {
+  cursor: grabbing;
+}
+.chart__overview {
+  margin-top: var(--space-xs);
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.chart__overview-window {
+  fill: var(--soft);
+  stroke: var(--border);
+  stroke-width: 1;
+}
 .table-card--figures td,
 .table-card--plain td {
   font-variant-numeric: tabular-nums lining-nums;

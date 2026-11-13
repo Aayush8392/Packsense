@@ -1,6 +1,7 @@
 import { BarCard } from '../charts/BarCard';
 import { ChartCard } from '../charts/ChartCard';
 import type { LineSeries } from '../charts/LineChart';
+import type { Rollup } from '../data/rollup';
 import { flagName } from '../data/flagNames';
 import { flagMoves, openBySeverity, topOpenKinds, weeklyPoints, type FlagSeverityChoice } from '../data/offSeries';
 import { useResource } from '../data/resource';
@@ -42,7 +43,7 @@ const LINE_A = { marker: 'circle', color: 'var(--primary)' } as const;
 const LINE_B = { marker: 'triangle', dash: '6 4', color: 'var(--secondary)' } as const;
 const LINE_C = { marker: 'diamond', dash: '2 4', color: 'var(--fg-muted)' } as const;
 
-const week = { rowHeading: 'Week ending', pagerNoun: 'weeks', unknownText: HIDDEN, axisFormat: formatCompact, format: formatCount };
+const week = { nativeGrain: 'week' as const, rowHeading: 'Week ending', pagerNoun: 'weeks', unknownText: HIDDEN, axisFormat: formatCompact, format: formatCount };
 
 /** The first weeks hold OFF's big changes of March and early April (over a million products edited in one week against about 30,000 in an ordinary one), which squash every later week. */
 export const RECENT_FROM = '2026-04-19';
@@ -65,7 +66,7 @@ function Charts({ weekly, open }: { weekly: OffWeeklyRow[]; open: OffOpenFlagRow
   const peak = busiest(edited);
 
   const severityLabel = severity === 'error' ? 'error flags' : 'flags';
-  const series = (id: string, label: string, points: DayPoint[], style: Pick<LineSeries, 'marker' | 'dash' | 'color'>): LineSeries => ({ id, label, points, ...style });
+  const series = (id: string, label: string, points: DayPoint[], style: Pick<LineSeries, 'marker' | 'dash' | 'color'>, rollup: Rollup): LineSeries => ({ id, label, points, rollup, ...style });
 
   return (
     <>
@@ -86,21 +87,22 @@ function Charts({ weekly, open }: { weekly: OffWeeklyRow[]; open: OffOpenFlagRow
         {...week}
         title="Products in Open Food Facts"
         note="All the products OFF listed at each weekly snapshot, whether or not PackSense holds them."
-        series={[series('held', 'Products', held, LINE_A)]}
+        series={[series('held', 'Products', held, LINE_A, 'last')]}
         caption={firstToLast(held, 'products')}
       />
       <ChartCard
         {...week}
         title="Products added and removed each week"
         note="Products that appear in one snapshot and not the one before, and products that disappear. A product that was moved or merged can show as removed."
-        series={[series('added', 'Added', added, LINE_A), series('removed', 'Removed', removed, LINE_B)]}
+        series={[series('added', 'Added', added, LINE_A, 'sum'), series('removed', 'Removed', removed, LINE_B, 'sum')]}
         caption={`${lastWeekWords(added, 'products were added')} ${lastWeekWords(removed, 'were removed').replace(/^In the week ending [^,]+, /, 'In the same week, ')}`}
       />
       <ChartCard
         {...week}
+        rollNote="In months, a product edited in two weeks is counted once in each, so a month's total is edits of products, not different products."
         title="Products edited each week"
         note="Products whose last-edited time changed between two snapshots. A very busy week can come from one large automated change; the file does not say who edited."
-        series={[series('edited', 'Products edited', edited, LINE_A)]}
+        series={[series('edited', 'Products edited', edited, LINE_A, 'sum')]}
         caption={peak ? `${lastWeekWords(edited, 'products were edited')} The busiest week was the one ending ${formatDay(peak.day)}, with ${formatCount(peak.value)}.` : 'No figures yet.'}
       />
       <div className="chart-stack">
@@ -117,7 +119,7 @@ function Charts({ weekly, open }: { weekly: OffWeeklyRow[]; open: OffOpenFlagRow
           {...week}
           title="Flags that appeared and flags that ended each week"
           note={`${severity === 'error' ? 'Error flags only. ' : 'Every severity added up. '}A flag counts as ended when it left a product that is still listed and no other flag of the same kind took its place. Counts of 1 to 4 are left out.`}
-          series={[series('appeared', 'Appeared', appeared, LINE_A), series('ended', 'Ended', ended, LINE_B)]}
+          series={[series('appeared', 'Appeared', appeared, LINE_A, 'sum'), series('ended', 'Ended', ended, LINE_B, 'sum')]}
           caption={`${lastWeekWords(appeared, `${severityLabel} appeared`)} ${lastWeekWords(ended, `${severityLabel} ended`).replace(/^In the week ending [^,]+, /, 'In the same week, ')}`}
         />
       </div>
@@ -126,7 +128,7 @@ function Charts({ weekly, open }: { weekly: OffWeeklyRow[]; open: OffOpenFlagRow
         rowHeading="Snapshot date"
         title="Open error flags across Open Food Facts"
         note="Flags that Open Food Facts marks as errors, open on any product at each snapshot."
-        series={[series('errors', 'Open errors', errors, LINE_A)]}
+        series={[series('errors', 'Open errors', errors, LINE_A, 'last')]}
         caption={firstToLast(errors, 'open error flags')}
       />
       <ChartCard
@@ -134,7 +136,7 @@ function Charts({ weekly, open }: { weekly: OffWeeklyRow[]; open: OffOpenFlagRow
         rowHeading="Snapshot date"
         title="Open warning and information flags"
         note="Warnings and information flags, open at each snapshot. Most of them are about data that Open Food Facts works out itself."
-        series={[series('warnings', 'Warnings', warnings, LINE_B), series('info', 'Information', info, LINE_C)]}
+        series={[series('warnings', 'Warnings', warnings, LINE_B, 'last'), series('info', 'Information', info, LINE_C, 'last')]}
         caption={firstToLast(warnings, 'open warning flags')}
       />
       {kinds && (

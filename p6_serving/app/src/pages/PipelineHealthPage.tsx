@@ -159,7 +159,7 @@ function Board({ rows }: { rows: HealthRow[] }) {
             <ChartCard
               title="Products held"
               note="How many products PackSense holds each day."
-              series={[{ id: 'held', label: 'Products held', points: held, marker: 'square', color: 'var(--secondary)' }]}
+              series={[{ id: 'held', label: 'Products held', points: held, marker: 'square', color: 'var(--secondary)', rollup: 'last' }]}
               format={formatCount}
               unknownText="not known"
             />

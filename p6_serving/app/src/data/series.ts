@@ -1,4 +1,5 @@
 import { addDays } from '../format';
+import type { Parts } from './rollup';
 import type { ChangeRow, QualityRow } from './siteData';
 
 export type Scope = 'all' | 'india';
@@ -7,6 +8,8 @@ export interface DayPoint {
   day: string;
   /** null where the value is not known (a count of 1 to 4 that was hidden on purpose). */
   value: number | null;
+  /** Set on a period of a coarser view that the data does not cover from its first to its last day (the newest week or month so far). */
+  partial?: boolean;
 }
 
 /** The eight kinds of edit, in the order the page text lists them, with the plain name shown on the page. */
@@ -62,6 +65,22 @@ export function flagsPerProduct(rows: QualityRow[], scope: Scope, severity: stri
     const products = held.get(day);
     return { day, value: products ? (flags.get(day) ?? 0) / products : null };
   });
+}
+
+/** The two sums behind `flagsPerProduct` (open flags, products held), so a week or a month can be worked out from them and not from daily ratios. */
+export function flagsPerProductParts(rows: QualityRow[], scope: Scope, severity: string | 'all'): Parts {
+  const flags = new Map<string, number>();
+  const held = new Map<string, number>();
+  for (const row of rows) {
+    if (row.scope !== scope) continue;
+    held.set(row.day, row.productsHeld);
+    if (severity === 'all' || row.severity === severity) flags.set(row.day, (flags.get(row.day) ?? 0) + (row.openFlags ?? 0));
+  }
+  const days = qualityDays(rows, scope);
+  return {
+    num: days.map((day) => ({ day, value: held.get(day) ? (flags.get(day) ?? 0) : null })),
+    den: days.map((day) => ({ day, value: held.get(day) ?? null })),
+  };
 }
 
 export interface FamilyRow {

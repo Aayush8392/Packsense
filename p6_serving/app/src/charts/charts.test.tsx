@@ -181,3 +181,76 @@ describe('paging of the table behind a chart', () => {
     expect(firstButton.getAttribute('aria-expanded')).toBe('true');
   });
 });
+
+describe('a window onto a long history', () => {
+  // 150 days from Thu 1 Oct 2026.
+  const long = (value: (i: number) => number): LineSeries[] => [
+    {
+      id: 'a',
+      label: 'Products edited',
+      points: Array.from({ length: 150 }, (_, i) => ({ day: new Date(Date.UTC(2026, 9, 1 + i)).toISOString().slice(0, 10), value: value(i) })),
+      marker: 'circle',
+      color: 'var(--primary)',
+      rollup: 'sum',
+    },
+  ];
+  const spike = (i: number) => (i < 10 ? 1000 : 5);
+
+  it('fits the y-axis to what is in view, so an old spike does not flatten the recent days', () => {
+    const { container, rerender } = render(<LineChart series={long(spike)} format={format} label="Edits" size={30} start={0} />);
+    const ticks = () => [...container.querySelectorAll('.chart__tick')].map((t) => t.textContent);
+    expect(ticks()).toContain('1000');
+    rerender(<LineChart series={long(spike)} format={format} label="Edits" size={30} start={100} />);
+    expect(ticks()).not.toContain('1000');
+  });
+
+  it('says which days are in view', () => {
+    render(<LineChart series={long(() => 1)} format={format} label="Edits" size={30} start={0} onStart={() => undefined} />);
+    expect(screen.getByRole('group').getAttribute('aria-label')).toContain('Showing 1 Oct 2026 to 30 Oct 2026.');
+  });
+
+  it('pans with shift and the arrow keys', () => {
+    const seen: number[] = [];
+    render(<LineChart series={long(() => 1)} format={format} label="Edits" size={40} start={20} onStart={(s) => seen.push(s)} />);
+    const group = screen.getByRole('group');
+    fireEvent.keyDown(group, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(group, { key: 'ArrowLeft', shiftKey: true });
+    expect(seen).toEqual([30, 10]);
+  });
+
+  it('offers days, weeks and months for a series that says how it rolls up, and starts on the newest 60 days', () => {
+    render(<ChartCard title="Edits" series={long(() => 1)} format={format} unknownText="not known" />);
+    const group = screen.getByRole('radiogroup', { name: 'How much time each point covers' });
+    expect(within(group).getAllByRole('radio').map((r) => r.textContent)).toEqual(['Days', 'Weeks', 'Months']);
+    expect(screen.getByText(/Showing 30 Dec 2026 to 27 Feb 2027/)).toBeTruthy();
+  });
+
+  it('moves the window with the Earlier and Later buttons', () => {
+    render(<ChartCard title="Edits" series={long(() => 1)} format={format} unknownText="not known" />);
+    expect((screen.getByRole('button', { name: 'Later' }) as HTMLButtonElement).disabled).toBe(true); // already at the newest
+    fireEvent.click(screen.getByRole('button', { name: 'Earlier' }));
+    expect(screen.getByText(/Showing 30 Nov 2026 to 28 Jan 2027/)).toBeTruthy(); // 30 days earlier
+    expect((screen.getByRole('button', { name: 'Later' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('switches the table to weeks, with the right heading, and marks a part of a week', () => {
+    render(<ChartCard title="Edits" series={long(() => 1)} format={format} unknownText="not known" />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Weeks' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show as a table' }));
+    expect(screen.getByRole('columnheader', { name: 'Week ending' })).toBeTruthy();
+    expect(screen.getAllByText(/\(part\)/).length).toBeGreaterThan(0);
+  });
+
+  it('offers no weeks or months for a series that does not say how it rolls up', () => {
+    const without = long(() => 1).map((s) => ({ ...s, rollup: undefined }));
+    render(<ChartCard title="Edits" series={without} format={format} unknownText="not known" />);
+    expect(screen.queryByRole('radiogroup', { name: 'How much time each point covers' })).toBeNull();
+  });
+
+  it('shows everything at once on request', () => {
+    render(<ChartCard title="Edits" series={long(() => 1)} format={format} unknownText="not known" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Show all 150 days' }));
+    expect(screen.queryByText(/^Showing /)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show the latest 60 days' })).toBeTruthy();
+  });
+});

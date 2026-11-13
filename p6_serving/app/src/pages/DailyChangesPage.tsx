@@ -56,8 +56,8 @@ function Main({ rows, market }: { rows: ChangeRow[]; market: Scope }) {
   ];
 
   const timeline: LineSeries[] = [
-    { id: 'edited', label: 'Products edited', points: edited, marker: 'circle', color: 'var(--primary)' },
-    { id: 'new', label: 'New products', points: added, marker: 'triangle', dash: '6 4', color: 'var(--secondary)' },
+    { id: 'edited', label: 'Products edited', points: edited, marker: 'circle', color: 'var(--primary)', rollup: 'sum' },
+    { id: 'new', label: 'New products', points: added, marker: 'triangle', dash: '6 4', color: 'var(--secondary)', rollup: 'sum' },
   ];
 
   return (
@@ -85,6 +85,7 @@ function Main({ rows, market }: { rows: ChangeRow[]; market: Scope }) {
             title="Products edited, and how many were new"
             note="Each day is counted at least; new products are counted among the products edited."
             series={timeline}
+            rollNote={EDIT_ROLL_NOTE}
             format={count}
             unknownText={HIDDEN}
             headingLevel={3}
@@ -99,7 +100,8 @@ function Main({ rows, market }: { rows: ChangeRow[]; market: Scope }) {
                   compact
                   headingLevel={3}
                   title={kind.label}
-                  series={[{ id: kind.group, label: kind.label, points: changeSeries(rows, market, kind.group, days), marker: 'circle', color: 'var(--primary)' }]}
+                  series={[{ id: kind.group, label: kind.label, points: changeSeries(rows, market, kind.group, days), marker: 'circle', color: 'var(--primary)', rollup: 'sum' }]}
+                  rollNote={EDIT_ROLL_NOTE}
                   format={count}
                   unknownText={HIDDEN}
                 />
@@ -215,6 +217,7 @@ function IndiaToday({ rows }: { rows: ChangeRow[] }) {
   );
 }
 
+const EDIT_ROLL_NOTE = 'In weeks and months, a product edited on two days is counted once on each of them, so these totals are edits of products, not different products.';
 export function DailyChangesPage() {
   const loaded = useResource(changeDaily);
   const quality = useResource(qualityDaily);

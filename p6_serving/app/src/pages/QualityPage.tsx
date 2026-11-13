@@ -5,7 +5,7 @@ import { OffSection } from '../components/OffSection';
 import { flagName } from '../data/flagNames';
 import { useResource } from '../data/resource';
 import { JumpLink } from '../nav/JumpLink';
-import { SEVERITIES, flagsPerProduct, productsHeld, qualityDays, topFamilies, type Scope } from '../data/series';
+import { SEVERITIES, flagsPerProduct, flagsPerProductParts, productsHeld, qualityDays, topFamilies, type Scope } from '../data/series';
 import { qualityDaily, type QualityRow } from '../data/siteData';
 import { formatCount, formatDay, formatPerProduct as perProduct } from '../format';
 
@@ -26,6 +26,7 @@ function Charts({ rows, market }: { rows: QualityRow[]; market: Scope }) {
   const last = days[days.length - 1];
 
   const total = flagsPerProduct(rows, market, 'all');
+  const totalParts = flagsPerProductParts(rows, market, 'all');
   const held = productsHeld(rows, market);
   const valueOn = (points: { day: string; value: number | null }[], day: string) => points.find((p) => p.day === day)?.value ?? null;
   const families = topFamilies(rows, market, last, 10);
@@ -42,6 +43,8 @@ function Charts({ rows, market }: { rows: QualityRow[]; market: Scope }) {
     id,
     label: SEVERITIES.find((s) => s.id === id)?.label ?? id,
     points: flagsPerProduct(rows, market, id),
+    rollup: 'ratio',
+    parts: flagsPerProductParts(rows, market, id),
     ...SEVERITY_STYLE[id],
   });
 
@@ -58,14 +61,15 @@ function Charts({ rows, market }: { rows: QualityRow[]; market: Scope }) {
           <ChartCard
             title="Flags per product held"
             note="All open flags added up and divided by the products held that day. Flags with a count of 1 to 4 are left out of the sum."
-            series={[{ id: 'total', label: 'Flags per product', points: total, marker: 'circle', color: 'var(--primary)' }]}
+            series={[{ id: 'total', label: 'Flags per product', points: total, marker: 'circle', color: 'var(--primary)', rollup: 'ratio', parts: totalParts }]}
+            zeroBase={false}
             format={perProduct}
             unknownText="not known"
           />
           <ChartCard
             title="Products held"
             note="How many products PackSense holds each day. When this rises, the flag total rises with it."
-            series={[{ id: 'held', label: 'Products held', points: held, marker: 'square', color: 'var(--secondary)' }]}
+            series={[{ id: 'held', label: 'Products held', points: held, marker: 'square', color: 'var(--secondary)', rollup: 'last' }]}
             format={formatCount}
             unknownText="not known"
           />
@@ -83,6 +87,7 @@ function Charts({ rows, market }: { rows: QualityRow[]; market: Scope }) {
               headingLevel={3}
               title={s.label}
               series={[severitySeries(s.id)]}
+              zeroBase={false}
               format={perProduct}
               unknownText="not known"
             />
