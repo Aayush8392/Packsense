@@ -1,0 +1,46 @@
+name: Databricks keep-alive (daily admin-token activity)
+
+# Stands in for a UI login: on 2026-11-12 Databricks Free Edition paused all scheduled
+# jobs after about a week without one. Whether an admin-token API call counts as
+# activity is what the inactivity test measures (see A124); this job is the thing
+# under test. One read-only call, no compute, no checkout, no package install.
+
+on:
+  schedule:
+    # 01:30 UTC, before the 03:00 policy run, to allow for GitHub's cron lateness.
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: databricks-keepalive
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_ADMIN_TOKEN: ${{ secrets.DATABRICKS_ADMIN_TOKEN }}
+      HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_DBKEEPALIVE_URL }}
+    steps:
+      - name: Tell healthchecks.io the run started
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/start" || true'
+      - name: Read the admin identity (read-only)
+        run: |
+          set -eu
+          [ -n "$DATABRICKS_HOST" ] && [ -n "$DATABRICKS_ADMIN_TOKEN" ] || { echo "missing host or token"; exit 1; }
+          host="${DATABRICKS_HOST%/}"
+          code=$(curl -sS -m 30 --retry 3 -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${DATABRICKS_ADMIN_TOKEN}" \
+            "${host}/api/2.0/preview/scim/v2/Me")
+          echo "scim Me status: ${code}"
+          [ "${code}" = "200" ]
+      - name: Ping healthchecks.io (success)
+        if: success()
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL" || true'
+      - name: Ping healthchecks.io (failure)
+        if: failure()
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/fail" || true'
