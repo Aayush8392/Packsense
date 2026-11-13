@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { BarCard } from './BarCard';
 import { ChartCard } from './ChartCard';
 import { PAGE_SIZE, padCount, pageWindow } from './Pager';
 import { LineChart, describeSeries, markerPath, tickStep, type LineSeries } from './LineChart';
@@ -252,5 +253,31 @@ describe('a window onto a long history', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show all 150 days' }));
     expect(screen.queryByText(/^Showing /)).toBeNull();
     expect(screen.getByRole('button', { name: 'Show the latest 60 days' })).toBeTruthy();
+  });
+});
+
+describe('the tip that says what a mark stands for', () => {
+  it('names the day and every series value at the cursor of a line chart', () => {
+    const { container } = render(<LineChart series={series} format={format} label="Edits" />);
+    expect(container.querySelector('.chart-tip')).toBeNull();
+    fireEvent.keyDown(screen.getByRole('group'), { key: 'ArrowRight' });
+    const tip = container.querySelector('.chart-tip');
+    expect(tip?.textContent).toContain('1 Oct 2026');
+    expect(tip?.textContent).toContain('Products edited');
+    expect(tip?.textContent).toContain('New products');
+  });
+
+  it('names the row and what its value counts when a bar is pointed at', () => {
+    const rows = [{ id: 'a', label: 'Nutrition', value: 12, display: '12%', small: 'en:nutrition' }];
+    const { container } = render(<BarCard title="Empty fields" rows={rows} valueHeading="Share left empty" unknownText="fewer than 5" />);
+    expect(container.querySelector('.chart-tip')).toBeNull();
+    fireEvent.pointerMove(container.querySelector('.bar-chart li') as Element);
+    const tip = container.querySelector('.chart-tip');
+    expect(tip?.textContent).toContain('Nutrition');
+    expect(tip?.textContent).toContain('Share left empty');
+    expect(tip?.textContent).toContain('12%');
+    expect(tip?.textContent).toContain('en:nutrition');
+    fireEvent.pointerLeave(container.querySelector('.bar-chart li') as Element);
+    expect(container.querySelector('.chart-tip')).toBeNull();
   });
 });

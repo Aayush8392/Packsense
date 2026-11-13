@@ -154,8 +154,54 @@
   margin-top: auto;
 }
 .chart {
+  position: relative;
   margin-top: var(--space-sm);
   min-width: 0;
+}
+.chart-tip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 9rem;
+  max-width: 16rem;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--fg);
+  font-size: var(--text-small);
+  line-height: 1.35;
+  pointer-events: none;
+  transform: translate(12px, -110%);
+}
+.chart-tip--left {
+  transform: translate(calc(-100% - 12px), -110%);
+}
+.chart-tip__title {
+  font-weight: 600;
+}
+.chart-tip__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+}
+.chart-tip__line b {
+  margin-inline-start: auto;
+  padding-inline-start: var(--space-sm);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.chart-tip__swatch {
+  display: inline-block;
+  flex: none;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 2px;
+}
+.chart-tip__note {
+  color: var(--fg-muted);
+  font-size: var(--text-label);
 }
 .chart svg {
   display: block;
@@ -1660,7 +1706,11 @@
   font-size: var(--text-body);
 }
 /* One grid for the whole list (the rows share its columns), so every track starts and ends in the same place. */
+.bar-chart-wrap {
+  position: relative;
+}
 .bar-chart {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(8rem, 14rem) 1fr auto;
   gap: var(--space-sm) var(--space-md);

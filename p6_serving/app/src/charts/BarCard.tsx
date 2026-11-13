@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { Tip, type TipData } from './Tip';
 import type { BarRow } from '../gallery/charts';
 
 export interface BarCardProps {
@@ -26,6 +27,8 @@ export function barBox(value: number, low: number, high: number): { left: number
 export function BarCard({ title, note, caption, rows, valueHeading, unknownText, headingLevel = 3 }: BarCardProps) {
   const id = useId();
   const [asTable, setAsTable] = useState(false);
+  const [tip, setTip] = useState<TipData | null>(null);
+  const [boxWidth, setBoxWidth] = useState(640);
   const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
   const known = rows.map((r) => r.value).filter((v): v is number => v !== null);
   const low = Math.min(0, ...known);
@@ -38,11 +41,27 @@ export function BarCard({ title, note, caption, rows, valueHeading, unknownText,
         <Heading>{title}</Heading>
         {note && <p className="chart-card__note">{note}</p>}
       </figcaption>
+      <div className="bar-chart-wrap">
       <ul className="bar-chart" aria-label={title}>
         {rows.map((row) => {
           const box = row.value === null ? { left: 0, width: 0 } : barBox(row.value, low, high);
           return (
-            <li key={row.id}>
+            <li
+              key={row.id}
+              onPointerMove={(event) => {
+                const list = event.currentTarget.parentElement;
+                const at = list ? list.getBoundingClientRect() : null;
+                if (at) setBoxWidth(at.width);
+                setTip({
+                  x: at ? event.clientX - at.left : 0,
+                  y: event.currentTarget.offsetTop + event.currentTarget.offsetHeight / 2,
+                  title: row.label,
+                  lines: [{ label: valueHeading, value: row.value === null ? unknownText : row.display }],
+                  note: row.small,
+                });
+              }}
+              onPointerLeave={() => setTip(null)}
+            >
               <span className="bar-chart__label">
                 {row.label}
                 {row.small && <small>{row.small}</small>}
@@ -56,6 +75,8 @@ export function BarCard({ title, note, caption, rows, valueHeading, unknownText,
           );
         })}
       </ul>
+      <Tip tip={tip} width={boxWidth} />
+      </div>
       {caption && <p className="chart-card__caption">{caption}</p>}
       <button type="button" className="button button--quiet" aria-expanded={asTable} aria-controls={`${id}-table`} onClick={() => setAsTable((open) => !open)}>
         {asTable ? 'Hide the table' : 'Show as a table'}

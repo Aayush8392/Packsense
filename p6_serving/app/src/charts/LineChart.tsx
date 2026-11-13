@@ -5,6 +5,7 @@ import { GRAIN_WORDS, type Grain, type Parts, type Rollup } from '../data/rollup
 import { formatDay, formatPeriod } from '../format';
 import type { DayPoint } from '../data/series';
 import { Overview } from './Overview';
+import { Tip, type TipData } from './Tip';
 import { clampStart, fitDomain } from './window';
 import { useChartBox } from './useChartBox';
 
@@ -151,6 +152,15 @@ export function LineChart({ series, format, label, compact = false, grain = 'day
     active === null
       ? ''
       : `${formatPeriod(days[active], grain)}${partialAt(active) ? ` (not a whole ${word})` : ''}: ${visible.map((s) => `${s.label} ${s.points[active].value === null ? 'not known' : format(s.points[active].value as number)}`).join(', ')}`;
+  const tip: TipData | null =
+    active === null || count === 0
+      ? null
+      : {
+          x: margin.left + x(active),
+          y: margin.top + Math.min(plotHeight, ...visible.map((s) => (s.points[active].value === null ? plotHeight : y(s.points[active].value as number)))),
+          title: `${formatPeriod(days[active], grain)}${partialAt(active) ? ` (part of a ${word})` : ''}`,
+          lines: visible.map((s) => ({ label: s.label, value: s.points[active].value === null ? 'not known' : format(s.points[active].value as number), color: s.color })),
+        };
   const span = count === 0 ? '' : ` Showing ${formatPeriod(days[0], grain)} to ${formatPeriod(days[count - 1], grain)}.`;
 
   return (
@@ -218,6 +228,7 @@ export function LineChart({ series, format, label, compact = false, grain = 'day
           />
         </g>
       </svg>
+      <Tip tip={tip} width={width} />
       {canPan && <Overview series={series} first={first} shown={shown} width={width} unit={unit} onStart={(next) => onStart(next)} />}
       <p id={`${id}-readout`} className="chart__readout" aria-live="polite">{readout}</p>
       <ul className="chart__legend">
