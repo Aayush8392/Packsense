@@ -1,0 +1,59 @@
+name: Nightly photo reading (nutrition lines)
+
+# The nightly job of A121 (settled 2026-11-13): reads the nutrition photo of every India product with an open flag (text reader plus photo reader, the frozen method), checks the result with
+# the frozen guards and rules, and writes the lines to a PRIVATE Hugging Face dataset (the results dataset); the Pages build reads them from there. No Databricks credential lives in
+# GitHub. It prints counts only: this repository is public, so these logs are public.
+#
+# THE SCHEDULE IS OFF ON PURPOSE. The soak test (stage 0 fetch-only, stage 1 scratch, stage 2 one full night with publishing off) must pass first; turning the schedule on is a deliberate,
+# separate edit. A manual run chooses its mode: fetch-only (no model call, nothing written), scratch (a full night against the scratch dataset) or real. The nominal slot when it is turned
+# on is 08:30 UTC, after the Gemini free-tier quota resets (midnight Pacific = 08:00 UTC in winter, 07:00 UTC in summer: check the slot at the first daylight-saving change).
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "fetch-only (no model call, nothing written) | scratch (a full night against the scratch dataset) | real"
+        type: choice
+        options: [fetch-only, scratch, real]
+        default: fetch-only
+      limit:
+        description: "fetch-only: how many products to fetch"
+        type: string
+        default: "30"
+      max_calls:
+        description: "scratch or real: the hard ceiling of model requests (the free tier allows 500 a day; the agreed nightly cap is 400)"
+        type: string
+        default: "60"
+  # schedule:
+  #   - cron: "30 8 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install --no-cache-dir --require-hashes -r p8_steward/nightly/requirements.lock
+      - name: Run the night (counts only in the log)
+        env:
+          MODE: ${{ inputs.mode || 'real' }}
+          LIMIT: ${{ inputs.limit || '30' }}
+          MAX_CALLS: ${{ inputs.max_calls || '400' }}
+          HF_NIGHTLY_WRITE_TOKEN: ${{ secrets.HF_NIGHTLY_WRITE_TOKEN }}
+          HF_NIGHTLY_REPO: ${{ vars.HF_NIGHTLY_REPO }}
+          HF_NIGHTLY_SCRATCH_REPO: ${{ vars.HF_NIGHTLY_SCRATCH_REPO }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          [[ "$LIMIT" =~ ^[0-9]+$ ]] && [[ "$MAX_CALLS" =~ ^[0-9]+$ ]] || { echo "limit and max_calls must be whole numbers"; exit 2; }
+          python p8_steward/nightly/run_nightly.py --mode "$MODE" --limit "$LIMIT" --max-calls "$MAX_CALLS"
