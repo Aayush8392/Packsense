@@ -76,6 +76,23 @@ def test_take_respects_the_limit_and_counts_report_the_tiers():
     assert (c["queued"], c["queued_new"], c["queued_backlog"], c["queued_missed"]) == (3, 1, 2, 0)
 
 
+def test_a_product_given_up_on_is_read_afresh_after_14_days_and_not_before():
+    s = state_with(cand("1"), today="2026-11-01")
+    for night in ("2026-11-01", "2026-11-02", "2026-11-03"):
+        q.settle(s, "1", "error", night, "unavailable")
+    assert s["done"]["1"]["outcome"] == "gave_up" and s["done"]["1"]["night"] == "2026-11-03"
+    assert q.merge_candidates(s, [cand("1")], "2026-11-16")["requeued"] == 0 and "1" in s["done"]          # 13 days
+    assert q.merge_candidates(s, [cand("1")], "2026-11-17")["requeued"] == 1                              # 14 days
+    assert "1" in s["items"] and s["items"]["1"]["attempts"] == 0 and "1" not in s["done"]
+
+
+def test_a_line_or_a_silence_is_never_requeued_by_age():
+    s = state_with(cand("1"), cand("2"), today="2026-11-01")
+    q.settle(s, "1", "line", "2026-11-01")
+    q.settle(s, "2", "silence", "2026-11-01", "no_photo")
+    assert q.merge_candidates(s, [cand("1"), cand("2")], "2027-06-01")["requeued"] == 0
+
+
 def test_an_unknown_outcome_is_refused():
     s = state_with(cand("1"))
     with pytest.raises(ValueError):

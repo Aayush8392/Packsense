@@ -251,3 +251,81 @@ def test_new_flags_are_read_before_the_backlog():
     s = ql.new_state()
     out = night(s, [cand("40000001"), cand("50000001", new=True)], f, b=budget(max_calls=6 + 2))
     assert [ln["code"] for ln in out["lines"]] == ["50000001"] and "40000001" in s["items"]
+
+
+# ---------------------------------------------------------------- failure handling (2026-11-13: an OFF outage must not burn the backlog; one bad candidate must not kill the night)
+def ordered(codes):
+    return sorted(codes, key=ql.order_key)
+
+
+def readers_with(codes, down=(), **kw):
+    """The canary products read fine; every code in `down` fails its OFF fetch; the others are good."""
+    extra = {c: product(has_photo=True) for c in codes}
+    f = readers_for([], extra)
+    for c in down:
+        f.p[c]["fetch"] = TransientError("OFF answered HTTP 503")
+    return f
+
+
+def test_an_off_outage_ends_the_night_red_and_charges_nobody():
+    codes = [f"3000000{i}" for i in range(9)]
+    f = readers_with(codes, down=codes)
+    s = ql.new_state()
+    out = nt.run_night(s, [cand(c) for c in codes], f, budget(), NIGHT, canary_rows(), freeze_problems=lambda: [], off_streak=5)
+    assert out["stopped"] == "off_unavailable" and out["lines"] == [] and out["errors"] == {"fetch_unavailable": 5}
+    assert all(i["attempts"] == 0 for i in s["items"].values()) and s["done"] == {}                    # nobody was charged an attempt
+
+
+def test_a_failure_before_a_success_is_charged_but_one_in_a_row_that_never_recovers_is_not():
+    codes = ordered([f"3000000{i}" for i in range(6)])
+    f = readers_with(codes, down=codes[:2])                                                           # the first two fail, then the service recovers
+    s = ql.new_state()
+    out = nt.run_night(s, [cand(c) for c in codes], f, budget(), NIGHT, canary_rows(), freeze_problems=lambda: [])
+    assert out["stopped"] is None and len(out["lines"]) == 4
+    assert s["items"][codes[0]]["attempts"] == 1 and s["items"][codes[1]]["attempts"] == 1            # charged once the third product got through
+
+
+def test_failures_at_the_very_end_of_a_normal_night_are_charged():
+    codes = ordered([f"3000000{i}" for i in range(4)])
+    f = readers_with(codes, down=codes[-1:])
+    s = ql.new_state()
+    nt.run_night(s, [cand(c) for c in codes], f, budget(), NIGHT, canary_rows(), freeze_problems=lambda: [])
+    assert s["items"][codes[-1]]["attempts"] == 1
+
+
+def test_a_run_of_model_503s_stops_the_night_and_charges_nobody():
+    codes = [f"3000000{i}" for i in range(8)]
+    f = readers_for(codes)                                                                            # the canary products read fine; every queue product's text reader answers 503
+    for c in codes:
+        f.p[c]["text"] = TransientError("503")
+    s = ql.new_state()
+    out = nt.run_night(s, [cand(c) for c in codes], f, budget(max_503_streak=3), NIGHT, canary_rows(), freeze_problems=lambda: [])
+    assert out["stopped"] == "503_streak" and all(i["attempts"] == 0 for i in s["items"].values()) and s["done"] == {}
+
+
+def test_a_candidate_that_cannot_be_hashed_is_skipped_and_counted_not_fatal():
+    codes = [f"3000000{i}" for i in range(3)]
+    f = readers_for(codes)
+    bad = {"code": "30000099", "stored": {"fat": "abc"}, "new": False}
+    out = night(ql.new_state(), [cand(c) for c in codes] + [bad], f)
+    assert out["stopped"] is None and out["invalid_candidates"] == 1 and len(out["lines"]) == 3
+
+
+def test_checkpoints_are_called_every_n_settled_products_with_the_work_so_far():
+    codes = [f"3000000{i}" for i in range(7)]
+    f = readers_for(codes)
+    seen = []
+    nt.run_night(ql.new_state(), [cand(c) for c in codes], f, budget(), NIGHT, canary_rows(), freeze_problems=lambda: [], checkpoint=lambda o: seen.append((len(o["lines"]), o["calls"])), checkpoint_every=3)
+    assert [n for n, _ in seen] == [3, 6] and seen[1][1] > seen[0][1]
+
+
+def test_a_night_with_few_lines_for_its_products_goes_red_as_low_yield_but_a_small_night_does_not():
+    codes = [f"3000000{i}" for i in range(40)]
+    extra = {c: product(has_photo=False) for c in codes}                                              # nothing can be shown
+    f = readers_for([], extra)
+    s = ql.new_state()
+    out = nt.run_night(s, [cand(c) for c in codes], f, budget(), NIGHT, canary_rows(), freeze_problems=lambda: [])
+    assert out["stopped"] == "low_yield" and out["products"] == 40 and len(s["done"]) == 40            # the state is still saved: they are final silences
+    few = codes[:10]
+    f2 = readers_for([], {c: product(has_photo=False) for c in few})
+    assert nt.run_night(ql.new_state(), [cand(c) for c in few], f2, budget(), NIGHT, canary_rows(), freeze_problems=lambda: [])["stopped"] is None

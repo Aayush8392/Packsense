@@ -12,14 +12,21 @@ dict; `HfBackend` is the real one (huggingface_hub, imported only when used). A 
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
+import math
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from nightly import line_record as lr  # noqa: E402
 from nightly import queue_lib as ql  # noqa: E402
 
 CANDIDATES, CANARY, QUEUE, CURRENT = "input/candidates.json", "input/canary.json", "queue.json", "lines/current.json"
+MAX_INVALID_SHARE = 0.05      # more invalid candidates than this share of the file means the export is broken: the night does not run
+SAVE_TRIES = 3
+SAVE_WAITS = (5, 20)          # seconds before the second and third try
 
 
 class StoreError(Exception):
@@ -29,9 +36,11 @@ class StoreError(Exception):
 class HfBackend:
     """The real backend: one private dataset repo. Reads bypass the local cache, and a commit is one create_commit call (atomic on the Hub)."""
 
-    def __init__(self, repo: str, token: str):
-        from huggingface_hub import HfApi
-        self.api, self.repo, self.token = HfApi(token=token), repo, token
+    def __init__(self, repo: str, token: str, api=None, sleep=time.sleep):
+        if api is None:
+            from huggingface_hub import HfApi
+            api = HfApi(token=token)
+        self.api, self.repo, self.token, self.sleep = api, repo, token, sleep
 
     def read(self, path: str) -> bytes | None:
         import tempfile
@@ -46,18 +55,43 @@ class HfBackend:
             return Path(p).read_bytes()
 
     def commit(self, files: dict[str, bytes], message: str) -> None:
+        """One create_commit call, tried up to SAVE_TRIES times (waits SAVE_WAITS between); a last failure is a StoreError that names only the error type."""
         from huggingface_hub import CommitOperationAdd
         ops = [CommitOperationAdd(path_in_repo=p, path_or_fileobj=b) for p, b in sorted(files.items())]
-        self.api.create_commit(repo_id=self.repo, repo_type="dataset", operations=ops, commit_message=message)
+        last: Exception | None = None
+        for i in range(SAVE_TRIES):
+            try:
+                self.api.create_commit(repo_id=self.repo, repo_type="dataset", operations=ops, commit_message=message)
+                return
+            except Exception as e:                                     # noqa: BLE001  (any Hub or network error is worth one more try)
+                last = e
+                if i < SAVE_TRIES - 1:
+                    self.sleep(SAVE_WAITS[min(i, len(SAVE_WAITS) - 1)])
+        raise StoreError(f"saving to the results dataset failed after {SAVE_TRIES} tries ({type(last).__name__})")
 
 
 def _dump(obj) -> bytes:
     return json.dumps(obj, ensure_ascii=False, indent=1, sort_keys=True).encode("utf-8")
 
 
+def _clean_candidate(r) -> dict | None:
+    if not (isinstance(r, dict) and isinstance(r.get("code"), str) and lr.CODE.match(r["code"]) and isinstance(r.get("stored"), dict)):
+        return None
+    stored = {}
+    for f in lr.FIELDS:
+        v = r["stored"].get(f)
+        if v is None:
+            continue
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 <= v <= lr.MAX_VALUE:
+            return None
+        stored[f] = float(v)
+    return {"code": r["code"], "stored": stored, "new": bool(r.get("new"))}
+
+
 class Store:
     def __init__(self, backend):
         self.b = backend
+        self.invalid = 0
 
     def _json(self, path: str, required: bool):
         raw = self.b.read(path)
@@ -78,15 +112,30 @@ class Store:
             raise StoreError("queue.json has an unknown shape")
         return s
 
-    def load_candidates(self) -> list[dict]:
+    def load_candidates(self, night: str | None = None, max_age_days: int | None = None) -> list[dict]:
+        """The candidates, validated. A candidate with a bad barcode or a non-numeric or out-of-range stored value is dropped and counted in `self.invalid`; more than MAX_INVALID_SHARE of the
+        file invalid, or none valid, is an error (a broken export must not run). Unknown fields of `stored` are left out. With `max_age_days`, an `exported` date older than that (or missing)
+        before `night` is an error: a stalled export must not be read as today's flags."""
         doc = self._json(CANDIDATES, required=True)
         rows = doc.get("candidates") if isinstance(doc, dict) else None
         if not isinstance(rows, list) or not rows:
             raise StoreError("input/candidates.json holds no candidates")
+        if max_age_days is not None:
+            try:
+                age = (dt.date.fromisoformat(night) - dt.date.fromisoformat(str(doc.get("exported")))).days
+            except (TypeError, ValueError):
+                raise StoreError("input/candidates.json has no usable export date") from None
+            if age > max_age_days or age < -1:
+                raise StoreError(f"the candidates export is {age} days old (the limit is {max_age_days})")
+        good = []
         for r in rows:
-            if not (isinstance(r, dict) and isinstance(r.get("code"), str) and isinstance(r.get("stored"), dict)):
-                raise StoreError("a candidate has the wrong shape")
-        return rows
+            c = _clean_candidate(r)
+            if c is not None:
+                good.append(c)
+        self.invalid = len(rows) - len(good)
+        if not good or self.invalid > MAX_INVALID_SHARE * len(rows):
+            raise StoreError(f"{self.invalid} of {len(rows)} candidates are invalid")
+        return good
 
     def load_canary(self) -> list[dict]:
         doc = self._json(CANARY, required=True)

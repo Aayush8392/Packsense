@@ -6,7 +6,8 @@
 
 Environment (names only; values live in GitHub secrets and variables): HF_NIGHTLY_WRITE_TOKEN, HF_NIGHTLY_REPO, HF_NIGHTLY_SCRATCH_REPO, GEMINI_API_KEY (not needed for fetch-only).
 Exit code: 0 = the night ran (it may have ended at the call ceiling, which is the normal end of a busy night); 1 = it stopped for a reason that must turn the run red (freeze broken, canary failed,
-wrong model, a run of 503s, the time limit) or a fetch failed in fetch-only; 2 = the input or the setup is wrong (a missing input file, a missing variable). A red night still writes its run record.
+wrong model, a run of 503s, OFF not answering, the time limit, too few lines for the products read) or a fetch failed in fetch-only; 2 = the input or the setup is wrong (a missing, invalid or stale input
+file, a missing variable); 3 = the night's results could not be saved after retries. A red night still writes its run record. Progress is saved every 50 settled products, so a crash loses at most that many.
 """
 from __future__ import annotations
 
@@ -26,7 +27,8 @@ from nightly import night as nt  # noqa: E402
 from nightly import queue_lib as ql  # noqa: E402
 from nightly import store as st  # noqa: E402
 
-RED_STOPS = {"freeze_broken", "canary_failed", "model_mismatch", "503_streak", "time_limit"}      # call_ceiling is a normal end
+RED_STOPS = {"freeze_broken", "canary_failed", "model_mismatch", "503_streak", "time_limit", "off_unavailable", "low_yield"}      # call_ceiling is a normal end
+MAX_EXPORT_AGE_DAYS = 2        # a real night refuses a candidates export older than this
 MODES = ("fetch-only", "scratch", "real")
 
 
@@ -73,18 +75,34 @@ def run(mode: str, env: dict, night: str, limit: int = 30, max_calls: int = bd.M
         return 2
     store = st.Store(backend_factory(env[repo_var], env["HF_NIGHTLY_WRITE_TOKEN"]))
     try:
-        candidates = store.load_candidates()
+        candidates = store.load_candidates(night, MAX_EXPORT_AGE_DAYS if mode == "real" else None)
         if mode == "fetch-only":
             return fetch_only(candidates, readers_factory(env, False), limit, out)
         canary, state = store.load_canary(), store.load_state()
     except st.StoreError as e:
         out(f"input error: {e}")
         return 2
-    summary = nt.run_night(state, candidates, readers_factory(env, True), budget_factory(max_calls=max_calls), night, canary, freeze_problems=freeze_problems)
-    store.save_night(night, state, summary)
+    saves = {"checkpoints": 0, "checkpoint_failures": 0}
+
+    def checkpoint(partial: dict) -> None:                        # a failed checkpoint is counted and the night goes on; the final save decides the exit code
+        try:
+            store.save_night(night, state, {**partial, "invalid_candidates": store.invalid, "partial": True})
+            saves["checkpoints"] += 1
+        except st.StoreError:
+            saves["checkpoint_failures"] += 1
+
+    summary = nt.run_night(state, candidates, readers_factory(env, True), budget_factory(max_calls=max_calls), night, canary, freeze_problems=freeze_problems, checkpoint=checkpoint)
+    summary["invalid_candidates"] = summary.get("invalid_candidates", 0) + store.invalid
+    summary.update(saves)
+    try:
+        store.save_night(night, state, summary)
+    except st.StoreError as e:
+        out(f"save error: {e}; this night's {len(summary['lines'])} lines and queue changes are lost (checkpoints saved {saves['checkpoints']}, failed {saves['checkpoint_failures']})")
+        return 3
     c = summary.get("canary") or {}
     out(f"night {night} ({mode}): stopped {summary['stopped']}, calls {summary.get('calls', 0)}, products {summary['products']}, lines {len(summary['lines'])}, "
-        f"silences {summary['silences'] or 'none'}, errors {summary['errors'] or 'none'}, canary {c.get('agreed', '-')}/{c.get('total', '-')}, queue {summary.get('queue')}")
+        f"silences {summary['silences'] or 'none'}, errors {summary['errors'] or 'none'}, canary {c.get('agreed', '-')}/{c.get('total', '-')}, invalid candidates {summary['invalid_candidates']}, "
+        f"checkpoints {saves['checkpoints']} (failed {saves['checkpoint_failures']}), queue {summary.get('queue')}")
     return 1 if summary["stopped"] in RED_STOPS else 0
 
 

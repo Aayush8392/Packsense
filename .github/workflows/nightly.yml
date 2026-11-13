@@ -45,6 +45,13 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install --no-cache-dir --require-hashes -r p8_steward/nightly/requirements.lock
+      # healthchecks.io dead-man's switch (the check `packsense-nightly`, expected daily): pinged only by a REAL night, never by a scratch or fetch-only drill (a drill would reset the clock and hide a
+      # missed real night). With no secret set the three ping steps do nothing, so the workflow runs the same before the check exists.
+      - name: Tell healthchecks.io the night started
+        env:
+          MODE: ${{ inputs.mode || 'real' }}
+          HEALTHCHECKS_NIGHTLY_PING_URL: ${{ secrets.HEALTHCHECK_NIGHTLY_URL }}
+        run: '[ "$MODE" = "real" ] && [ -n "$HEALTHCHECKS_NIGHTLY_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_NIGHTLY_PING_URL/start" || true'
       - name: Run the night (counts only in the log)
         env:
           MODE: ${{ inputs.mode || 'real' }}
@@ -57,3 +64,15 @@ jobs:
         run: |
           [[ "$LIMIT" =~ ^[0-9]+$ ]] && [[ "$MAX_CALLS" =~ ^[0-9]+$ ]] || { echo "limit and max_calls must be whole numbers"; exit 2; }
           python p8_steward/nightly/run_nightly.py --mode "$MODE" --limit "$LIMIT" --max-calls "$MAX_CALLS"
+      - name: Ping healthchecks.io (success)
+        if: success()
+        env:
+          MODE: ${{ inputs.mode || 'real' }}
+          HEALTHCHECKS_NIGHTLY_PING_URL: ${{ secrets.HEALTHCHECK_NIGHTLY_URL }}
+        run: '[ "$MODE" = "real" ] && [ -n "$HEALTHCHECKS_NIGHTLY_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_NIGHTLY_PING_URL" || true'
+      - name: Ping healthchecks.io (failure)
+        if: failure()
+        env:
+          MODE: ${{ inputs.mode || 'real' }}
+          HEALTHCHECKS_NIGHTLY_PING_URL: ${{ secrets.HEALTHCHECK_NIGHTLY_URL }}
+        run: '[ "$MODE" = "real" ] && [ -n "$HEALTHCHECKS_NIGHTLY_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_NIGHTLY_PING_URL/fail" || true'

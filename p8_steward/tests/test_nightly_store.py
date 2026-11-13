@@ -106,3 +106,82 @@ def test_a_night_that_stopped_early_still_writes_its_run_record():
     b = Backend()
     st.Store(b).save_night("n1", ql.new_state(), {"stopped": "canary_failed", "lines": []})
     assert json.loads(b.files["runs/n1.json"])["stopped"] == "canary_failed" and json.loads(b.files[st.CURRENT]) == {}
+
+
+# ---------------------------------------------------------------- hardening (2026-11-13)
+def cands_doc(rows, exported="2026-11-13"):
+    return {"exported": exported, "candidates": rows}
+
+
+def good(code="10000001", **stored):
+    return {"code": code, "stored": {"fat": 0.5, "salt": 0.06, **stored}, "new": False}
+
+
+def test_an_invalid_candidate_is_dropped_and_counted_and_unknown_fields_are_left_out():
+    b = Backend()
+    rows = [good(f"1000000{i}") for i in range(30)]
+    rows.append({"code": "30000099", "stored": {"fat": "abc"}, "new": False})                          # one in 31: under the 5% limit
+    rows[0]["stored"]["colour"] = "red"
+    put(b, st.CANDIDATES, cands_doc(rows))
+    s = st.Store(b)
+    got = s.load_candidates()
+    assert len(got) == 30 and s.invalid == 1 and got[0]["stored"] == {"fat": 0.5, "salt": 0.06} and "30000099" not in {c["code"] for c in got}
+
+
+def test_each_kind_of_invalid_candidate_is_recognised():
+    for bad in ({"code": "12", "stored": {"fat": 1}}, {"code": "10000001", "stored": {"fat": -1}}, {"code": "10000001", "stored": {"fat": float("nan")}},
+                {"code": "10000001", "stored": {"fat": True}}, {"code": "10000001", "stored": {"fat": 1e9}}, {"code": "10000001", "stored": "x"}, {"code": 10000001, "stored": {}}, "x"):
+        b = Backend()
+        put(b, st.CANDIDATES, cands_doc([good(f"2000000{i}") for i in range(30)] + [bad]))
+        s = st.Store(b)
+        s.load_candidates()
+        assert s.invalid == 1, bad
+
+
+def test_a_broken_export_is_an_error_not_a_smaller_night():
+    b = Backend()
+    put(b, st.CANDIDATES, cands_doc([good(f"1000000{i}") for i in range(8)] + [{"code": "x", "stored": {}}] * 2))        # 2 of 10 invalid
+    with pytest.raises(st.StoreError):
+        st.Store(b).load_candidates()
+    put(b, st.CANDIDATES, cands_doc([{"code": "x", "stored": {}}]))
+    with pytest.raises(st.StoreError):
+        st.Store(b).load_candidates()
+
+
+def test_a_stale_or_undated_export_is_refused_only_when_a_limit_is_asked_for():
+    b = Backend()
+    s = st.Store(b)
+    put(b, st.CANDIDATES, cands_doc([good()], exported="2026-11-10"))
+    assert len(s.load_candidates()) == 1                                                                # no limit asked (scratch, fetch-only)
+    assert len(s.load_candidates("2026-11-12", 2)) == 1                                                  # 2 days: allowed
+    with pytest.raises(st.StoreError, match="3 days old"):
+        s.load_candidates("2026-11-13", 2)
+    put(b, st.CANDIDATES, {"candidates": [good()]})
+    with pytest.raises(st.StoreError, match="no usable export date"):
+        s.load_candidates("2026-11-13", 2)
+    put(b, st.CANDIDATES, cands_doc([good()], exported="2026-12-01"))
+    with pytest.raises(st.StoreError):
+        s.load_candidates("2026-11-13", 2)                                                              # an export from the future is wrong too
+
+
+class FakeApi:
+    def __init__(self, fail_times):
+        self.fail_times, self.calls = fail_times, 0
+
+    def create_commit(self, **kw):
+        self.calls += 1
+        if self.calls <= self.fail_times:
+            raise ConnectionError("hub down")
+        self.kw = kw
+
+
+def test_the_real_backend_retries_a_failed_commit_and_gives_up_with_a_clear_error():
+    waits = []
+    ok = FakeApi(2)
+    st.HfBackend("o/r", "t", api=ok, sleep=waits.append).commit({"a.json": b"{}"}, "m")
+    assert ok.calls == 3 and waits == [5, 20] and ok.kw["repo_type"] == "dataset" and ok.kw["commit_message"] == "m"
+    waits.clear()
+    dead = FakeApi(99)
+    with pytest.raises(st.StoreError, match=r"failed after 3 tries \(ConnectionError\)") as e:
+        st.HfBackend("o/r", "t", api=dead, sleep=waits.append).commit({"a.json": b"{}"}, "m")
+    assert dead.calls == 3 and waits == [5, 20] and "hub down" not in str(e.value)

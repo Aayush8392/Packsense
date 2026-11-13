@@ -1,5 +1,5 @@
 {
- "written_utc": "2026-11-13 11:27:17",
+ "written_utc": "2026-11-13 12:44:30",
  "record": {
   "model": "gemini-3.5-flash-lite",
   "prompts": {
@@ -27,13 +27,13 @@
    "p8_steward/guard_v2.py": "3ca650890168a813c95bc91050a46737ae95a7366eced78afa0a4195afa7c2e0",
    "p8_steward/repair_record.py": "561a2cd8fd34fff02f960f6f5810015afa4e1334167513aea1832e15df36589b",
    "p8_steward/nightly/budget.py": "0702d377123c0ba38e8065bc20a96ee49935ae1d0c3df42217f06ffa77985235",
-   "p8_steward/nightly/queue_lib.py": "e21c837b089bc9bcfb037c374bd7023984e4764c9b38ba26ce3a7bdbc61c8be4",
+   "p8_steward/nightly/queue_lib.py": "9e8d553abf6e054a17eeba6888da268d6c31c95c666b4eef51305d1109df5093",
    "p8_steward/nightly/line_record.py": "ab695f3b3792b387b5bbdc8a7f5911290356fcf6bbf4c9ef85fbddca2f63d5a3",
    "p8_steward/nightly/canary.py": "6af4fb34814cb64b2cba97281dfe64bf56682b7a62ef0b28b3dfb0f1bfdda7db",
-   "p8_steward/nightly/night.py": "4406ac51bcd2b026263a201fa06910c6a2ac887b792f0892babb55f7062e1314",
+   "p8_steward/nightly/night.py": "90ba06b36dec5db8499882a164eba849b2d3e5cb59bde5fab00b6ce17d010b27",
    "p8_steward/nightly/freeze_nightly.py": "61efe5df4e5ea1fcf26baec1e21db78db9c87fb7109f0722f0e9ff3b3de7fb01",
-   "p8_steward/nightly/store.py": "39faa4264b1a189f53f210cc801ea10a0c89659b711a79bf4d3b89d003c498a2",
-   "p8_steward/nightly/run_nightly.py": "bc205bef4b768f307159b5b61d914bd566be98083d78e19cb15dc90fc3cc348d",
+   "p8_steward/nightly/store.py": "1d20f936bdc9dd36c5dcd7ada0bb0aaf003ffa71ead07331a7b0fc23cf5b0349",
+   "p8_steward/nightly/run_nightly.py": "8b50463c6d0bb5b3be825a1a6ba03af26307fd824bba7891f292fbe03de1574c",
    "p8_steward/nightly/requirements.lock": "e7435c415fedcb0a523211645346e19894919bb725d6402c64f1aa5e42787af6",
    "p8_steward/nightly/readers.py": "92589d9b53f1570cb03441e129fcb02f5740e62eb37e8d7752ec7fb72cd783a8",
    "p8_steward/bootstrap/fetch_ocr_text.py": "5b9efabef5bd81c95b933a3812b69ca79a2388824379311d0a755e8dcb150a91",

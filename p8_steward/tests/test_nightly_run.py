@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "bootstrap"))
 import photo_method as pm  # noqa: E402
 from nightly import budget as bd  # noqa: E402
 from nightly import run_nightly as rn  # noqa: E402
+from nightly import night as nt_module  # noqa: E402
 from nightly import store as st  # noqa: E402
 
 TEXT = "Nutrition facts per 100 g Energy 376 kJ / 90 kcal Fat 0.5 g Saturates 0.3 g Carbohydrate 8.9 g Sugars 6.5 g Protein 12.4 g Salt 0.06 g"
@@ -28,10 +29,10 @@ class Backend:
         self.files.update(files)
 
 
-def inputs(n=3, canary=3):
+def inputs(n=3, canary=3, exported="2026-11-13"):
     cands = [{"code": f"3000000{i}", "stored": STORED, "new": i == 0} for i in range(n)]
     can = [{"code": f"2000000{i}", "stored": STORED, "expected": VALUES} for i in range(canary)]
-    return {st.CANDIDATES: json.dumps({"exported": "d", "candidates": cands}).encode(), st.CANARY: json.dumps({"canary": can}).encode()}
+    return {st.CANDIDATES: json.dumps({"exported": exported, "candidates": cands}).encode(), st.CANARY: json.dumps({"canary": can}).encode()}
 
 
 def entry(values=VALUES, model=pm.MODEL):
@@ -111,3 +112,62 @@ def test_scratch_mode_reads_the_scratch_variable_not_the_real_one():
     rn.run("scratch", ENV, "n", backend_factory=lambda repo, tok: seen.append(repo) or Backend(inputs()), readers_factory=lambda e, need: Readers(),
            freeze_problems=lambda: [], budget_factory=lambda **b: bd.Budget(sleep=lambda s: None, **b), out=lambda s: None)
     assert seen == ["owner/scratch"]
+
+
+# ---------------------------------------------------------------- hardening (2026-11-13)
+class FlakyBackend(Backend):
+    """Every commit fails (fail_from=0) or only the ones from the n-th on."""
+
+    def __init__(self, files=None, fail_from=0):
+        super().__init__(files)
+        self.n, self.fail_from = 0, fail_from
+
+    def commit(self, files, message):
+        self.n += 1
+        if self.n > self.fail_from:
+            raise st.StoreError("saving to the results dataset failed after 3 tries (ConnectionError)")
+        super().commit(files, message)
+
+
+def test_a_real_night_refuses_a_stale_export_but_scratch_and_fetch_only_do_not():
+    old = inputs(exported="2026-11-01")
+    out = []
+    assert go("real", Backend(old), Readers(), out) == 2 and "export is 12 days old" in out[0]
+    assert go("scratch", Backend(old), Readers(), []) == 0
+    assert go("fetch-only", Backend(old), Readers(), []) == 0
+
+
+def test_a_failed_final_save_is_exit_3_with_the_loss_stated_and_no_values_printed():
+    b, out = FlakyBackend(inputs()), []
+    assert go("real", b, Readers(), out) == 3
+    assert out[0].startswith("save error: saving to the results dataset failed after 3 tries (ConnectionError); this night's 3 lines") and "3000000" not in out[0]
+
+
+def test_checkpoints_save_progress_during_the_night_and_a_failed_checkpoint_does_not_stop_it(monkeypatch):
+    monkeypatch.setattr(nt_module, "CHECKPOINT_EVERY", 2)
+    b, out = Backend(inputs(n=7)), []
+    assert go("real", b, Readers(), out) == 0
+    assert len(b.commits) == 4 and "checkpoints 3 (failed 0)" in out[0]                      # 7 products: checkpoints after 2, 4 and 6, then the final save
+    b2, out2 = FlakyBackend(inputs(n=7), fail_from=0), []
+    assert go("real", b2, Readers(), out2) == 3 and b2.n == 4                               # every save fails: three checkpoints and the final one were tried
+
+
+def test_an_off_outage_is_a_red_night_that_still_writes_its_record_and_charges_nobody():
+    class OffDown(Readers):
+        def fetch(self, code):
+            if code.startswith("2"):
+                return super().fetch(code)
+            raise rn.nt.TransientError("OFF answered HTTP 503")
+
+    b, out = Backend(inputs(n=9)), []
+    assert go("real", b, OffDown(), out) == 1 and "stopped off_unavailable" in out[0]
+    assert json.loads(b.files["queue.json"])["done"] == {} and all(i["attempts"] == 0 for i in json.loads(b.files["queue.json"])["items"].values())
+
+
+def test_the_summary_counts_invalid_candidates_without_naming_them():
+    files = inputs(n=40)
+    doc = json.loads(files[st.CANDIDATES])
+    doc["candidates"].append({"code": "30000099", "stored": {"fat": "abc"}, "new": False})
+    files[st.CANDIDATES] = json.dumps(doc).encode()
+    out = []
+    assert go("real", Backend(files), Readers(), out) == 0 and "invalid candidates 1" in out[0] and "30000099" not in out[0]

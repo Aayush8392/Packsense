@@ -9,10 +9,12 @@ A product that is no longer a candidate (its flag closed) leaves the state entir
 """
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 
 MAX_ATTEMPTS = 3
 CALLS_PER_PRODUCT = 2       # text reader + photo reader
+GAVE_UP_RETRY_DAYS = 14     # a product given up on is read afresh after this many days (a long outage must not drop it for good)
 
 
 def new_state() -> dict:
@@ -27,6 +29,13 @@ def _fresh(candidate: dict, today: str, new: bool) -> dict:
     return {"first_seen": today, "attempts": 0, "last_attempt": None, "record_hash": candidate["record_hash"], "new": new, "last_reason": None}
 
 
+def _age_days(then: str, today: str) -> int:
+    try:
+        return (dt.date.fromisoformat(today) - dt.date.fromisoformat(then)).days
+    except (ValueError, TypeError):
+        return 0
+
+
 def merge_candidates(state: dict, candidates: list[dict], today: str) -> dict:
     """candidates: [{'code', 'record_hash', 'new': bool}] = every product whose flag is open today. Returns counts of what changed."""
     cand = {c["code"]: c for c in candidates}
@@ -39,10 +48,12 @@ def merge_candidates(state: dict, candidates: list[dict], today: str) -> dict:
     for code, c in cand.items():
         h = c["record_hash"]
         if code in done:
-            if done[code]["record_hash"] == h:
+            d = done[code]
+            retry = d["outcome"] == "gave_up" and _age_days(d["night"], today) >= GAVE_UP_RETRY_DAYS
+            if d["record_hash"] == h and not retry:
                 continue
             del done[code]
-            items[code] = _fresh(c, today, True)           # the record changed: read afresh, as a new item
+            items[code] = _fresh(c, today, True if d["record_hash"] != h else bool(c.get("new")))   # a changed record is read afresh as a new item; a retry keeps its tier
             requeued += 1
         elif code in items:
             if items[code]["record_hash"] != h:

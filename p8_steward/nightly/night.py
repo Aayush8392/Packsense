@@ -53,7 +53,10 @@ def process_product(cand: dict, readers, budget: Budget, night: str, model: str 
     code, stored, c0 = cand["code"], cand["stored"], budget.calls
     spent = lambda: budget.calls - c0  # noqa: E731
     try:
-        got = readers.fetch(code)
+        try:
+            got = readers.fetch(code)
+        except TransientError:                                # OFF did not answer: kept apart from a model outage, because the night watches the two differently
+            return _result(code, "error", "fetch_unavailable", calls=spent())
         text = got.get("ocr_text") or ""
         if not got.get("has_photo"):
             return _result(code, "silence", "no_photo", calls=spent())
@@ -106,39 +109,82 @@ def run_canary(canary_rows: list[dict], readers, budget: Budget, night: str, mod
     return cn.compare(produced, {r["code"]: r["expected"] for r in canary_rows}, max_miss)
 
 
-def run_night(state: dict, candidates: list[dict], readers, budget: Budget, night: str, canary_rows: list[dict], freeze_problems=fz.problems, model: str = pm.MODEL) -> dict:
+OFF_STREAK = 5               # provisional: consecutive products whose OFF fetch failed before the night stops (red)
+LOW_YIELD = 0.40             # provisional: a night with fewer lines than this share of its products (and enough products) goes red; stage 1a gave 65%, batch A 74.5%
+LOW_YIELD_MIN_PRODUCTS = 30
+CHECKPOINT_EVERY = 50        # settled products between two saves
+TRANSIENT = ("unavailable", "fetch_unavailable")
+
+
+def run_night(state: dict, candidates: list[dict], readers, budget: Budget, night: str, canary_rows: list[dict], freeze_problems=fz.problems, model: str = pm.MODEL,
+              checkpoint=None, checkpoint_every: int | None = None, off_streak: int | None = None) -> dict:
     """candidates: [{'code', 'stored', 'new': bool}] = every product whose flag is open tonight. Updates `state` in place; returns the night's summary.
-    Order: freeze check, canary, then the queue (new, missed, backlog). Any Stop ends the night with its reason; products not finished stay in the queue untouched."""
-    out = {"stopped": None, "canary": None, "lines": [], "silences": {}, "errors": {}, "products": 0, "merge": None}
+    Order: freeze check, canary, then the queue (new, missed, backlog). Any Stop ends the night with its reason; products not finished stay in the queue untouched.
+    A transient failure (OFF or the model did not answer) is charged to the product ONLY when a later product gets through (a line or a silence): in an outage, nobody is charged, and a run of
+    `off_streak` failed fetches ends the night (red). `checkpoint(summary)` is called every `checkpoint_every` settled products, so a crash loses at most that many."""
+    out = {"stopped": None, "canary": None, "lines": [], "silences": {}, "errors": {}, "products": 0, "merge": None, "invalid_candidates": 0}
     problems = freeze_problems()
     if problems:
         out["stopped"] = "freeze_broken"
         out["freeze_problems"] = problems
         return out
+    every, limit = checkpoint_every or CHECKPOINT_EVERY, off_streak or OFF_STREAK
+    pending: list[tuple[str, str]] = []                       # transient failures not yet charged
+    streak = settled = 0
+
+    def fill() -> None:
+        out["calls"] = budget.calls
+        out["queue"] = ql.counts(state)
+
+    def flush() -> None:
+        for c, reason in pending:
+            ql.settle(state, c, "error", night, reason)
+        pending.clear()
+
     try:
         out["canary"] = run_canary(canary_rows, readers, budget, night, model)
         if not out["canary"]["passed"]:
             raise Stop("canary_failed")
-        cands = {c["code"]: c for c in candidates}
-        for c in cands.values():
-            c.setdefault("record_hash", lr.record_hash(c["stored"]))
+        cands = {}
+        for c in candidates:                                  # a candidate that cannot be hashed is skipped and counted, never fatal
+            try:
+                cands[c["code"]] = {**c, "record_hash": c.get("record_hash") or lr.record_hash(c["stored"])}
+            except (KeyError, TypeError, ValueError):
+                out["invalid_candidates"] += 1
         out["merge"] = ql.merge_candidates(state, list(cands.values()), night)
         for code in ql.take(state, night, 10 ** 9):
             if budget.remaining() < ql.CALLS_PER_PRODUCT:
                 raise Stop("call_ceiling")
             r = process_product(cands[code], readers, budget, night, model)
             out["products"] += 1
+            if r["outcome"] == "error" and r["reason"] in TRANSIENT:
+                out["errors"][r["reason"]] = out["errors"].get(r["reason"], 0) + 1
+                pending.append((code, r["reason"]))
+                streak = streak + 1 if r["reason"] == "fetch_unavailable" else streak
+                if streak >= limit:
+                    raise Stop("off_unavailable")
+                continue
             if r["outcome"] == "line":
+                streak = 0
+                flush()
                 ql.settle(state, code, "line", night)
                 out["lines"].append(r["line"])
             elif r["outcome"] == "silence":
+                streak = 0
+                flush()
                 ql.settle(state, code, "silence", night, r["reason"])
                 out["silences"][r["reason"]] = out["silences"].get(r["reason"], 0) + 1
-            else:
+            else:                                             # a failure of this product alone: charged at once
                 ql.settle(state, code, "error", night, r["reason"])
                 out["errors"][r["reason"]] = out["errors"].get(r["reason"], 0) + 1
+            settled += 1
+            if checkpoint and settled % every == 0:
+                fill()
+                checkpoint(out)
+        flush()                                               # the loop ended normally: the last failures stand
+        if out["products"] >= LOW_YIELD_MIN_PRODUCTS and len(out["lines"]) / out["products"] < LOW_YIELD:
+            raise Stop("low_yield")
     except Stop as s:
-        out["stopped"] = s.reason
-    out["calls"] = budget.calls
-    out["queue"] = ql.counts(state)
+        out["stopped"] = s.reason                             # pending failures are NOT charged: a Stop means the service, not the products, was the problem
+    fill()
     return out
