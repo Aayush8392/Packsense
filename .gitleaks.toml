@@ -28,3 +28,15 @@ targetRules = ["generic-api-key"]
 paths = ['''p4_modelling/models/portable/dim_brand_canonical\.sql''']
 regexTarget = "line"
 regexes = ['''when k\.key_r2 = c\.canonical_key_r2 then''']
+
+# The freeze record of the nightly job (p8_steward/nightly/freeze.json, added 2026-11-13) holds one sha256 per method file, keyed by the file's path. Two of those paths contain the word
+# 'key' (answer_key_lib.py, history_key_scan_check.py), and the generic-api-key rule reads `<name containing key>": "<64 hex characters>"` as a credential (entropy 3.66 and 3.81, the rule
+# flags 3.5 and above). They are derived hashes of public source files, not secrets. Both conditions must hold (condition = "AND"): the file AND a whole line that is a quoted p8_steward/ path
+# followed by a 64-character hex value, so a real secret of any other shape, or in any other file, still fails the scan, and so does any other rule matching in this file.
+[[allowlists]]
+description = "sha256 hashes of method files in the nightly freeze record"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = ['''p8_steward/nightly/freeze\.json''']
+regexTarget = "line"
+regexes = ['''^\s*"p8_steward/[A-Za-z0-9_./-]+":\s*"[0-9a-f]{64}",?\s*$''']
