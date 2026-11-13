@@ -2,7 +2,7 @@ import { useId, useMemo, useState, type ReactNode } from 'react';
 import { GRAIN_WORDS, MIN_BUCKETS, grainsFrom, rollUp, type Grain } from '../data/rollup';
 import { Segmented } from '../components/pageParts';
 import { formatPeriod } from '../format';
-import { LineChart, type LineSeries } from './LineChart';
+import { LineChart, type ChartForm, type LineSeries } from './LineChart';
 import { clampStart, windowSize } from './window';
 import { PadRows, Pager, padCount, pageWindow } from './Pager';
 
@@ -30,13 +30,15 @@ export interface ChartCardProps {
   zeroBase?: boolean;
   /** One sentence shown under the controls when the view is weeks or months: what a total of days means for this chart. */
   rollNote?: string;
+  /** How the points are drawn (default a line); columns and stacked areas keep the window, the views and the tip of a line chart. */
+  form?: ChartForm;
 }
 
 /**
  * A chart in a card, with a button that shows the very same numbers as a table. The table lists the newest first, ten rows to a
  * page, so it stays short however many days the data grows to. Each card opens and closes on its own.
  */
-export function ChartCard({ title, note, series: own, format, unknownText, compact = false, headingLevel = 3, caption, axisFormat, rowHeading, pagerNoun, nativeGrain = 'day', zeroBase = true, rollNote }: ChartCardProps) {
+export function ChartCard({ title, note, series: own, format, unknownText, compact = false, headingLevel = 3, caption, axisFormat, rowHeading, pagerNoun, nativeGrain = 'day', zeroBase = true, rollNote, form = 'line' }: ChartCardProps) {
   const id = useId();
   const [asTable, setAsTable] = useState(false);
   const [page, setPage] = useState(0);
@@ -130,7 +132,7 @@ export function ChartCard({ title, note, series: own, format, unknownText, compa
           Showing {formatPeriod(days[first], grain)} to {formatPeriod(days[first + size - 1], grain)}. Drag the chart, or use the buttons, to move.
         </p>
       )}
-      <LineChart series={series} format={axisFormat ?? format} label={title} compact={compact} grain={grain} size={size} start={first} onStart={setFrom} zeroBase={zeroBase} />
+      <LineChart series={series} format={axisFormat ?? format} label={title} compact={compact} grain={grain} size={size} start={first} onStart={setFrom} zeroBase={zeroBase} form={form} />
       {hasPartial && <p className="chart-card__window">A hollow point covers only part of its {word.one}.</p>}
       {caption && <p className="chart-card__caption">{caption}</p>}
       <button type="button" className="button button--quiet" aria-expanded={asTable} aria-controls={`${id}-table`} onClick={toggle}>

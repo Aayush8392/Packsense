@@ -281,3 +281,40 @@ describe('the tip that says what a mark stands for', () => {
     expect(container.querySelector('.chart-tip')).toBeNull();
   });
 });
+
+describe('columns and stacked areas', () => {
+  const up: LineSeries = { id: 'up', label: 'Added', points: [{ day: '2026-10-04', value: 100 }, { day: '2026-10-11', value: 50 }, { day: '2026-10-18', value: null }], marker: 'circle', color: 'var(--primary)' };
+  const down: LineSeries = { id: 'down', label: 'Removed', points: [{ day: '2026-10-04', value: 10 }, { day: '2026-10-11', value: 20 }, { day: '2026-10-18', value: 5 }], marker: 'triangle', color: 'var(--secondary)', below: true };
+
+  it('draws a column for every known value, with a series marked below hanging under the zero line', () => {
+    const { container } = render(<LineChart series={[up, down]} format={format} label="Flow" form="columns" grain="week" />);
+    const columns = [...container.querySelectorAll('.chart__column')];
+    expect(columns).toHaveLength(5); // two known values up, three down: the unknown value has no column
+    const zero = Number(container.querySelector('.chart__zero')?.getAttribute('y1'));
+    const [topOfUp] = columns.map((c) => Number(c.getAttribute('y')));
+    const lastDown = columns[columns.length - 1];
+    expect(topOfUp).toBeLessThan(zero);
+    expect(Number(lastDown.getAttribute('y'))).toBeCloseTo(zero, 0);
+    const ticks = [...container.querySelectorAll('.chart__tick')].map((t) => t.textContent ?? '');
+    expect(ticks.some((t) => t.startsWith('-'))).toBe(false); // the way down is labelled with its size, not a minus sign
+  });
+
+  it('names the week and both values in the tip', () => {
+    const { container } = render(<LineChart series={[up, down]} format={format} label="Flow" form="columns" grain="week" />);
+    fireEvent.keyDown(screen.getByRole('group'), { key: 'ArrowRight' });
+    expect(container.querySelector('.chart-tip')?.textContent).toContain('4 Oct 2026');
+    expect(container.querySelector('.chart-tip')?.textContent).toContain('Removed');
+  });
+
+  it('stacks areas in series order, tells the total in the tip, and draws the second one hatched', () => {
+    const second: LineSeries = { ...down, id: 'second', label: 'Information', below: undefined, points: down.points.map((p) => ({ ...p, value: (p.value ?? 0) * 3 })) };
+    const first: LineSeries = { ...up, points: up.points.map((p) => ({ ...p, value: p.value ?? 0 })) };
+    const { container } = render(<LineChart series={[first, second]} format={format} label="Stack" form="area" grain="week" />);
+    const shapes = container.querySelectorAll('polygon');
+    expect(shapes).toHaveLength(2);
+    expect(shapes[1].getAttribute('fill')).toContain('url(#');
+    fireEvent.keyDown(screen.getByRole('group'), { key: 'ArrowRight' });
+    expect(container.querySelector('.chart-tip')?.textContent).toContain('Together');
+    expect(container.querySelector('.chart-tip')?.textContent).toContain('130'); // 100 + 10 * 3
+  });
+});

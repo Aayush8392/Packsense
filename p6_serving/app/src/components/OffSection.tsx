@@ -41,7 +41,6 @@ function busiest(points: DayPoint[]): { day: string; value: number } | null {
 
 const LINE_A = { marker: 'circle', color: 'var(--primary)' } as const;
 const LINE_B = { marker: 'triangle', dash: '6 4', color: 'var(--secondary)' } as const;
-const LINE_C = { marker: 'diamond', dash: '2 4', color: 'var(--fg-muted)' } as const;
 
 const week = { nativeGrain: 'week' as const, rowHeading: 'Week ending', pagerNoun: 'weeks', unknownText: HIDDEN, axisFormat: formatCompact, format: formatCount };
 
@@ -92,14 +91,16 @@ function Charts({ weekly, open }: { weekly: OffWeeklyRow[]; open: OffOpenFlagRow
       />
       <ChartCard
         {...week}
+        form="columns"
         title="Products added and removed each week"
-        note="Products that appear in one snapshot and not the one before, and products that disappear. A product that was moved or merged can show as removed."
-        series={[series('added', 'Added', added, LINE_A, 'sum'), series('removed', 'Removed', removed, LINE_B, 'sum')]}
+        note="Products that appear in one snapshot and not the one before (up), and products that disappear (down). A product that was moved or merged can show as removed."
+        series={[series('added', 'Added', added, LINE_A, 'sum'), { ...series('removed', 'Removed', removed, LINE_B, 'sum'), below: true, color: 'var(--accent)' }]}
         caption={`${lastWeekWords(added, 'products were added')} ${lastWeekWords(removed, 'were removed').replace(/^In the week ending [^,]+, /, 'In the same week, ')}`}
       />
       <ChartCard
         {...week}
         rollNote="In months, a product edited in two weeks is counted once in each, so a month's total is edits of products, not different products."
+        form="columns"
         title="Products edited each week"
         note="Products whose last-edited time changed between two snapshots. A very busy week can come from one large automated change; the file does not say who edited."
         series={[series('edited', 'Products edited', edited, LINE_A, 'sum')]}
@@ -134,9 +135,10 @@ function Charts({ weekly, open }: { weekly: OffWeeklyRow[]; open: OffOpenFlagRow
       <ChartCard
         {...week}
         rowHeading="Snapshot date"
+        form="area"
         title="Open warning and information flags"
-        note="Warnings and information flags, open at each snapshot. Most of them are about data that Open Food Facts works out itself."
-        series={[series('warnings', 'Warnings', warnings, LINE_B, 'last'), series('info', 'Information', info, LINE_C, 'last')]}
+        note="Warnings (bottom) and information flags (on top, stacked), open at each snapshot, so the top edge is the two together. Most of them are about data that Open Food Facts works out itself. Errors have their own chart above."
+        series={[series('warnings', 'Warnings', warnings, LINE_A, 'last'), { ...series('info', 'Information', info, LINE_B, 'last'), color: 'var(--accent)' }]}
         caption={firstToLast(warnings, 'open warning flags')}
       />
       {kinds && (

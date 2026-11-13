@@ -216,6 +216,14 @@
   font-size: var(--text-label);
   font-family: var(--font-body);
 }
+.chart__zero {
+  stroke: var(--fg-muted);
+  stroke-width: 1;
+}
+.chart__band {
+  fill: var(--soft);
+  opacity: 0.7;
+}
 .chart__cursor {
   stroke: var(--secondary);
   stroke-width: 1;
