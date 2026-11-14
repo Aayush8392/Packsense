@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { pageBySlug } from '../content';
+import { StoryScroll } from '../story/StoryScroll';
 import { showChat } from '../lookup/chatState';
 import { JumpLink, useJump } from '../nav/JumpLink';
 import { splitBlocks } from '../content/parse';
@@ -193,6 +194,8 @@ export function Home({ now: given }: { now?: Date }) {
           Some figures could not be loaded just now. The rest of the page works; try again in a little while.
         </p>
       )}
+
+      <StoryScroll />
 
       <section className="right-now" aria-labelledby="right-now-heading">
         <h2 id="right-now-heading">
