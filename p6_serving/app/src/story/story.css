@@ -4,11 +4,11 @@
   block-size: 0;
 }
 .story__waiting {
-  height: calc(var(--story-screens, 5) * 100svh);
+  height: calc(var(--story-screens, 14) * 100svh);
 }
 .story {
   position: relative;
-  height: calc(var(--story-screens, 5) * 100svh);
+  height: calc(var(--story-screens, 14) * 100svh);
   margin-block: var(--space-xl, 2.5rem);
 }
 .story__skip:not(:focus) {
@@ -288,6 +288,20 @@
   font-family: var(--font-heading);
   font-size: var(--text-title);
 }
+.story__progress {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3px;
+  background: color-mix(in srgb, var(--primary-mid) 22%, transparent);
+}
+.story__progress span {
+  display: block;
+  height: 100%;
+  background: var(--primary-mid);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
 .story__dots {
   position: absolute;
   inset-inline: 0;
@@ -330,7 +344,7 @@
 }
 @media (max-width: 40rem) {
   .story {
-    --story-screens: 4;
+    --story-screens: 11;
   }
   .st-row {
     grid-template-columns: 7.2em 1fr;

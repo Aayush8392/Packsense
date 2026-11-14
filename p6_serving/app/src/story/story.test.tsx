@@ -84,6 +84,7 @@ describe('the timeline', () => {
     const { container } = render(
       <div className="story__stage">
         <World data={data} />
+        <div data-el="progress" />
         <ol>
           {captions(data).map((c) => (
             <li key={c.title} data-el="caption" />
@@ -102,6 +103,15 @@ describe('the timeline', () => {
 
   it('is exactly 100 units long, so a position is a percent of the scroll', () => {
     expect(stage().tl.duration()).toBe(100);
+  });
+
+  it('draws a progress bar that is full at the end of the scroll and half full halfway', () => {
+    const { at, root } = stage();
+    const bar = root.querySelector('[data-el="progress"]') as HTMLElement;
+    at(0.5);
+    expect(Number(gsap.getProperty(bar, 'scaleX'))).toBeCloseTo(0.5, 2);
+    at(1);
+    expect(Number(gsap.getProperty(bar, 'scaleX'))).toBe(1);
   });
 
   it('starts with only the file in view and the rest waiting at the side', () => {

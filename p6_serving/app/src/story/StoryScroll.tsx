@@ -142,7 +142,7 @@ export function StoryStage({ data, onReady }: StoryStageProps) {
         trigger: sectionEl,
         start: () => `top ${headerHeight()}px`,
         end: () => `bottom ${headerHeight() + stageEl.offsetHeight}px`,
-        scrub: 0.5,
+        scrub: 1.2,
         invalidateOnRefresh: true,
         onUpdate: (self) => setBeat(beatAt(self.progress * 100)),
       });
@@ -187,6 +187,9 @@ export function StoryStage({ data, onReady }: StoryStageProps) {
               </li>
             ))}
           </ol>
+          <div className="story__progress" aria-hidden="true">
+            <span data-el="progress" />
+          </div>
           <ol className="story__dots" aria-hidden="true">
             {BEATS.map((b, i) => (
               <li key={b.id} data-on={activeBeat === i}></li>

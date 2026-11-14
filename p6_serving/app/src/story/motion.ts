@@ -160,6 +160,9 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
     if (i < captions.length - 1) tl.to(caption, { opacity: 0, y: -14, duration: 3, ease: 'power1.in' }, to - 3);
   });
 
+  // A thin bar along the foot of the stage shows how far through the story the scroll is.
+  tl.fromTo(one('progress'), { scaleX: 0 }, { scaleX: 1, duration: 100, ease: 'none' }, 0);
+
   tl.set({}, {}, 100); // the timeline is exactly 100 units long
   return tl;
 }
