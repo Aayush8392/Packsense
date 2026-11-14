@@ -56,6 +56,7 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
   gsap.set(one('titleB'), { opacity: 0, y: 8 });
   gsap.set(chip, { opacity: 0 });
   gsap.set(cards, { opacity: 0 });
+  gsap.set(root.querySelectorAll('.st-card > *'), { opacity: 0 });
   gsap.set(one('more'), { opacity: 0 });
   gsap.set(links, { strokeDasharray: 1, strokeDashoffset: 1 });
   gsap.set(bars, { scaleY: 0, transformOrigin: '50% 100%' });
@@ -143,30 +144,29 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
     56,
   );
 
-  // 64 to 80: the table closes into one record and eight tables burst out of it, with the count of tables ticking up.
+  // 64 to 72: the table closes into one record and settles. Nothing else moves until it has.
   tl.to(root.querySelectorAll('.st-fade'), { opacity: 0, duration: 3 }, 64);
   tl.to(table, { scale: 0.2, duration: 6, ease: 'power3.inOut' }, 65);
   tl.to(chip, { opacity: 1, duration: 2 }, 69);
   tl.to(table, { opacity: 0, duration: 2 }, 69.5);
-  tl.fromTo(
-    cards,
-    {
-      opacity: 0,
-      scale: 0.2,
-      x: (_index: number, card: HTMLElement) => fromCentre(card, 'x'),
-      y: (_index: number, card: HTMLElement) => fromCentre(card, 'y'),
-    },
-    { opacity: 1, scale: 1, x: 0, y: 0, duration: 6, stagger: 1.2, ease: 'power3.out' },
-    68,
-  );
-  tl.to(one('more'), { opacity: 1, duration: 2 }, 76);
-  const tables = { n: 0 };
-  tl.to(tables, { n: data.tableCount, duration: 7, ease: 'none', onUpdate: () => (tableCount.textContent = String(Math.round(tables.n))) }, 70);
 
-  // 80 to 91: the record turns into its barcode, and a line is drawn from it to every table: one barcode ties them together.
+  // 72 to 81: the tables come out of the record one after another. Each starts as a speck at the record, solid and behind it, and grows
+  // and slides out to its place; its text shows only once it has grown. The count of tables ticks up as they come out.
+  const BURST = 72;
+  cards.forEach((card, i) => {
+    const start = BURST + i * 1.0;
+    tl.fromTo(card, { scale: 0.12, x: () => fromCentre(card, 'x'), y: () => fromCentre(card, 'y') }, { scale: 1, x: 0, y: 0, duration: 6, ease: 'power3.out' }, start);
+    tl.fromTo(card, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'none', immediateRender: false }, start);
+    tl.fromTo(Array.from(card.children), { opacity: 0 }, { opacity: 1, duration: 2.5, stagger: 0.15, ease: 'power1.out', immediateRender: false }, start + 3);
+  });
+  tl.to(one('more'), { opacity: 1, duration: 2 }, 79.5);
+  const tables = { n: 0 };
+  tl.to(tables, { n: data.tableCount, duration: 6, ease: 'none', onUpdate: () => (tableCount.textContent = String(Math.round(tables.n))) }, 74);
+
+  // 81 to 91: the record turns into its barcode, and a line is drawn from it to every table: one barcode ties them together.
   const barcode = { t: 0 };
-  tl.to(barcode, { t: 1, duration: 4, ease: 'none', onUpdate: () => (chip.textContent = scrambleMix('1 record', data.code, barcode.t)) }, 80);
-  tl.to(links, { strokeDashoffset: 0, duration: 4, stagger: 1.4, ease: 'power2.inOut' }, 83);
+  tl.to(barcode, { t: 1, duration: 3.5, ease: 'none', onUpdate: () => (chip.textContent = scrambleMix('1 record', data.code, barcode.t)) }, 81.5);
+  tl.to(links, { strokeDashoffset: 0, duration: 3, stagger: 1, ease: 'power2.inOut' }, 85);
 
   // 92 to 101: the tables slide out and the long-history product slides in from the right, side by side like a conveyor.
   conveyor(tl, main, flags, 92, 9);

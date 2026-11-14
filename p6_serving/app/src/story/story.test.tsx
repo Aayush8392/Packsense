@@ -206,14 +206,37 @@ describe('the timeline', () => {
     const { at, text, many } = stage();
     at(50);
     expect(text('tableCount')).toBe('0');
-    at(78);
+    at(82);
     expect(text('tableCount')).toBe('8');
+    at(81);
     expect(text('chip')).toBe('1 record');
     many('link').forEach((line) => expect(prop(line, 'strokeDashoffset')).toBe(1));
     at(92);
     expect(text('chip')).toBe(data.code);
     expect(many('link')).toHaveLength(4);
     many('link').forEach((line) => expect(prop(line, 'strokeDashoffset')).toBe(0));
+  });
+
+  it('lets the record settle before anything comes out of it, then grows each table out of it, solid, with its text after', () => {
+    const { at, many, root } = stage();
+    const tableBox = root.querySelector('[data-el="table"]') as HTMLElement;
+    const cards = many('card');
+    at(71);
+    expect(prop(tableBox, 'scale')).toBeCloseTo(0.2, 2); // the record has shrunk to its final size
+    cards.forEach((card) => expect(prop(card, 'opacity')).toBe(0)); // and no table has started
+    at(72.6);
+    expect(prop(cards[0], 'opacity')).toBe(1); // the first is out: solid, not fading in
+    expect(prop(cards[0], 'scale')).toBeLessThan(0.5); // but still small
+    expect(prop(cards[3], 'opacity')).toBe(0); // the last has not started
+    cards[0].querySelectorAll(':scope > *').forEach((part) => expect(prop(part as HTMLElement, 'opacity')).toBe(0)); // its text waits
+    at(76);
+    expect(prop(cards[0], 'scale')).toBeGreaterThan(0.8);
+    cards[0].querySelectorAll(':scope > *').forEach((part) => expect(prop(part as HTMLElement, 'opacity')).toBeGreaterThan(0));
+    at(82);
+    cards.forEach((card) => {
+      expect(prop(card, 'scale')).toBe(1);
+      expect(prop(card, 'opacity')).toBe(1);
+    });
   });
 
   it('shows the long story: the versions and the flags tick up, then every row grows its bar and the ended flags get a ring', () => {
