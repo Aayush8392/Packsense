@@ -4,11 +4,11 @@
   block-size: 0;
 }
 .story__waiting {
-  height: calc(var(--story-screens, 14) * 100svh);
+  height: calc(var(--story-screens, 22) * 100svh);
 }
 .story {
   position: relative;
-  height: calc(var(--story-screens, 14) * 100svh);
+  height: calc(var(--story-screens, 22) * 100svh);
   margin-block: var(--space-xl, 2.5rem);
 }
 .story__skip:not(:focus) {
@@ -143,6 +143,11 @@
   background: color-mix(in srgb, var(--accent) calc(var(--hl, 0) * 34%), transparent);
 }
 .st-chip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  translate: -50% -50%;
   margin: 0;
   padding: 0.35em 0.8em;
   border: 1px solid var(--primary-mid);
@@ -153,10 +158,24 @@
 }
 
 .st-cards {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.4em 2.2em;
+  gap: 3.4em 2.2em;
   width: 100%;
+}
+.st-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.st-links line {
+  stroke: var(--primary-mid);
+  stroke-width: 1.5;
+  stroke-linecap: round;
 }
 .st-card {
   padding: 0.55em 0.7em;
@@ -185,8 +204,10 @@
   font-size: 0.75em;
 }
 .st-more {
-  grid-column: 1 / -1;
-  margin: 0;
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  margin: 0.7em 0 0;
   text-align: center;
   color: var(--fg-muted);
   font-size: 0.85em;
@@ -233,6 +254,129 @@
 .st-product b {
   font-variant-numeric: tabular-nums;
 }
+.st-flags,
+.st-checks {
+  width: min(40em, 96%);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--primary-mid);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.45);
+}
+.st-flags__head,
+.st-checks__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-md);
+  margin: 0 0 0.5em;
+  font-size: 0.95em;
+}
+.st-flags__head span,
+.st-checks__head span {
+  color: var(--fg-muted);
+  font-size: 0.85em;
+}
+.st-flags__head span b,
+.st-checks__head span b {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.st-flags__axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 0.3em;
+  padding-inline-start: 14em;
+  color: var(--fg-muted);
+  font-size: 0.7em;
+}
+.st-flags__key {
+  margin: 0.5em 0 0;
+  color: var(--fg-muted);
+  font-size: 0.7em;
+}
+.st-flagrows,
+.st-checkrows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.st-flagrows li {
+  display: grid;
+  grid-template-columns: 13em 1fr;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: 0.22em 0;
+  font-size: 0.78em;
+}
+.st-flagrows__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-flagrows__track {
+  position: relative;
+  height: 0.8em;
+  border-radius: 0.4em;
+  background: var(--raised);
+}
+.st-flagrows__track i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--from);
+  width: calc(var(--to) - var(--from));
+  min-width: 0.5em;
+  border-radius: 0.4em;
+  background: var(--primary-mid);
+}
+.st-flagrows li[data-severity='warning'] .st-flagrows__track i {
+  background: var(--series-2);
+}
+.st-flagrows li[data-severity='error'] .st-flagrows__track i {
+  background: var(--problem);
+}
+.st-flagrows__track em {
+  position: absolute;
+  top: 50%;
+  left: var(--to);
+  width: 1em;
+  height: 1em;
+  margin: -0.5em 0 0 -0.5em;
+  border: 2px solid var(--fg);
+  border-radius: 50%;
+  background: var(--card);
+}
+.st-checkrows li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 0.25em 0.4em;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78em;
+}
+.st-checkrows li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-checkrows i {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  border-radius: 50%;
+  background: var(--series-3);
+  color: #fff;
+  font-style: normal;
+  font-weight: 700;
+}
+.st-checkrows i[data-status='bad'] {
+  background: var(--problem);
+}
 .st-page {
   width: min(32em, 90%);
   padding: var(--space-md);
@@ -240,24 +384,53 @@
   border-radius: var(--radius);
   background: var(--card);
 }
+.st-page__label {
+  margin: 0 0 0.3em;
+  color: var(--fg-muted);
+  font-size: 0.75em;
+}
 .st-page__search {
+  display: flex;
+  gap: 0.6em;
+  min-height: 2.4em;
   margin: 0 0 var(--space-md);
   padding: 0.5em 0.75em;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--primary-mid) 18%, transparent);
+  background: color-mix(in srgb, var(--primary-mid) 14%, transparent);
   font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
 }
-.st-page div {
+.st-page__icon {
+  color: var(--fg-muted);
+  letter-spacing: -0.1em;
+}
+.st-page__tiles {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-sm);
 }
-.st-page div span {
-  padding: 0.7em;
+.st-page__tiles span {
+  padding: 0.6em;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   font-size: 0.85em;
   text-align: center;
+}
+.st-lookup {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--primary-mid);
+  border-radius: var(--radius);
+  background: var(--card);
+  font-size: 0.85em;
+  box-shadow: 0 10px 24px -12px rgb(0 0 0 / 0.5);
+}
+.st-lookup p {
+  margin: 0;
+}
+.st-lookup__name {
+  font-weight: 600;
 }
 
 .story__captions {
@@ -344,7 +517,7 @@
 }
 @media (max-width: 40rem) {
   .story {
-    --story-screens: 11;
+    --story-screens: 17;
   }
   .st-row {
     grid-template-columns: 7.2em 1fr;
@@ -353,11 +526,22 @@
   .st-table {
     padding: var(--space-sm) var(--space-md);
   }
-  .st-cards {
-    gap: 1em 1.2em;
-  }
   .st-result {
     flex-direction: column;
+  }
+  .st-flagrows li {
+    grid-template-columns: 8em 1fr;
+    font-size: 0.72em;
+  }
+  .st-flags__axis {
+    padding-inline-start: 9em;
+  }
+  .st-flags,
+  .st-checks {
+    padding: var(--space-sm) var(--space-md);
+  }
+  .st-cards {
+    gap: 3em 1.2em;
   }
   .story__captions {
     height: 7rem;

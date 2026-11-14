@@ -4,7 +4,7 @@ import { showcase } from '../data/showcase';
 import { captions } from './beats';
 import type { StoryData } from './storyData';
 import { storyFrom } from './storyData';
-import { BEATS, beatAt } from './timeline';
+import { BEATS, TOTAL, beatAt } from './timeline';
 import './story.css';
 
 /** Whether the visitor asked for less motion. */
@@ -61,8 +61,13 @@ export function World({ data }: { data: StoryData | null }) {
             ))}
           </dl>
         </div>
-        <p className="st-chip" data-el="chip">1 record</p>
         <div className="st-cards" data-el="cards">
+          <p className="st-chip" data-el="chip">1 record</p>
+          <svg className="st-links" aria-hidden="true" focusable="false">
+            {(data?.tables ?? []).map((table) => (
+              <line key={table.name} data-el="link" x1="50%" y1="50%" x2="50%" y2="50%" pathLength={1} />
+            ))}
+          </svg>
           {(data?.tables ?? []).map((table) => (
             <div key={table.name} className="st-card" data-el="card">
               <p>{table.name}</p>
@@ -73,6 +78,48 @@ export function World({ data }: { data: StoryData | null }) {
           ))}
           <p className="st-more" data-el="more"><b data-el="tableCount" /> tables in all</p>
         </div>
+      </div>
+
+      <div className="st-lane st-flags" data-group="flags" data-el="flags">
+        <p className="st-flags__head">
+          <b>{data?.history.name ?? ''}</b>
+          <span>
+            <b data-el="versionCount" /> versions, <b data-el="flagCount" /> flags
+          </span>
+        </p>
+        <p className="st-flags__axis">
+          <span>{data?.history.startLabel ?? ''}</span>
+          <span>{data?.history.endLabel ?? ''}</span>
+        </p>
+        <ul className="st-flagrows">
+          {(data?.history.bars ?? []).map((bar, i) => (
+            <li key={i} data-el="flagRow" data-severity={bar.severity}>
+              <span className="st-flagrows__label">{bar.label}</span>
+              <span className="st-flagrows__track">
+                <i data-el="flagBar" style={{ '--from': `${(bar.from * 100).toFixed(1)}%`, '--to': `${(bar.to * 100).toFixed(1)}%` } as CSSProperties} />
+                {bar.ended && <em data-el="flagEnd" style={{ '--to': `${(bar.to * 100).toFixed(1)}%` } as CSSProperties} />}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="st-flags__key">A flag that ended is marked with a ring.</p>
+      </div>
+
+      <div className="st-lane st-checks" data-group="checks" data-el="checks">
+        <p className="st-checks__head">
+          <b>{data?.checks.name ?? ''}</b>
+          <span>
+            <b data-el="checkOk" /> agree, <b data-el="checkBad" /> do not
+          </span>
+        </p>
+        <ul className="st-checkrows">
+          {(data?.checks.rows ?? []).map((row, i) => (
+            <li key={i} data-el="checkRow">
+              <span>{row.label}</span>
+              <i data-el="stamp" data-status={row.ok ? 'ok' : 'bad'}>{row.ok ? '\u2713' : '!'}</i>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="st-lane st-result" data-group="result" data-el="result">
@@ -94,12 +141,21 @@ export function World({ data }: { data: StoryData | null }) {
       </div>
 
       <div className="st-lane st-page" data-group="page" data-el="page">
-        <p className="st-page__search">Look up a barcode</p>
-        <div>
-          <span>Brands</span>
-          <span>Data quality</span>
-          <span>Daily changes</span>
-          <span>Download</span>
+        <p className="st-page__label">Look up a barcode</p>
+        <p className="st-page__search">
+          <span className="st-page__icon">|||</span>
+          <span data-el="typed" />
+        </p>
+        <div className="st-page__tiles">
+          <span data-el="tile">Brands</span>
+          <span data-el="tile">Data quality</span>
+          <span data-el="tile">Daily changes</span>
+          <span data-el="tile">Download</span>
+        </div>
+        <div className="st-lookup" data-el="lookupCard">
+          <p className="st-lookup__name">{data?.name ?? ''}</p>
+          <p>{data?.code ?? ''}</p>
+          <p>{data ? `${data.flagRows} flags, ${data.nutritionRows} nutrition sets` : ''}</p>
         </div>
       </div>
     </div>
@@ -124,7 +180,7 @@ export function StoryStage({ data, onReady }: StoryStageProps) {
   const [ready, setReady] = useState(false);
   const [scrub, setScrub] = useState<number | null>(null);
   const words = captions(data);
-  const activeBeat = scrub === null ? beat : beatAt(scrub * 100);
+  const activeBeat = scrub === null ? beat : beatAt(scrub * TOTAL);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +200,7 @@ export function StoryStage({ data, onReady }: StoryStageProps) {
         end: () => `bottom ${headerHeight() + stageEl.offsetHeight}px`,
         scrub: 1.2,
         invalidateOnRefresh: true,
-        onUpdate: (self) => setBeat(beatAt(self.progress * 100)),
+        onUpdate: (self) => setBeat(beatAt(self.progress * TOTAL)),
       });
       timeline.current = { tl, trigger };
       setReady(true);
@@ -213,7 +269,7 @@ export function StoryStage({ data, onReady }: StoryStageProps) {
 export function StoryStill({ data }: { data: StoryData | null }) {
   return (
     <section className="story-still" aria-labelledby="story-title">
-      <h2 id="story-title">How it works, in five steps</h2>
+      <h2 id="story-title">How it works, in seven steps</h2>
       <ol>
         {captions(data).map((word) => (
           <li key={word.title}>
@@ -238,17 +294,29 @@ export function StoryScroll() {
       setNear(true);
       return;
     }
+    // Two ways to notice that the story is close: the observer, and a check on scroll (a browser may hold observer callbacks back while a window is not drawn).
+    const check = () => {
+      if (el.getBoundingClientRect().top < window.innerHeight + 1500) {
+        setNear(true);
+        done();
+      }
+    };
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
           setNear(true);
-          observer.disconnect();
+          done();
         }
       },
       { rootMargin: '1500px 0px' },
     );
+    function done() {
+      observer.disconnect();
+      window.removeEventListener('scroll', check);
+    }
     observer.observe(el);
-    return () => observer.disconnect();
+    window.addEventListener('scroll', check, { passive: true });
+    return done;
   }, []);
 
   return (

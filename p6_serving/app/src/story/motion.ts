@@ -1,12 +1,12 @@
 import type { gsap as GsapType } from 'gsap';
-import { BEATS } from './timeline';
+import { BEATS, TOTAL } from './timeline';
 import { countAt, scrambleMix } from './text';
 import type { StoryData } from './storyData';
 
 type Gsap = typeof GsapType;
 
-/** The four things that take turns on the stage. Each slides in from one side and out the other, so no two are ever in the same place. */
-export const GROUPS = ['file', 'main', 'result', 'page'] as const;
+/** The things that take turns on the stage. Each slides in from one side and out the other, so no two are ever in the same place. */
+export const GROUPS = ['file', 'main', 'flags', 'checks', 'result', 'page'] as const;
 
 /**
  * How far off to the side a group waits, in percent of its own width, and the distance between two groups that pass each other: a little more
@@ -15,7 +15,7 @@ export const GROUPS = ['file', 'main', 'result', 'page'] as const;
 export const OFF = 130;
 
 /**
- * The whole story as one paused GSAP timeline whose duration is 100 units, so a position is "percent of the scroll". The scroll drives it with
+ * The whole story as one paused GSAP timeline that is TOTAL units long, so a position is "units of scroll". The scroll drives it with
  * ScrollTrigger (see StoryScroll.tsx); a test can scrub it with `.progress()` and read the picture back. The root holds the markup of World.tsx.
  */
 export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryData): gsap.core.Timeline {
@@ -26,44 +26,73 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
   const file = one('file');
   const main = one('main');
   const table = one('table');
+  const flags = one('flags');
+  const checks = one('checks');
   const result = one('result');
   const page = one('page');
   const rows = all('row');
   const kept = rows.filter((row) => row.dataset.kind === 'kept');
   const dropped = rows.filter((row) => row.dataset.kind === 'dropped');
   const cards = all('card');
+  const links = all('link');
   const bars = all('bar');
   const captions = all('caption');
   const countEl = one('count');
   const labelEl = one('countLabel');
   const tableCount = one('tableCount');
+  const chip = one('chip');
+  const flagRows = all('flagRow');
+  const flagBars = all('flagBar');
+  const flagEnds = all('flagEnd');
+  const checkRows = all('checkRow');
+  const stamps = all('stamp');
+  const tiles = all('tile');
+  const typed = one('typed');
 
   // The first picture: only the file is in view; everything else waits at the side.
-  gsap.set([main, result, page], { xPercent: OFF });
+  gsap.set([main, flags, checks, result, page], { xPercent: OFF });
   gsap.set(file, { xPercent: 0, y: 24, scale: 0.8, opacity: 1 });
   gsap.set(rows, { opacity: 0, x: -18 });
   gsap.set(one('titleB'), { opacity: 0, y: 8 });
-  gsap.set(one('chip'), { opacity: 0 });
+  gsap.set(chip, { opacity: 0 });
   gsap.set(cards, { opacity: 0 });
   gsap.set(one('more'), { opacity: 0 });
+  gsap.set(links, { strokeDasharray: 1, strokeDashoffset: 1 });
   gsap.set(bars, { scaleY: 0, transformOrigin: '50% 100%' });
+  gsap.set(flagRows, { opacity: 0, x: -16 });
+  gsap.set(flagBars, { scaleX: 0, transformOrigin: '0% 50%' });
+  gsap.set(flagEnds, { opacity: 0, scale: 0 });
+  gsap.set(checkRows, { opacity: 0, x: -16 });
+  gsap.set(stamps, { opacity: 0, scale: 0.2 });
+  gsap.set(tiles, { opacity: 0, y: 18, scale: 0.9 });
+  gsap.set(one('lookupCard'), { opacity: 0, y: 16, scale: 0.9 });
   gsap.set(table, { '--hl': 0 });
   countEl.textContent = '0';
   labelEl.textContent = 'fields';
   tableCount.textContent = '0';
-  ['flagN', 'nutN', 'changeN'].forEach((name) => (one(name).textContent = '0'));
+  chip.textContent = '1 record';
+  typed.textContent = '';
+  ['flagN', 'nutN', 'changeN', 'flagCount', 'versionCount', 'checkOk', 'checkBad'].forEach((name) => (one(name).textContent = '0'));
   rows.forEach((row, i) => {
     const pair = data.pairs[i];
     const extra = data.dropped[i - data.pairs.length];
     row.querySelector('dt')!.textContent = pair ? pair.fromKey : (extra?.key ?? '');
     row.querySelector('dd')!.textContent = pair ? pair.fromValue : (extra?.value ?? '');
   });
+  // The key lines run from the middle of the cards' box (where the barcode chip is) to the middle of each card.
+  const cardsBox = one('cards');
+  links.forEach((link, i) => {
+    const card = cards[i];
+    if (!card || !cardsBox.offsetWidth) return;
+    link.setAttribute('x2', `${(((card.offsetLeft + card.offsetWidth / 2) / cardsBox.offsetWidth) * 100).toFixed(1)}%`);
+    link.setAttribute('y2', `${(((card.offsetTop + card.offsetHeight / 2) / cardsBox.offsetHeight) * 100).toFixed(1)}%`);
+  });
 
   // 0 to 16: the file rises into view and settles.
   tl.to(file, { y: 0, scale: 1, duration: 10, ease: 'power2.out' }, 0);
 
   // 16 to 30: the file leaves to the left while the raw table arrives from the right.
-  tl.to(file, { xPercent: -OFF * 2.6, duration: 12, ease: 'power3.inOut' }, 16);
+  tl.to(file, { xPercent: -OFF * 3.4, duration: 12, ease: 'power3.inOut' }, 16);
   tl.to(main, { xPercent: 0, duration: 12, ease: 'power3.inOut' }, 16);
 
   // 28 to 40: the rows stream in one by one and the number of fields ticks up to the real count.
@@ -72,8 +101,8 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
   tl.to(fields, { n: data.rawFields, duration: 10, ease: 'none', onUpdate: () => (countEl.textContent = String(Math.round(fields.n))) }, 28);
   tl.to(table, { '--hl': 1, duration: 3, ease: 'power1.inOut' }, 37);
 
-  // 40 to 64: the same table is cleaned in place. The title changes, the names and values scramble into their cleaned form,
-  // the fields that are not kept slide out and the table closes up, and the count ticks down to the columns that are kept.
+  // 40 to 64: the same table is cleaned in place. The title changes, the names and values scramble into their cleaned form;
+  // only when the last scramble is done do the fields that are not kept slide out, the table close up and the count tick down.
   tl.to(one('titleA'), { opacity: 0, y: -8, duration: 3 }, 41);
   tl.to(one('titleB'), { opacity: 1, y: 0, duration: 3 }, 42);
   kept.forEach((row, i) => {
@@ -97,7 +126,6 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
     );
   });
   tl.to(table, { '--hl': 0, duration: 3, ease: 'power1.inOut' }, 52);
-  // Only when the last scramble is done (at 54.8) do the fields that are not kept slide out, one after another, and the table close up.
   tl.to(dropped, { xPercent: -130, opacity: 0, duration: 2.8, stagger: 1.2, ease: 'power2.in' }, 55);
   tl.to(dropped, { height: 0, paddingTop: 0, paddingBottom: 0, duration: 1.8, stagger: 1.2 }, 56.5);
   const columns = { n: data.rawFields };
@@ -118,7 +146,7 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
   // 64 to 80: the table closes into one record and eight tables burst out of it, with the count of tables ticking up.
   tl.to(root.querySelectorAll('.st-fade'), { opacity: 0, duration: 3 }, 64);
   tl.to(table, { scale: 0.2, duration: 6, ease: 'power3.inOut' }, 65);
-  tl.to(one('chip'), { opacity: 1, duration: 2 }, 69);
+  tl.to(chip, { opacity: 1, duration: 2 }, 69);
   tl.to(table, { opacity: 0, duration: 2 }, 69.5);
   tl.fromTo(
     cards,
@@ -131,14 +159,53 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
     { opacity: 1, scale: 1, x: 0, y: 0, duration: 6, stagger: 1.2, ease: 'power3.out' },
     68,
   );
-  tl.to(one('chip'), { opacity: 0, duration: 2 }, 73);
   tl.to(one('more'), { opacity: 1, duration: 2 }, 76);
   const tables = { n: 0 };
   tl.to(tables, { n: data.tableCount, duration: 7, ease: 'none', onUpdate: () => (tableCount.textContent = String(Math.round(tables.n))) }, 70);
 
-  // 78 to 87: the tables slide out to the left and the chart and the product card slide in from the right, side by side like a conveyor; then the bars grow.
-  conveyor(tl, main, result, 78, 9);
-  tl.to(bars, { scaleY: 1, duration: 2, stagger: 0.3, ease: 'power2.out' }, 88);
+  // 80 to 91: the record turns into its barcode, and a line is drawn from it to every table: one barcode ties them together.
+  const barcode = { t: 0 };
+  tl.to(barcode, { t: 1, duration: 4, ease: 'none', onUpdate: () => (chip.textContent = scrambleMix('1 record', data.code, barcode.t)) }, 80);
+  tl.to(links, { strokeDashoffset: 0, duration: 4, stagger: 1.4, ease: 'power2.inOut' }, 83);
+
+  // 92 to 101: the tables slide out and the long-history product slides in from the right, side by side like a conveyor.
+  conveyor(tl, main, flags, 92, 9);
+
+  // 101 to 127: its flags stream in as rows (with the versions and the flags ticking up), then each row grows a bar from the day the flag first appeared to the day it ended.
+  tl.to(flagRows, { opacity: 1, x: 0, duration: 2, stagger: 1, ease: 'power2.out' }, 101);
+  const versions = { n: 0 };
+  tl.to(versions, { n: data.history.versions, duration: 8, ease: 'none', onUpdate: () => (one('versionCount').textContent = String(Math.round(versions.n))) }, 101);
+  const flagTotal = { n: 0 };
+  tl.to(flagTotal, { n: data.history.flagCount, duration: 9, ease: 'none', onUpdate: () => (one('flagCount').textContent = String(Math.round(flagTotal.n))) }, 101);
+  tl.to(flagBars, { scaleX: 1, duration: 4, stagger: 1.1, ease: 'power2.out' }, 112);
+  tl.to(flagEnds, { opacity: 1, scale: 1, duration: 1, stagger: 1.1, ease: 'back.out(2)' }, 115.5);
+
+  // 127 to 135: on to the product whose figures disagree with some of the rules.
+  conveyor(tl, flags, checks, 127, 8);
+
+  // 135 to 148: the rule rows stream in, and each gets a stamp (agrees or does not agree) while the two counters tick.
+  tl.to(checkRows, { opacity: 1, x: 0, duration: 1.5, stagger: 0.6, ease: 'power2.out' }, 135);
+  tl.to(stamps, { opacity: 1, scale: 1, duration: 1, stagger: 0.7, ease: 'back.out(2.2)' }, 138);
+  const landed = { n: 0 };
+  const rules = data.checks.rows;
+  tl.to(
+    landed,
+    {
+      n: rules.length,
+      duration: rules.length * 0.7,
+      ease: 'none',
+      onUpdate: () => {
+        const done = Math.min(rules.length, Math.floor(landed.n + 1e-6));
+        one('checkOk').textContent = String(rules.slice(0, done).filter((r) => r.ok).length);
+        one('checkBad').textContent = String(rules.slice(0, done).filter((r) => !r.ok).length);
+      },
+    },
+    138,
+  );
+
+  // 148 to 160: the chart and the product card slide in; the bars grow and the figures count up.
+  conveyor(tl, checks, result, 148, 8);
+  tl.to(bars, { scaleY: 1, duration: 2, stagger: 0.3, ease: 'power2.out' }, 157);
   (
     [
       ['flagN', data.flagRows],
@@ -147,11 +214,27 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
     ] as const
   ).forEach(([name, target], i) => {
     const counter = { n: 0 };
-    tl.to(counter, { n: target, duration: 3.5, ease: 'none', onUpdate: () => (one(name).textContent = String(countAt(0, target, counter.n / (target || 1)))) }, 88 + i * 0.3);
+    tl.to(counter, { n: target, duration: 3.5, ease: 'none', onUpdate: () => (one(name).textContent = String(countAt(0, target, counter.n / (target || 1)))) }, 157 + i * 0.3);
   });
 
-  // 93 to 100: the chart slides out to the left and a mock of the page slides in and stays.
-  conveyor(tl, result, page, 93, 7);
+  // 161 to 180: the page slides in and builds itself: the four tiles pop in, a barcode is typed into the search box, and its card appears.
+  conveyor(tl, result, page, 161, 7);
+  tl.to(tiles, { opacity: 1, y: 0, scale: 1, duration: 1.5, stagger: 0.6, ease: 'back.out(1.6)' }, 169);
+  const typing = { n: 0 };
+  tl.to(
+    typing,
+    {
+      n: data.code.length,
+      duration: 5,
+      ease: 'none',
+      onUpdate: () => {
+        const n = Math.round(typing.n);
+        typed.textContent = data.code.slice(0, n) + (n > 0 && n < data.code.length ? '│' : '');
+      },
+    },
+    172,
+  );
+  tl.to(one('lookupCard'), { opacity: 1, y: 0, scale: 1, duration: 3, ease: 'back.out(1.4)' }, 177);
 
   // The captions take turns in one place.
   captions.forEach((caption, i) => {
@@ -162,9 +245,9 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
   });
 
   // A thin bar along the foot of the stage shows how far through the story the scroll is.
-  tl.fromTo(one('progress'), { scaleX: 0 }, { scaleX: 1, duration: 100, ease: 'none' }, 0);
+  tl.fromTo(one('progress'), { scaleX: 0 }, { scaleX: 1, duration: TOTAL, ease: 'none' }, 0);
 
-  tl.set({}, {}, 100); // the timeline is exactly 100 units long
+  tl.set({}, {}, TOTAL); // the timeline is exactly TOTAL units long
   return tl;
 }
 
