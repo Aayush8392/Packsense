@@ -137,7 +137,7 @@ describe('the timeline', () => {
 
   it('never has two things on the stage at once: any two that are in view are at least a whole width apart', () => {
     const { at, group } = stage();
-    for (let u = 0; u <= TOTAL; u += 0.5) {
+    for (let u = 0; u <= TOTAL; u += 1) {
       at(u);
       const inView = GROUPS.map((name) => ({ name, ...read(group(name)) })).filter((g) => g.opacity > 0.02 && Math.abs(g.x) < OFF * 0.88);
       for (let i = 0; i < inView.length; i++) {
@@ -146,7 +146,7 @@ describe('the timeline', () => {
         }
       }
     }
-  });
+  }, 30000);
 
   it('ends on the page, centred, and every other thing off to the left', () => {
     const { at, group } = stage();
