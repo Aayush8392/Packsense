@@ -4,9 +4,11 @@ name: Nightly photo reading (nutrition lines)
 # the frozen guards and rules, and writes the lines to a PRIVATE Hugging Face dataset (the results dataset); the Pages build reads them from there. No Databricks credential lives in
 # GitHub. It prints counts only: this repository is public, so these logs are public.
 #
-# THE SCHEDULE IS OFF ON PURPOSE. The soak test (stage 0 fetch-only, stage 1 scratch, stage 2 one full night with publishing off) must pass first; turning the schedule on is a deliberate,
-# separate edit. A manual run chooses its mode: fetch-only (no model call, nothing written), scratch (a full night against the scratch dataset) or real. The nominal slot when it is turned
-# on is 08:30 UTC, after the Gemini free-tier quota resets (midnight Pacific = 08:00 UTC in winter, 07:00 UTC in summer: check the slot at the first daylight-saving change).
+# THE SCHEDULE IS ON (switched on 2026-11-14 after the stage 2 pass: 29 of 30 lines right, 4 of 5 decoys caught). The nominal slot 09:30 UTC is after the Databricks candidate export (08:50 UTC) and after the
+# Gemini free-tier quota reset (midnight Pacific = 08:00 UTC in winter, 07:00 UTC in summer: check the slot at the first daylight-saving change). GitHub starts scheduled workflows hours late (measured
+# 3 to 10 hours on this repo's other schedules), which is accepted: a start that late still falls inside one quota day, and the job refuses an export that is too old, so the order export, night holds.
+# A manual run chooses its mode: fetch-only (no model call, nothing written), scratch (a full night against the scratch dataset) or real. After a REAL night that succeeded, the last step starts the
+# site build (pages.yml) so the lines reach the site in the same build; a failure of that step only warns (the daily site build picks the lines up later).
 on:
   workflow_dispatch:
     inputs:
@@ -23,8 +25,8 @@ on:
         description: "scratch or real: the hard ceiling of model requests (the free tier allows 500 a day; the agreed nightly cap is 400)"
         type: string
         default: "60"
-  # schedule:
-  #   - cron: "30 8 * * *"
+  schedule:
+    - cron: "30 9 * * *"
 
 permissions:
   contents: read
@@ -37,6 +39,9 @@ jobs:
   nightly:
     runs-on: ubuntu-latest
     timeout-minutes: 330
+    permissions:
+      contents: read
+      actions: write      # only to start pages.yml after a real night (workflow_dispatch is the one event a workflow token may start)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -76,3 +81,11 @@ jobs:
           MODE: ${{ inputs.mode || 'real' }}
           HEALTHCHECKS_NIGHTLY_URL: ${{ secrets.HEALTHCHECKS_NIGHTLY_URL }}
         run: '[ "$MODE" = "real" ] && [ -n "$HEALTHCHECKS_NIGHTLY_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_NIGHTLY_URL/fail" || true'
+      - name: Start the site build so the new lines reach the site (real nights only; a failure only warns)
+        if: success()
+        continue-on-error: true
+        env:
+          MODE: ${{ inputs.mode || 'real' }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: '[ "$MODE" = "real" ] && gh workflow run pages.yml --ref main || { [ "$MODE" != "real" ] || echo "::warning::could not start the site build; the daily build will pick the lines up"; }'
