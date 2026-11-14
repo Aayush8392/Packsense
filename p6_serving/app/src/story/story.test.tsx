@@ -150,9 +150,12 @@ describe('the timeline', () => {
     expect(text('count')).toBe('245');
     expect(text('countLabel')).toBe('fields');
     at(0.55);
+    expect(text('count')).toBe('245');
+    expect(text('countLabel')).toBe('fields');
+    at(0.6);
     expect(Number(text('count'))).toBeLessThan(245);
     expect(Number(text('count'))).toBeGreaterThan(81);
-    at(0.62);
+    at(0.64);
     expect(text('count')).toBe('81');
     expect(text('countLabel')).toBe('columns kept');
   });
@@ -168,6 +171,19 @@ describe('the timeline', () => {
     expect(value()).not.toBe('hidden on purpose');
     at(0.62);
     expect([key(), value()]).toEqual(['creator_hmac', 'hidden on purpose']);
+  });
+
+  it('does not start to slide the dropped rows out until the last scramble is done', () => {
+    const { at, root } = stage();
+    const dropped = Array.from(root.querySelectorAll<HTMLElement>('[data-kind="dropped"]'));
+    const lastValue = () => (root.querySelectorAll('[data-kind="kept"]')[4].querySelector('dd') as HTMLElement).textContent;
+    at(0.545);
+    expect(lastValue()).not.toBe(data.pairs[4].toValue); // still scrambling
+    dropped.forEach((row) => expect(Number(gsap.getProperty(row, 'xPercent'))).toBe(0));
+    at(0.552);
+    expect(lastValue()).toBe(data.pairs[4].toValue); // done
+    at(0.58);
+    expect(Number(gsap.getProperty(dropped[0], 'xPercent'))).toBeLessThan(0);
   });
 
   it('slides the dropped rows out, one after another, and closes the table up', () => {

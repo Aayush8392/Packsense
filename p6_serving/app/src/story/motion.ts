@@ -93,25 +93,26 @@ export function buildStoryTimeline(root: HTMLElement, gsap: Gsap, data: StoryDat
           value.textContent = scrambleMix(pair.fromValue, pair.toValue, mix.t);
         },
       },
-      43 + i * 1.5,
+      43 + i * 1.2,
     );
   });
-  tl.to(table, { '--hl': 0, duration: 3, ease: 'power1.inOut' }, 49);
-  tl.to(dropped, { xPercent: -130, opacity: 0, duration: 3, stagger: 1.6, ease: 'power2.in' }, 50);
-  tl.to(dropped, { height: 0, paddingTop: 0, paddingBottom: 0, duration: 2, stagger: 1.6 }, 52);
+  tl.to(table, { '--hl': 0, duration: 3, ease: 'power1.inOut' }, 52);
+  // Only when the last scramble is done (at 54.8) do the fields that are not kept slide out, one after another, and the table close up.
+  tl.to(dropped, { xPercent: -130, opacity: 0, duration: 2.8, stagger: 1.2, ease: 'power2.in' }, 55);
+  tl.to(dropped, { height: 0, paddingTop: 0, paddingBottom: 0, duration: 1.8, stagger: 1.2 }, 56.5);
   const columns = { n: data.rawFields };
   tl.to(
     columns,
     {
       n: data.silverColumns,
-      duration: 10,
+      duration: 7.5,
       ease: 'none',
       onUpdate: () => {
         countEl.textContent = String(Math.round(columns.n));
         labelEl.textContent = columns.n === data.rawFields ? 'fields' : 'columns kept';
       },
     },
-    50,
+    56,
   );
 
   // 64 to 80: the table closes into one record and eight tables burst out of it, with the count of tables ticking up.
