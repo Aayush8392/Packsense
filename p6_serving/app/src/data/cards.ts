@@ -95,7 +95,7 @@ export function parseSplits(text: string): Set<string> {
 }
 
 /** Text of one published file; null when the site has no such file (a missing card file means "not in our copy"). */
-async function fetchOptional(name: string): Promise<string | null> {
+export async function fetchOptional(name: string): Promise<string | null> {
   let response: Response;
   try {
     response = await fetch(dataUrl(name));
@@ -118,7 +118,7 @@ export function resetCards(): void {
   shardLoads.clear();
 }
 
-function splits(): Promise<Set<string>> {
+export function splits(): Promise<Set<string>> {
   if (!splitsLoad) {
     splitsLoad = (async () => {
       const text = await fetchOptional('cards/splits.json');

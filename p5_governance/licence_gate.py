@@ -428,3 +428,129 @@ def check_cards(folder: Path, m: dict) -> list[str]:
         if not any(q.startswith(s) and len(q) == len(s) + 1 for q in prefixes) and not any(q.startswith(s) and len(q) > len(s) for q in splits):
             out.append(f"{CARD_INDEX_PATH}: the split prefix {s} has no longer files under it")
     return out
+
+
+# ---- the nightly photo-read LINES (the site shards of the nightly job, `lines/<prefix>.json`; made by p6_serving/nightly_lines.py) ----
+# Not listed in the release manifest (they do not come from Databricks); checked by check_lines() on the app's data folder, by the builder before it publishes and again by the
+# Pages workflow. A line is DATA: numbers, a barcode, a date and words from fixed lists; there is no free-text field, so there is no text to carry a name, a link or a photo address.
+# These lists are written out here on purpose (a second, independent check); a test keeps them equal to p8_steward/nightly/line_record.py.
+LINES_DIR = "lines"
+LINE_PATH = re.compile(r"^lines/(\d{3,6})\.json$")
+LINE_MAX_BYTES = 400_000
+LINE_FIELDS = ("energy_kcal", "energy_kj", "fat", "saturated_fat", "carbohydrates", "sugars", "fiber", "proteins", "salt", "sodium")
+LINE_COLUMNS = ["code", "night", "line_type", "statement", "basis", "values", "derived", "bounds"]
+LINE_TYPES = {"match", "differ"}
+LINE_STATEMENTS = {"repaired", "bound", "open", "checked"}
+LINE_BASES = {"per_100", "per_serving_converted"}
+LINE_BOUND_KEYS = {"rule", "stale_field", "stored", "confirmed_field", "confirmed", "kind"}
+LINE_BOUND_RULES = {"saturated-fat-greater-than-fat", "sugars-plus-starch-greater-than-carbohydrates"}
+LINE_BOUND_KINDS = {"at most", "at least"}
+LINE_MAX_VALUE = 100000.0
+LINE_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _line_numbers(d, out: list[str], name: str) -> None:
+    if not isinstance(d, dict):
+        out.append(f"{name} is not an object")
+        return
+    for f, v in d.items():
+        if f not in LINE_FIELDS:
+            out.append(f"{name} has a field that is not allowed")
+        elif isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 <= v <= LINE_MAX_VALUE:
+            out.append(f"{name} has a value out of range")
+
+
+def check_line(line) -> list[str]:
+    """The problems of one published line (empty = fine). Never repeats a value."""
+    if not isinstance(line, dict) or sorted(line) != sorted(LINE_COLUMNS):
+        return ["a line does not have exactly the line columns"]
+    out: list[str] = []
+    if not (isinstance(line["code"], str) and CARD_CODE.match(line["code"])):
+        out.append("a code is not 8 to 14 digits")
+    if not (isinstance(line["night"], str) and LINE_DATE.match(line["night"])):
+        out.append("night is not a date")
+    if line["line_type"] not in LINE_TYPES:
+        out.append("line_type outside its values")
+    if line["statement"] not in LINE_STATEMENTS:
+        out.append("statement outside its values")
+    if line["basis"] not in LINE_BASES:
+        out.append("basis outside its values")
+    _line_numbers(line["values"], out, "values")
+    _line_numbers(line["derived"], out, "derived")
+    if isinstance(line["values"], dict) and len(line["values"]) < 3:
+        out.append("values holds fewer than 3 fields")
+    bounds = line["bounds"]
+    if not isinstance(bounds, list):
+        out.append("bounds is not a list")
+    else:
+        for b in bounds:
+            if not isinstance(b, dict) or set(b) != LINE_BOUND_KEYS:
+                out.append("a bound has the wrong keys")
+                continue
+            if b["rule"] not in LINE_BOUND_RULES or b["kind"] not in LINE_BOUND_KINDS or b["stale_field"] not in LINE_FIELDS or b["confirmed_field"] not in LINE_FIELDS:
+                out.append("a bound has a value outside its list")
+            for k in ("stored", "confirmed"):
+                if isinstance(b[k], bool) or not isinstance(b[k], (int, float)) or not 0 <= b[k] <= LINE_MAX_VALUE:
+                    out.append("a bound value is out of range")
+        if line["statement"] == "bound" and not bounds:
+            out.append("a bound statement has no bound")
+        if line["statement"] != "bound" and bounds:
+            out.append("bounds on a statement that is not a bound statement")
+    return out
+
+
+def check_lines(data_folder: str | Path) -> list[str]:
+    """The violations of the line shards under <data_folder>/lines (no `lines` folder = nothing to check = empty list). The split list is the card index of the same folder."""
+    data = Path(data_folder)
+    folder = data / LINES_DIR
+    if not folder.is_dir():
+        return []
+    out: list[str] = []
+    try:
+        listed = json.loads((data / CARD_INDEX_PATH).read_text(encoding="utf-8"))["splits"]
+        if not isinstance(listed, list) or not all(isinstance(s, str) for s in listed):
+            raise ValueError("shape")
+        splits = set(listed)
+    except (OSError, ValueError, KeyError, TypeError):
+        return [f"lines: {CARD_INDEX_PATH} is needed to check where each line belongs and cannot be read"]
+    for p in sorted(folder.iterdir()):
+        name = f"{LINES_DIR}/{p.name}"
+        mt = LINE_PATH.match(name)
+        if not p.is_file() or not mt:
+            out.append(f"{name}: only files named lines/<3 to 6 digits>.json are allowed")
+            continue
+        prefix = mt.group(1)
+        if prefix in splits:
+            out.append(f"{name}: its prefix is in the split list, so the lines belong in longer files")
+        if p.stat().st_size > LINE_MAX_BYTES:
+            out.append(f"{name}: larger than the {LINE_MAX_BYTES} byte cap for a lines file")
+            continue
+        text = p.read_text(encoding="utf-8")
+        if IMAGE_URL.search(text):
+            out.append(f"{name}: contains an image URL or image data (no product images in any public output)")
+        try:
+            obj = json.loads(text)
+        except ValueError:
+            out.append(f"{name}: not valid JSON")
+            continue
+        if not isinstance(obj, dict) or set(obj) != {"version", "lines"} or obj["version"] != 1 or not isinstance(obj["lines"], list):
+            out.append(f"{name}: must be an object with version 1 and a list of lines")
+            continue
+        if not obj["lines"]:
+            out.append(f"{name}: has no lines")
+        bad: dict[str, int] = {}
+        last = None
+        for line in obj["lines"]:
+            problems = check_line(line)
+            if not problems:
+                code = line["code"]
+                if shard_for(code, splits) != prefix:
+                    problems.append("a code is in a file it does not belong to")
+                if last is not None and code <= last:
+                    problems.append("codes are not sorted and unique")
+                last = code
+            for pr in problems:
+                bad[pr] = bad.get(pr, 0) + 1
+        for pr, n in sorted(bad.items()):
+            out.append(f"{name}: {n} line(s): {pr}")          # a count, never a value
+    return out

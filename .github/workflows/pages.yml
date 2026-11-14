@@ -53,6 +53,13 @@ jobs:
           if [ -f p6_serving/showcase/showcase.json ]; then python p5_governance/bootstrap/check_showcase.py p6_serving/showcase/showcase.json; else echo "no showcase file committed yet"; fi
       - name: Assemble the app's data folder (the checked site data, the bot bundle and the public India release; stops when a required file is missing)
         run: python p6_serving/assemble_app_data.py site_release p6_serving/app/public/data
+      - name: Nightly photo-read lines (read-only token, kept only while the stored record still matches; the licence gate runs on the shards; optional until the lines are switched on)
+        env:
+          HF_NIGHTLY_READ_TOKEN: ${{ secrets.HF_NIGHTLY_READ_TOKEN }}
+          HF_NIGHTLY_REPO: ${{ vars.HF_NIGHTLY_REPO }}
+        run: |
+          python p6_serving/nightly_lines.py p6_serving/app/public/data "$HF_NIGHTLY_REPO"
+          python p5_governance/bootstrap/check_lines.py p6_serving/app/public/data
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22

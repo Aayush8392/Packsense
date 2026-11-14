@@ -8,9 +8,42 @@ import {
   CARD_DISCLAIMER, OFF_FLAGS_NOTE, SEED_NOTE, datesText, keyFieldsText, offFlagsText, offLink, rulesText, signalWords, statusNotice, versionsText,
 } from '../data/cardWords';
 import { lookupCard, resetCards, type Card, type Lookup } from '../data/cards';
+import { lookupLine, resetLines, type PhotoLine } from '../data/lines';
+import { LINE_ACCURACY_NOTE, LINE_TITLE, agreementText, basisText, lineReadOn, lineRows, statementText } from '../data/lineWords';
 import { checkDigitOk, cleanTyped, hasBarcodeLength, variants } from '../lookup/barcode';
 
 type Outcome = { key: string; result: Lookup } | { key: string; failed: true };
+
+/** The photo-read line of a product (nightly job), when there is one that is still current. Any problem loading it means no line, never an error on the card. */
+function PhotoLineView({ code }: { code: string }) {
+  const [line, setLine] = useState<PhotoLine | null>(null);
+  useEffect(() => {
+    let current = true;
+    lookupLine(code).then((found) => current && setLine(found));
+    return () => {
+      current = false;
+    };
+  }, [code]);
+  if (line === null) return null;
+  return (
+    <section className="lookup-card__line" aria-label={LINE_TITLE}>
+      <h3>{LINE_TITLE}</h3>
+      <p>
+        Values per 100 g or 100 ml, read from the product's photo on <ExternalLink href={offLink(code)}>Open Food Facts</ExternalLink>. {basisText(line.basis)} {agreementText(line.lineType)}
+      </p>
+      <dl className="lookup-card__line-values">
+        {lineRows(line).map((row) => (
+          <div key={row.label + row.text}>
+            <dt>{row.label}</dt>
+            <dd>{row.text}{row.worked && <small>worked out from the value the pack prints</small>}</dd>
+          </div>
+        ))}
+      </dl>
+      {statementText(line).map((text) => <p key={text}>{text}</p>)}
+      <p className="lookup-card__line-note"><small>{lineReadOn(line)}. {LINE_ACCURACY_NOTE}</small></p>
+    </section>
+  );
+}
 
 function CardView({ card, typed }: { card: Card; typed: string }) {
   const notice = statusNotice(card.existence);
@@ -54,6 +87,7 @@ function CardView({ card, typed }: { card: Card; typed: string }) {
           <dd>{versionsText(card)}<small>{datesText(card)}</small>{card.firstPeriodFromSeed && <small>{SEED_NOTE}</small>}</dd>
         </div>
       </dl>
+      <PhotoLineView code={card.code} />
       <p className="lookup-card__action">
         <ExternalLink className="button button--quiet" href={offLink(card.code)}>Open product on Open Food Facts</ExternalLink>
         {card.inIndia && <JumpLink className="button button--quiet" to="/get-the-data">Get the India data</JumpLink>}
@@ -138,6 +172,7 @@ function BarcodeTool() {
 
   function retry() {
     resetCards();
+    resetLines();
     setAttempt((n) => n + 1);
   }
 

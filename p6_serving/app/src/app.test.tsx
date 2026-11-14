@@ -6,6 +6,7 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetCards } from './data/cards';
+import { resetLines } from './data/lines';
 import { release } from './data/release';
 import { showcase } from './data/showcase';
 import { brandScorecard, categoryFitness, changeDaily, nutritionSources, offOpenFlags, offWeekly, pipelineHealth, qualityDaily, ruleChecks, siteStatus } from './data/siteData';
@@ -44,6 +45,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   resetCards();
+  resetLines();
   resetBot();
   resetChat();
   resetTrail();
@@ -936,6 +938,36 @@ describe('the Look up page', () => {
     expect(within(card).getByRole('link', { name: 'Get the India data' }).getAttribute('href')).toBe('/get-the-data');
     expect(within(card).getByRole('link', { name: /Open product on Open Food Facts/ }).getAttribute('href')).toBe('https://world.openfoodfacts.org/product/8901030383458');
     expect(card.textContent).toContain('It never says a product is right, wrong, safe, or good.');
+  });
+
+  it('shows the photo-read line under a card that has one, with the conversion and the accuracy wording, and no line otherwise', async () => {
+    const line = {
+      code: '8901030383458', night: '2026-11-14', line_type: 'match', statement: 'checked', basis: 'per_serving_converted',
+      values: { energy_kcal: 276.666667, carbohydrates: 66.666667, fat: 0.666667 }, derived: { energy_kj: 1157.5733 }, bounds: [],
+    };
+    serveFiles({ ...CARD_FILES, '8901.json': JSON.stringify({ version: 1, lines: [line] }) });
+    renderAt('/look-up?barcode=8901030383458');
+    const card = await screen.findByRole('article', { name: 'Card for barcode 8901030383458' });
+    const section = await within(card).findByRole('region', { name: 'Read from the product photo' });
+    expect(section.textContent).toContain('scaled to 100 g or 100 ml from the serving size printed on the pack');
+    expect(section.textContent).toContain('277 kcal');
+    expect(section.textContent).toContain('Read on 14 Nov 2026');
+    expect(section.textContent).toContain('Lines are not checked by a person before they appear.');
+    cleanup();
+    resetCards();
+    resetLines();
+    serveFiles(CARD_FILES);
+    renderAt('/look-up?barcode=8901030383458');
+    const plain = await screen.findByRole('article', { name: 'Card for barcode 8901030383458' });
+    expect(within(plain).queryByRole('region', { name: 'Read from the product photo' })).toBeNull();
+  });
+
+  it('keeps the card when the lines file is damaged: no line, no error', async () => {
+    serveFiles({ ...CARD_FILES, '8901.json': '{"version":1,"lines":[{"code":"8901030383458","basis":"per piece"}]}' });
+    renderAt('/look-up?barcode=8901030383458');
+    const card = await screen.findByRole('article', { name: 'Card for barcode 8901030383458' });
+    expect(within(card).queryByRole('region', { name: 'Read from the product photo' })).toBeNull();
+    expect(screen.queryByText(/could not be loaded just now/)).toBeNull();
   });
 
   it('lands on a result from an address, as the Home box does', async () => {
