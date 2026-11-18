@@ -143,6 +143,11 @@ LOW_YIELD = 0.40             # provisional: a night with fewer lines than this s
 LOW_YIELD_MIN_PRODUCTS = 30
 CHECKPOINT_EVERY = 50        # settled products between two saves
 TRANSIENT = ("unavailable", "fetch_unavailable")
+# Two guards added 2026-11-19 (owner's decision; the re-read of 23 silenced products on 19 Nov: 6 of 6 photo_unusable and 5 of 17 text_unusable read usable again):
+SOFT = ("text_unusable", "photo_unusable")   # model-side silences: NOT final on the first try; they take the retry path (up to 3 attempts, then gave_up, read afresh after 14 days)
+HOLD = 20                    # provisional: the newest HOLD results are held back, not settled, so a bad stretch can be undone (the products stay queued, no attempt charged)
+MODEL_TROUBLE_MIN = 8        # provisional: this many model-side failures (SOFT or a model 503) among the newest results stop the night red as model_trouble (about 4.6% is normal)
+MIN_LINES_IN_WINDOW = 3      # provisional: this many lines or fewer among a FULL window of HOLD results stop the night red as low_yield (about 67% is normal)
 
 
 def run_night(state: dict, candidates: list[dict], readers, budget: Budget, night: str, canary_rows: list[dict], freeze_problems=fz.problems, model: str = pm.MODEL,
@@ -159,6 +164,8 @@ def run_night(state: dict, candidates: list[dict], readers, budget: Budget, nigh
         return out
     every, limit = checkpoint_every or CHECKPOINT_EVERY, off_streak or OFF_STREAK
     pending: list[tuple[str, str]] = []                       # transient failures not yet charged
+    held: list[tuple[str, dict]] = []                         # the newest results (a line or a silence), NOT yet settled in the queue: a Stop drops them and the products stay queued
+    recent: list[str] = []                                    # what the newest HOLD products ended as: 'line', 'soft' (a model-side failure) or 'other'
     streak = settled = 0
 
     def fill() -> None:
@@ -169,6 +176,31 @@ def run_night(state: dict, candidates: list[dict], readers, budget: Budget, nigh
         for c, reason in pending:
             ql.settle(state, c, "error", night, reason)
         pending.clear()
+
+    def settle_one(code: str, r: dict) -> None:
+        nonlocal settled
+        if r["outcome"] == "line":
+            ql.settle(state, code, "line", night)
+            out["lines"].append(r["line"])
+        elif r["outcome"] == "silence" and r["reason"] not in SOFT:
+            ql.settle(state, code, "silence", night, r["reason"])
+            out["silences"][r["reason"]] = out["silences"].get(r["reason"], 0) + 1
+        else:                                                 # a SOFT silence goes down the retry path, not into the final silences
+            ql.settle(state, code, "error", night, r["reason"])
+            out["errors"][r["reason"]] = out["errors"].get(r["reason"], 0) + 1
+        settled += 1
+        if checkpoint and settled % every == 0:
+            fill()
+            checkpoint(out)
+
+    def watch(kind: str) -> None:
+        """The rolling guards over the newest HOLD products. A Stop here leaves everything in `held` and `pending` unsettled."""
+        recent.append(kind)
+        del recent[:-HOLD]
+        if recent.count("soft") >= MODEL_TROUBLE_MIN:
+            raise Stop("model_trouble")
+        if len(recent) == HOLD and recent.count("line") <= MIN_LINES_IN_WINDOW:
+            raise Stop("low_yield")
 
     try:
         out["canary"] = run_canary(canary_rows, readers, budget, night, model)
@@ -192,28 +224,34 @@ def run_night(state: dict, candidates: list[dict], readers, budget: Budget, nigh
                 streak = streak + 1 if r["reason"] == "fetch_unavailable" else streak
                 if streak >= limit:
                     raise Stop("off_unavailable")
+                watch("soft" if r["reason"] == "unavailable" else "other")
                 continue
-            if r["outcome"] == "line":
+            if r["outcome"] in ("line", "silence"):
                 streak = 0
                 flush()
-                ql.settle(state, code, "line", night)
-                out["lines"].append(r["line"])
-            elif r["outcome"] == "silence":
-                streak = 0
-                flush()
-                ql.settle(state, code, "silence", night, r["reason"])
-                out["silences"][r["reason"]] = out["silences"].get(r["reason"], 0) + 1
+                held.append((code, r))                        # settled only when HOLD newer products have come after it, or when the night ends normally
+                while len(held) > HOLD:
+                    settle_one(*held.pop(0))
+                watch("line" if r["outcome"] == "line" else "soft" if r["reason"] in SOFT else "other")   # after the append: a guard Stop drops THIS result with the held ones
             else:                                             # a failure of this product alone: charged at once
                 ql.settle(state, code, "error", night, r["reason"])
                 out["errors"][r["reason"]] = out["errors"].get(r["reason"], 0) + 1
-            settled += 1
-            if checkpoint and settled % every == 0:
-                fill()
-                checkpoint(out)
+                watch("other")
         flush()                                               # the loop ended normally: the last failures stand
-        if out["products"] >= LOW_YIELD_MIN_PRODUCTS and len(out["lines"]) / out["products"] < LOW_YIELD:
-            raise Stop("low_yield")
+        lines_all = len(out["lines"]) + sum(1 for _, r in held if r["outcome"] == "line")
+        if out["products"] >= LOW_YIELD_MIN_PRODUCTS and lines_all / out["products"] < LOW_YIELD:
+            raise Stop("low_yield")                           # checked BEFORE the held results are settled: a bad night no longer burns its last products
+        for code, r in held:
+            settle_one(code, r)
+        held.clear()
     except Stop as s:
         out["stopped"] = s.reason                             # pending failures are NOT charged: a Stop means the service, not the products, was the problem
+        if s.reason in ("model_trouble", "low_yield"):
+            if held:
+                out["held_back"] = len(held)                  # the suspect stretch is thrown away unsettled: its products are still queued, no attempt charged
+        else:                                                 # any other stop (the call ceiling is the NORMAL end, an outage, a wrong model): what was read before it stands, as it always did
+            for code, r in held:
+                settle_one(code, r)
+            held.clear()
     fill()
     return out

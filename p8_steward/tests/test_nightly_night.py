@@ -312,20 +312,65 @@ def test_a_candidate_that_cannot_be_hashed_is_skipped_and_counted_not_fatal():
 
 
 def test_checkpoints_are_called_every_n_settled_products_with_the_work_so_far():
-    codes = [f"3000000{i}" for i in range(7)]
+    codes = [f"3000000{i:02d}" for i in range(nt.HOLD + 7)]                    # results are settled once HOLD newer ones have come after them, so 7 are settled while the loop runs
     f = readers_for(codes)
     seen = []
     nt.run_night(ql.new_state(), [cand(c) for c in codes], f, budget(), NIGHT, canary_rows(), freeze_problems=lambda: [], checkpoint=lambda o: seen.append((len(o["lines"]), o["calls"])), checkpoint_every=3)
-    assert [n for n, _ in seen] == [3, 6] and seen[1][1] > seen[0][1]
+    assert [n for n, _ in seen][:2] == [3, 6] and seen[1][1] > seen[0][1]
 
 
 def test_a_night_with_few_lines_for_its_products_goes_red_as_low_yield_but_a_small_night_does_not():
-    codes = [f"3000000{i}" for i in range(40)]
-    extra = {c: product(has_photo=False) for c in codes}                                              # nothing can be shown
-    f = readers_for([], extra)
+    codes = ordered([f"3000000{i:02d}" for i in range(40)])
+    f = readers_for([], {c: product(has_photo=False) for c in codes})                                 # nothing can be shown
     s = ql.new_state()
     out = nt.run_night(s, [cand(c) for c in codes], f, budget(), NIGHT, canary_rows(), freeze_problems=lambda: [])
-    assert out["stopped"] == "low_yield" and out["products"] == 40 and len(s["done"]) == 40            # the state is still saved: they are final silences
+    assert out["stopped"] == "low_yield" and out["products"] == nt.HOLD and s["done"] == {} and out["held_back"] == nt.HOLD      # stopped at the 20th product, and NOTHING was burned
+    assert len(s["items"]) == 40 and all(i["attempts"] == 0 for i in s["items"].values())
     few = codes[:10]
     f2 = readers_for([], {c: product(has_photo=False) for c in few})
     assert nt.run_night(ql.new_state(), [cand(c) for c in few], f2, budget(), NIGHT, canary_rows(), freeze_problems=lambda: [])["stopped"] is None
+
+
+def test_the_end_of_night_yield_check_runs_before_the_last_results_are_settled():
+    codes = ordered([f"3000000{i:02d}" for i in range(33)])
+    extra = {c: product(has_photo=(i % 3 == 0)) for i, c in enumerate(codes)}                         # a third give lines: 33% is under the 40% floor, but the window never holds 3 or fewer
+    s = ql.new_state()
+    out = nt.run_night(s, [cand(c) for c in codes], readers_for([], extra), budget(), NIGHT, canary_rows(), freeze_problems=lambda: [])
+    assert out["stopped"] == "low_yield" and out["held_back"] == nt.HOLD and len(s["done"]) == 33 - nt.HOLD and len(s["items"]) == nt.HOLD
+
+
+def test_a_healthy_night_is_never_stopped_and_settles_everything_at_the_end():
+    codes = ordered([f"3000000{i:02d}" for i in range(36)])
+    extra = {c: product(has_photo=(i % 3 != 0)) for i, c in enumerate(codes)}                         # two thirds give lines, a third have no photo
+    s = ql.new_state()
+    out = nt.run_night(s, [cand(c) for c in codes], readers_for([], extra), budget(), NIGHT, canary_rows(), freeze_problems=lambda: [])
+    assert out["stopped"] is None and "held_back" not in out and len(s["done"]) == 36 and s["items"] == {} and len(out["lines"]) == 24
+
+
+def test_an_unusable_model_reply_is_not_final_it_is_retried_on_later_nights_and_given_up_after_three():
+    s = ql.new_state()
+    code = "30000001"
+    for night_no, day in enumerate(("2026-11-13", "2026-11-14", "2026-11-15"), 1):
+        f = readers_for([code], {code: product(text_v=[unusable(), unusable()])})
+        out = nt.run_night(s, [cand(code)], f, budget(), day, canary_rows(), freeze_problems=lambda: [])
+        assert out["stopped"] is None and out["errors"] == {"text_unusable": 1} and out["silences"] == {}
+        assert (code in s["items"] and s["items"][code]["attempts"] == night_no) or (night_no == 3 and s["done"][code]["outcome"] == "gave_up")
+    f = readers_for([code], {code: product()})                                                         # a good reading on a later night still gives a line (a gave_up product is read afresh after 14 days)
+    out = nt.run_night(s, [cand(code)], f, budget(), "2026-11-30", canary_rows(), freeze_problems=lambda: [])
+    assert [ln["code"] for ln in out["lines"]] == [code]
+
+
+def test_a_stretch_of_model_failures_stops_the_night_red_as_model_trouble_and_burns_no_product():
+    codes = ordered([f"3000000{i:02d}" for i in range(30)])
+    extra = {c: product(text_v=[unusable(), unusable()]) for c in codes}
+    s = ql.new_state()
+    out = nt.run_night(s, [cand(c) for c in codes], readers_for([], extra), budget(), NIGHT, canary_rows(), freeze_problems=lambda: [])
+    assert out["stopped"] == "model_trouble" and out["products"] == nt.MODEL_TROUBLE_MIN and out["held_back"] == nt.MODEL_TROUBLE_MIN
+    assert s["done"] == {} and len(s["items"]) == 30 and all(i["attempts"] == 0 for i in s["items"].values())
+
+
+def test_the_call_ceiling_still_settles_what_was_read_before_it():
+    codes = ordered([f"3000000{i:02d}" for i in range(10)])
+    s = ql.new_state()
+    out = nt.run_night(s, [cand(c) for c in codes], readers_for(codes), budget(max_calls=6 + 8), NIGHT, canary_rows(), freeze_problems=lambda: [])       # canary 6 calls + four products
+    assert out["stopped"] == "call_ceiling" and len(out["lines"]) == 4 and len(s["done"]) == 4 and "held_back" not in out

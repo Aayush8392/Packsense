@@ -27,7 +27,7 @@ from nightly import night as nt  # noqa: E402
 from nightly import queue_lib as ql  # noqa: E402
 from nightly import store as st  # noqa: E402
 
-RED_STOPS = {"freeze_broken", "canary_failed", "model_mismatch", "503_streak", "time_limit", "off_unavailable", "low_yield"}      # call_ceiling is a normal end
+RED_STOPS = {"freeze_broken", "canary_failed", "model_mismatch", "503_streak", "time_limit", "off_unavailable", "low_yield", "model_trouble"}      # call_ceiling is a normal end
 MAX_EXPORT_AGE_DAYS = 2        # a real night refuses a candidates export older than this
 MODES = ("fetch-only", "scratch", "real")
 
@@ -103,7 +103,8 @@ def run(mode: str, env: dict, night: str, limit: int = 30, max_calls: int = bd.M
     why = f" (missed: {c['missed_reasons']})" if c.get("missed_reasons") else ""             # counts by reason only; the codes stay in the private run record
     out(f"night {night} ({mode}): stopped {summary['stopped']}, calls {summary.get('calls', 0)}, products {summary['products']}, lines {len(summary['lines'])}, "
         f"silences {summary['silences'] or 'none'}, errors {summary['errors'] or 'none'}, canary {c.get('agreed', '-')}/{c.get('total', '-')}{why}, invalid candidates {summary['invalid_candidates']}, "
-        f"checkpoints {saves['checkpoints']} (failed {saves['checkpoint_failures']}), queue {summary.get('queue')}")
+        f"checkpoints {saves['checkpoints']} (failed {saves['checkpoint_failures']}), queue {summary.get('queue')}"
+        + (f", held back unsettled {summary['held_back']}" if summary.get("held_back") else ""))
     return 1 if summary["stopped"] in RED_STOPS else 0
 
 
