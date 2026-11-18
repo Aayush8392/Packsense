@@ -1,4 +1,5 @@
 """Tests for the nightly entry point (nightly/run_nightly.py): setup errors, the three modes, exit codes, counts-only output, red nights still written."""
+import base64
 import json
 import sys
 from pathlib import Path
@@ -31,7 +32,7 @@ class Backend:
 
 def inputs(n=3, canary=3, exported="2026-11-13"):
     cands = [{"code": f"3000000{i}", "stored": STORED, "new": i == 0} for i in range(n)]
-    can = [{"code": f"2000000{i}", "stored": STORED, "expected": VALUES} for i in range(canary)]
+    can = [{"code": f"2000000{i}", "stored": STORED, "expected": VALUES, "ocr_text": TEXT, "photo_b64": base64.b64encode(b"x" * 2000).decode()} for i in range(canary)]
     return {st.CANDIDATES: json.dumps({"exported": exported, "candidates": cands}).encode(), st.CANARY: json.dumps({"canary": can}).encode()}
 
 
@@ -171,3 +172,55 @@ def test_the_summary_counts_invalid_candidates_without_naming_them():
     files[st.CANDIDATES] = json.dumps(doc).encode()
     out = []
     assert go("real", Backend(files), Readers(), out) == 0 and "invalid candidates 1" in out[0] and "30000099" not in out[0]
+
+
+# ---------------------------------------------------------------- the canary reads saved inputs (decided 2026-11-18)
+class LoggingReaders(Readers):
+    def __init__(self):
+        super().__init__()
+        self.fetched = []
+
+    def fetch(self, code):
+        self.fetched.append(code)
+        return super().fetch(code)
+
+
+def test_the_canary_never_fetches_from_off_so_a_failing_off_cannot_fail_it():
+    r = LoggingReaders()
+    b, out = Backend(inputs()), []
+    assert go("real", b, r, out) == 0 and "canary 3/3" in out[0]
+    assert not any(c.startswith("2000000") for c in r.fetched) and len(r.fetched) == 3            # only the three queue products were fetched
+    down = Readers(fail_fetch=True)                                                                  # OFF is down for every fetch: the canary does not care, the queue products are errors
+    b2, out2 = Backend(inputs()), []
+    go("real", b2, down, out2)
+    assert "canary 3/3" in out2[0] and "canary_failed" not in out2[0]
+
+
+def test_a_canary_file_without_saved_inputs_is_refused_and_nothing_is_written():
+    files = inputs()
+    old = [{"code": "20000000", "stored": STORED, "expected": VALUES}]
+    files[st.CANARY] = json.dumps({"canary": old}).encode()
+    b, out = Backend(files), []
+    assert go("real", b, Readers(), out) == 2 and out == ["input error: a canary row has no saved scan text or photo"] and b.commits == []
+
+
+def test_a_corrupt_or_tiny_saved_photo_is_refused():
+    for bad in ("not base64 !!", base64.b64encode(b"x" * 10).decode()):
+        files = inputs()
+        can = json.loads(files[st.CANARY])
+        can["canary"][0]["photo_b64"] = bad
+        files[st.CANARY] = json.dumps(can).encode()
+        b, out = Backend(files), []
+        assert go("real", b, Readers(), out) == 2 and out[0].startswith("input error: a canary row has a photo") and b.commits == []
+
+
+def test_a_failed_canary_prints_the_miss_reasons_as_counts_only_and_the_codes_stay_in_the_record():
+    class Disagree(Readers):
+        def photo_reader(self, code, photo):
+            self.calls += 1
+            return entry({**VALUES, "fat": 5.0, "carbohydrates": 89.0, "proteins": 1.0})
+    b, out = Backend(inputs()), []
+    assert go("real", b, Disagree(), out) == 1
+    assert "canary 0/3" in out[0] and "silence:no_agreement" in out[0] and "2000000" not in out[0]
+    rec = json.loads(b.files["runs/2026-11-13.json"])
+    assert rec["canary"]["missed_detail"]["20000000"] == "silence:no_agreement" and rec["canary"]["missed_reasons"] == {"silence:no_agreement": 3}

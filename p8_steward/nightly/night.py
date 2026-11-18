@@ -100,13 +100,42 @@ def process_product(cand: dict, readers, budget: Budget, night: str, model: str 
         return _result(code, "error", "unexpected:" + type(e).__name__, calls=spent())
 
 
+class _SavedFetch:
+    """What the canary reads from. A canary row that carries its own SAVED inputs ('ocr_text' and 'photo': the scan text and the resized photo, as the night's fetch makes them) is read from
+    those, with no Open Food Facts request at all: a failed or changed OFF record can then never look like a wrong reading, and a miss means the model or the method changed (decided 2026-11-18
+    after the 17 and 18 Nov canary failures). A row without saved inputs (an older file, a unit test) still reads live. The two model readers are the real ones either way."""
+
+    def __init__(self, readers, row: dict):
+        self._readers, self._row = readers, row
+
+    def fetch(self, code: str) -> dict:
+        if self._row.get("ocr_text") is not None and self._row.get("photo") is not None:
+            return {"has_photo": True, "ocr_text": self._row["ocr_text"], "photo": self._row["photo"]}
+        return self._readers.fetch(code)
+
+    def text_reader(self, *args, **kwargs):
+        return self._readers.text_reader(*args, **kwargs)
+
+    def photo_reader(self, *args, **kwargs):
+        return self._readers.photo_reader(*args, **kwargs)
+
+
 def run_canary(canary_rows: list[dict], readers, budget: Budget, night: str, model: str = pm.MODEL, max_miss: int = cn.MAX_MISS) -> dict:
-    """canary_rows: [{'code', 'stored', 'expected': table}]; reads each through the same pipeline and compares with the saved right tables."""
-    produced = {}
+    """canary_rows: [{'code', 'stored', 'expected': table, optional saved 'ocr_text' and 'photo'}]; reads each through the same pipeline and compares with the saved right tables.
+    The result also says WHY each product missed ('missed_detail': code -> outcome:reason, or 'disagrees' for a shown line that differs) and counts them ('missed_reasons': counts only)."""
+    produced, detail = {}, {}
     for row in canary_rows:
-        r = process_product(row, readers, budget, night, model)
+        r = process_product(row, _SavedFetch(readers, row), budget, night, model)
         produced[row["code"]] = r["line"]["values"] if r["line"] else None
-    return cn.compare(produced, {r["code"]: r["expected"] for r in canary_rows}, max_miss)
+        if r["line"] is None:
+            detail[row["code"]] = f"{r['outcome']}:{r['reason']}"
+    result = cn.compare(produced, {r["code"]: r["expected"] for r in canary_rows}, max_miss)
+    result["missed_detail"] = {c: detail.get(c, "disagrees") for c in result["missed"]}
+    reasons: dict[str, int] = {}
+    for why in result["missed_detail"].values():
+        reasons[why] = reasons.get(why, 0) + 1
+    result["missed_reasons"] = reasons
+    return result
 
 
 OFF_STREAK = 5               # provisional: consecutive products whose OFF fetch failed before the night stops (red)

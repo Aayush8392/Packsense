@@ -100,8 +100,9 @@ def run(mode: str, env: dict, night: str, limit: int = 30, max_calls: int = bd.M
         out(f"save error: {e}; this night's {len(summary['lines'])} lines and queue changes are lost (checkpoints saved {saves['checkpoints']}, failed {saves['checkpoint_failures']})")
         return 3
     c = summary.get("canary") or {}
+    why = f" (missed: {c['missed_reasons']})" if c.get("missed_reasons") else ""             # counts by reason only; the codes stay in the private run record
     out(f"night {night} ({mode}): stopped {summary['stopped']}, calls {summary.get('calls', 0)}, products {summary['products']}, lines {len(summary['lines'])}, "
-        f"silences {summary['silences'] or 'none'}, errors {summary['errors'] or 'none'}, canary {c.get('agreed', '-')}/{c.get('total', '-')}, invalid candidates {summary['invalid_candidates']}, "
+        f"silences {summary['silences'] or 'none'}, errors {summary['errors'] or 'none'}, canary {c.get('agreed', '-')}/{c.get('total', '-')}{why}, invalid candidates {summary['invalid_candidates']}, "
         f"checkpoints {saves['checkpoints']} (failed {saves['checkpoint_failures']}), queue {summary.get('queue')}")
     return 1 if summary["stopped"] in RED_STOPS else 0
 

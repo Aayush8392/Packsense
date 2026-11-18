@@ -1,7 +1,8 @@
 """The results dataset of the nightly job (A121 settled 2026-11-13): a PRIVATE Hugging Face dataset that holds the job's input, its state and its output.
 
   input/candidates.json   {"exported": date, "candidates": [{"code", "stored": {per-100 record}, "new": bool}]}   written by the Databricks export (until it exists: by hand)
-  input/canary.json       {"canary": [{"code", "stored", "expected": {the saved right table}}]}                    the known-right canary products
+  input/canary.json       {"canary": [{"code", "stored", "expected": {the saved right table}, "ocr_text": the scan text, "photo_b64": the resized photo, base64}]}   the known-right canary
+                          products WITH their saved inputs (about 5 MB; never fetched from OFF; a row without them is refused)
   queue.json              the retry queue (queue_lib state)
   lines/current.json      {code: line}   every line that is still valid (its product is done as 'line' in the queue); the site build reads this file
   lines/<night>.json      [line, ...]    the lines added by that night's run (a second run of the same night adds to it, never replaces it)
@@ -12,6 +13,7 @@ dict; `HfBackend` is the real one (huggingface_hub, imported only when used). A 
 """
 from __future__ import annotations
 
+import base64
 import datetime as dt
 import json
 import math
@@ -149,6 +151,16 @@ class Store:
         for r in rows:
             if not (isinstance(r, dict) and isinstance(r.get("code"), str) and isinstance(r.get("stored"), dict) and isinstance(r.get("expected"), dict)):
                 raise StoreError("a canary row has the wrong shape")
+            # the SAVED inputs (decided 2026-11-18): the canary never fetches from OFF. A row without them is refused, so the night does not run on a canary file that would read live.
+            text, b64 = r.get("ocr_text"), r.get("photo_b64")
+            if not (isinstance(text, str) and text.strip() and isinstance(b64, str) and b64):
+                raise StoreError("a canary row has no saved scan text or photo")
+            try:
+                r["photo"] = base64.b64decode(b64, validate=True)
+            except (ValueError, TypeError):
+                raise StoreError("a canary row has a photo that is not valid base64") from None
+            if len(r["photo"]) < 1000:
+                raise StoreError("a canary row has a photo that is too small to be one")
         return rows
 
     def save_night(self, night: str, state: dict, summary: dict) -> None:
