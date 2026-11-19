@@ -41,7 +41,10 @@ JOB_NAMES_NOT_REPORTED = (
 PIPELINE_SUBJECT = "pipeline"   # the subject of the 'right now' timestamps (not a job, so the jobs table filters it out by name)
 MANIFESTS_TO_READ = 5      # the newest capture manifests read for the arrival times (a day can hold two: Databricks and the GitHub second path)
 LOOKBACK_DAYS = 3         # each run refreshes the last three UTC days of job rows (system tables lag by hours)
-SUCCESS_WINDOW_DAYS = 30   # "hours since the last success" looks this far back
+SUCCESS_WINDOW_DAYS = 45   # "hours since the last success" looks this far back (longer than every STALE_LIMIT_HOURS entry, or an overdue job would just vanish)
+# The monthly jobs' alarm. They had their own healthchecks checks (the free plan holds 20); the daily health job now fails, and pings /fail with the
+# job's name and age, when their newest success is older than this: 35 days = a 31-day month plus a margin of four days.
+STALE_LIMIT_HOURS = {"packsense-egress-check": 35 * 24, "packsense-release": 35 * 24}
 
 
 def ddl() -> str:
@@ -123,13 +126,46 @@ def job_rows(rows, collected_at, run_id) -> list[dict]:
     return out
 
 
+def _age_hours(now: dt.datetime, last: dt.datetime) -> float:
+    """Hours from `last` to `now` (a time with a zone is read as UTC and made plain, like `now`)."""
+    return (now - last.replace(tzinfo=None)).total_seconds() / 3600 if getattr(last, "tzinfo", None) else (now - last).total_seconds() / 3600
+
+
+def limits_from_text(text: str) -> dict | None:
+    """The test override of the notebook's `stale_limit_hours` widget: blank means the real limits; a positive number is one limit for every limited job
+    (used to plant a violation on the live job). Raises ValueError for anything else."""
+    text = (text or "").strip()
+    if not text:
+        return None
+    hours = float(text)
+    if not hours > 0:
+        raise ValueError(f"stale_limit_hours must be a positive number, got {text!r}")
+    return {name: hours for name in STALE_LIMIT_HOURS}
+
+
+def stale_jobs(last_rows, now: dt.datetime, limits: dict | None = None) -> list[str]:
+    """One sentence per limited job whose newest success is older than its limit, or that has none in the window (silence is an alarm here, not a missing row)."""
+    limits = STALE_LIMIT_HOURS if limits is None else limits
+    newest = {subject: last for subject, last in last_rows if last is not None}
+    out = []
+    for name, limit in limits.items():
+        last = newest.get(name)
+        if last is None:
+            out.append(f"{name}: no success in the last {SUCCESS_WINDOW_DAYS} days (limit {limit / 24:g} days)")
+            continue
+        hours = _age_hours(now, last)
+        if hours > limit:
+            out.append(f"{name}: last success {hours / 24:.1f} days ago (limit {limit / 24:g} days)")
+    return out
+
+
 def success_age_rows(rows, today: dt.date, now: dt.datetime, collected_at, run_id) -> list[dict]:
     """Hours since each job's last success; a job with none in the window gets no row (the page shows it as missing)."""
     out = []
     for subject, last in rows:
         if last is None:
             continue
-        hours = (now - last.replace(tzinfo=None)).total_seconds() / 3600 if getattr(last, "tzinfo", None) else (now - last).total_seconds() / 3600
+        hours = _age_hours(now, last)
         out.append({"metric_date": today, "subject": subject, "metric": "hours_since_last_success", "value": round(max(hours, 0.0), 2), "unit": "hours",
                     "detail": None, "collected_at": collected_at, "job_run_id": run_id})
     return out

@@ -42,12 +42,14 @@ dbutils.widgets.text("run_id", "manual")
 dbutils.widgets.text("secret_scope", "packsense_health")
 dbutils.widgets.text("ping_healthchecks", "true")
 dbutils.widgets.text("dry_run", "false")
+dbutils.widgets.text("stale_limit_hours", "")      # TEST ONLY: one limit (hours) for every monthly job, to plant a violation on the live job; blank = the real limits
 dbutils.widgets.text("landing", "/Volumes/workspace/packsense/landing")
 LANDING = dbutils.widgets.get("landing").strip().rstrip("/")
 SCOPE = dbutils.widgets.get("secret_scope").strip()
 PING = dbutils.widgets.get("ping_healthchecks").strip().lower() == "true"
 DRY = dbutils.widgets.get("dry_run").strip().lower() == "true"
 RUN_ID = dbutils.widgets.get("run_id")
+STALE_LIMITS = lib.limits_from_text(dbutils.widgets.get("stale_limit_hours"))
 
 ping_url = None
 if PING:
@@ -112,14 +114,16 @@ try:
         print("merged", len(rows), "rows into", lib.FULL_TABLE)
 
     bad = lib.failures(results)
-    if bad:
-        text = "services not reachable: " + "; ".join(bad)
+    stale = lib.stale_jobs(last, now, STALE_LIMITS)     # the monthly jobs' alarm (they no longer have their own healthchecks checks)
+    problems = ([("services not reachable: " + "; ".join(bad))] if bad else []) + ([("jobs overdue: " + "; ".join(stale))] if stale else [])
+    if problems:
+        text = " | ".join(problems)
         ping("/fail", text)
-        raise RuntimeError(text)
-    ping("", f"{len(rows)} rows, {len(results)} services reachable")
-    summary = json.dumps({"rows": len(rows), "failed_services": 0})
+        raise RuntimeError("health alert: " + text)
+    ping("", f"{len(rows)} rows, {len(results)} services reachable, monthly jobs on time")
+    summary = json.dumps({"rows": len(rows), "failed_services": 0, "overdue_jobs": 0})
 except Exception as e:
-    if "services not reachable" not in str(e):
+    if not str(e).startswith("health alert: "):
         ping("/fail", f"{type(e).__name__}: {str(e)[:400]}")
     raise
 

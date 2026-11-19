@@ -191,3 +191,69 @@ def test_a_missing_value_gets_no_row():
 
 def test_the_pipeline_subject_never_matches_a_job_name_or_the_page_filter():
     assert lib.PIPELINE_SUBJECT not in lib.JOB_NAMES and not lib.PIPELINE_SUBJECT.startswith("packsense-")
+
+
+# --- the monthly jobs' alarm (folded in from their own healthchecks checks, 2026-11-19) ------------------------------------------------
+
+def _days_ago(days, hours=0):
+    return NOW - dt.timedelta(days=days, hours=hours)
+
+
+def test_a_monthly_job_inside_its_limit_raises_no_alarm():
+    last = [("packsense-egress-check", _days_ago(20)), ("packsense-release", _days_ago(34, 23))]
+    assert lib.stale_jobs(last, NOW) == []
+
+
+def test_a_monthly_job_past_its_limit_is_named_with_its_age():
+    last = [("packsense-egress-check", _days_ago(36)), ("packsense-release", _days_ago(2))]
+    (msg,) = lib.stale_jobs(last, NOW)
+    assert msg.startswith("packsense-egress-check: last success 36.0 days ago") and "limit 35 days" in msg
+
+
+def test_a_monthly_job_with_no_success_in_the_window_is_stale_and_not_silent():
+    (msg,) = lib.stale_jobs([("packsense-release", _days_ago(1))], NOW)
+    assert msg.startswith("packsense-egress-check: no success in the last 45 days")
+    assert len(lib.stale_jobs([], NOW)) == 2
+    assert len(lib.stale_jobs([("packsense-egress-check", None), ("packsense-release", None)], NOW)) == 2
+
+
+def test_jobs_without_a_limit_are_never_flagged_even_when_very_old():
+    last = [("packsense-egress-check", _days_ago(1)), ("packsense-release", _days_ago(1)),
+            ("packsense-snapshots", _days_ago(400)), ("packsense-reconcile-load", _days_ago(90))]
+    assert lib.stale_jobs(last, NOW) == []
+
+
+def test_the_success_window_is_longer_than_every_limit_and_is_in_the_query():
+    assert lib.SUCCESS_WINDOW_DAYS * 24 > max(lib.STALE_LIMIT_HOURS.values())
+    assert f"timestamp'{(TODAY - dt.timedelta(days=lib.SUCCESS_WINDOW_DAYS)).isoformat()}'" in lib.last_success_sql(TODAY)
+
+
+def test_every_limited_job_is_a_reported_job():
+    assert set(lib.STALE_LIMIT_HOURS) <= set(lib.JOB_NAMES)
+    assert set(lib.STALE_LIMIT_HOURS) == {"packsense-egress-check", "packsense-release"}
+
+
+def test_the_test_override_text_sets_one_limit_for_every_limited_job_and_blank_means_none():
+    assert lib.limits_from_text("") is None and lib.limits_from_text("   ") is None
+    assert lib.limits_from_text("1") == {n: 1.0 for n in lib.STALE_LIMIT_HOURS}
+    for bad in ("abc", "0", "-5"):
+        try:
+            lib.limits_from_text(bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"{bad!r} must be refused")
+
+
+def test_a_planted_override_flags_both_jobs_even_when_they_are_fresh():
+    last = [("packsense-egress-check", _days_ago(0, 2)), ("packsense-release", _days_ago(0, 2))]
+    assert lib.stale_jobs(last, NOW) == []
+    got = lib.stale_jobs(last, NOW, lib.limits_from_text("1"))
+    assert [m.split(":")[0] for m in got] == ["packsense-egress-check", "packsense-release"]
+
+
+def test_the_notebook_raises_one_alarm_for_services_and_overdue_jobs_and_keeps_the_marker():
+    text = NOTEBOOK.read_text(encoding="utf-8")
+    assert "lib.stale_jobs(" in text and "stale_limit_hours" in text
+    assert 'RuntimeError("health alert: " + text)' in text
+    assert 'not str(e).startswith("health alert: ")' in text
+    assert "services not reachable: " in text and "jobs overdue: " in text
