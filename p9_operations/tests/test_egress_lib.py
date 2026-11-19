@@ -68,10 +68,11 @@ def test_the_summary_names_every_failing_service():
     assert text.startswith("2 of 7 outside services failed") and "PyPI" in text and "Hugging Face" in text and "delta index" not in text
 
 
-def test_the_notebook_goes_red_and_pings_fail_on_any_failure_and_uses_no_secret_but_the_ping_url():
+def test_the_notebook_goes_red_on_any_failure_and_uses_no_secret_and_sends_no_ping():
+    # the monthly alarm is the daily health job (p9_operations/health_lib.py STALE_LIMIT_HOURS): this notebook only has to fail when a service does
     text = (HERE.parent / "notebooks" / "egress_check.py").read_text(encoding="utf-8")
-    assert 'ping("/fail", text)' in text and "raise RuntimeError(text)" in text and "lib.check_all()" in text
-    assert text.count("dbutils.secrets.get") == 1 and "healthchecks_egress_ping_url" in text
+    assert "raise RuntimeError(text)" in text and "lib.check_all()" in text
+    assert "dbutils.secrets" not in text and "ping" not in text and "requests" not in text
 
 
 def test_the_egress_job_runs_monthly_without_retry():

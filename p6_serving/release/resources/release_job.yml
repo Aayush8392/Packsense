@@ -17,4 +17,3 @@ resources:
             notebook_path: ../../notebooks/release_india.py
             base_parameters:
               run_id: "{{job.run_id}}"
-              ping_healthchecks: ${var.ping}

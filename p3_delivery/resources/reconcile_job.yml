@@ -81,5 +81,3 @@ resources:
             notebook_path: ../../p9_operations/notebooks/egress_check.py
             base_parameters:
               run_id: "{{job.run_id}}"
-              secret_scope: ${var.secret_scope}
-              ping_healthchecks: ${var.ping}

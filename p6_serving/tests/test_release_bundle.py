@@ -65,3 +65,10 @@ def test_the_notebook_writes_nothing_before_the_build_and_never_prints_names():
 def test_the_schedule_is_monthly_and_after_the_daily_jobs():
     sec, minute, hour, dom = BUNDLE["variables"]["release_cron"]["default"].split()[:4]
     assert dom != "*" and int(hour) * 60 + int(minute) >= 10 * 60 + 30
+
+
+def test_the_release_sends_no_ping_its_alarm_is_the_daily_health_job():
+    assert "healthchecks_release_ping_url" not in sr.ALLOWED_SECRETS and sr.ALLOWED_SECRETS == ("hf_release_token",)
+    text = NOTEBOOK.read_text(encoding="utf-8")
+    assert "ping" not in text and "healthchecks" not in text and "requests.post" not in text
+    assert "ping_healthchecks" not in JOB["tasks"][0]["notebook_task"]["base_parameters"]

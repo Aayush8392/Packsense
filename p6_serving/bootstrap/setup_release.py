@@ -2,7 +2,6 @@
 
   python p6_serving/bootstrap/setup_release.py create-scope --env-file .env                                  makes the scope `packsense_release` (only the admin manages it)
   python p6_serving/bootstrap/setup_release.py put-secret --name hf_release_token --env-file .env             the Hugging Face WRITE token of the public release dataset
-  python p6_serving/bootstrap/setup_release.py put-secret --name healthchecks_release_ping_url --env-file .env   the ping URL of the check `packsense-release`
   python p6_serving/bootstrap/setup_release.py list --env-file .env
 
 The job `packsense-release` is admin-owned (no run_as): the exit function needs the plaintext contributor names that only bronze holds. The scope is therefore readable
@@ -15,7 +14,7 @@ import os
 import sys
 
 SCOPE = "packsense_release"
-ALLOWED_SECRETS = ("hf_release_token", "healthchecks_release_ping_url")
+ALLOWED_SECRETS = ("hf_release_token",)
 
 
 def load_env_file(path: str) -> None:
