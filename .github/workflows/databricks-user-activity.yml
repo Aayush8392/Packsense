@@ -1,0 +1,65 @@
+name: Databricks user activity (daily sign-in-token calls)
+
+# Second test of what keeps Databricks Free Edition from pausing scheduled jobs (see A124 and A126).
+# The admin-token keep-alive (databricks-keepalive.yml) did NOT prevent the pause on 19 Nov: the
+# workspace showed "Your workloads were paused while you were away" after about 6 to 7 days
+# without a web login. This job calls the API as the OWNER through an OAuth token that came
+# from a real browser sign-in (`databricks auth login`, refresh token stored as the repository
+# secret DATABRICKS_OAUTH_REFRESH_TOKEN). Whether that counts as activity is what is measured.
+# Two read-only calls, no compute, no checkout, no package install. The refresh token is reusable
+# (tested 19 Nov: the same token came back and the original still worked); if Databricks ever
+# issues a different one, this job fails on purpose so the stored copy is not left to go stale.
+
+on:
+  schedule:
+    # 01:35 UTC, before the 03:00 policy run, to allow for GitHub's cron lateness.
+    - cron: "35 1 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: databricks-user-activity
+  cancel-in-progress: false
+
+jobs:
+  user-activity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_OAUTH_REFRESH_TOKEN: ${{ secrets.DATABRICKS_OAUTH_REFRESH_TOKEN }}
+      HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_DBUSER_URL }}
+    steps:
+      - name: Tell healthchecks.io the run started
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/start" || true'
+      - name: Refresh the sign-in token and make two read-only calls as the owner
+        run: |
+          set -eu
+          [ -n "$DATABRICKS_HOST" ] && [ -n "$DATABRICKS_OAUTH_REFRESH_TOKEN" ] || { echo "missing host or refresh token"; exit 1; }
+          host="${DATABRICKS_HOST%/}"
+          reply=$(mktemp)
+          code=$(curl -sS -m 30 --retry 3 -o "$reply" -w '%{http_code}' \
+            --data "grant_type=refresh_token&client_id=databricks-cli&refresh_token=${DATABRICKS_OAUTH_REFRESH_TOKEN}" \
+            "${host}/oidc/v1/token")
+          echo "token refresh status: ${code}"
+          [ "${code}" = "200" ] || { echo "refresh refused (the refresh token may have expired)"; exit 1; }
+          access=$(jq -r '.access_token // empty' "$reply")
+          newrefresh=$(jq -r '.refresh_token // empty' "$reply")
+          [ -n "$access" ] || { echo "no access token in the reply"; exit 1; }
+          echo "::add-mask::${access}"
+          if [ -n "$newrefresh" ] && [ "$newrefresh" != "$DATABRICKS_OAUTH_REFRESH_TOKEN" ]; then
+            echo "Databricks issued a DIFFERENT refresh token: the stored copy will go stale. Failing on purpose."
+            exit 1
+          fi
+          me=$(curl -sS -m 30 --retry 3 -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${access}" "${host}/api/2.0/preview/scim/v2/Me")
+          echo "scim Me status: ${me}"
+          jobs=$(curl -sS -m 30 --retry 3 -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${access}" "${host}/api/2.1/jobs/list?limit=1")
+          echo "jobs list status: ${jobs}"
+          [ "${me}" = "200" ] && [ "${jobs}" = "200" ]
+      - name: Ping healthchecks.io (success)
+        if: success()
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL" || true'
+      - name: Ping healthchecks.io (failure)
+        if: failure()
+        run: '[ -n "$HEALTHCHECKS_PING_URL" ] && curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_PING_URL/fail" || true'
